@@ -1,31 +1,27 @@
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await Supabase.initialize(
-    url: 'https://sfiqzoogerojnqelsfxl.supabase.co',
-    publishableKey: 'sb_publishable_d4fJCXdGH1Zjvw2OyVkREA_GZWrUmN7',
-  );
-  print('Supabase initialized successfully!');
-  print(supabase.auth.currentUser);
-
-  runApp(const MyApp());
+void main() {
+  runApp(const PetMateApp());
 }
 
-final supabase = Supabase.instance.client;
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PetMateApp extends StatelessWidget {
+  const PetMateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
+    return MaterialApp(
+      title: 'PetMate',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+        ),
+        useMaterial3: true,
+      ),
+      home: const Scaffold(
         body: Center(
-          child: Text('Supabase Connected!'),
+          child: Text('PetMate'),
         ),
       ),
     );
