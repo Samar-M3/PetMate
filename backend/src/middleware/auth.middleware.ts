@@ -1,9 +1,20 @@
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import env from "../config/env.js";
-import prisma from "../config/db.js";
-import { AppError } from "./errorHandler.js";
+import env from "../config/env.ts";
+import prisma from "../config/db.ts";
+import { AppError } from "./errorHandler.ts";
+import type { JwtPayload, SafeUser } from "../modules/auth/auth.types.ts";
+import type { Role } from "../generated/prisma/enums.ts";
 
-export const authenticate = async (req, res, next) => {
+export interface AuthenticatedRequest extends Request {
+  user?: SafeUser;
+}
+
+export const authenticate = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -11,10 +22,10 @@ export const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    let decoded;
+    let decoded: JwtPayload;
     try {
-      decoded = jwt.verify(token, env.JWT_SECRET);
-    } catch (err) {
+      decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    } catch {
       return next(new AppError("Invalid or expired token", 401));
     }
 
@@ -42,15 +53,15 @@ export const authenticate = async (req, res, next) => {
       return next(new AppError("Account has been suspended. Please contact support.", 403));
     }
 
-    req.user = user;
+    req.user = user as SafeUser;
     next();
   } catch (error) {
     next(error);
   }
 };
 
-export const authorizeRoles = (...allowedRoles) => {
-  return (req, res, next) => {
+export const authorizeRoles = (...allowedRoles: Role[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       return next(new AppError("Authentication required", 401));
     }

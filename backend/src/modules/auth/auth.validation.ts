@@ -1,11 +1,13 @@
-import { AppError } from "../../middleware/errorHandler.js";
+import type { Request, Response, NextFunction } from "express";
+import { AppError } from "../../middleware/errorHandler.ts";
+import type { Role } from "../../generated/prisma/enums.ts";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ALLOWED_REGISTER_ROLES = ["PET_OWNER", "SELLER", "VETERINARIAN"];
+const ALLOWED_REGISTER_ROLES: Role[] = ["PET_OWNER", "SELLER", "VETERINARIAN"];
 
-export const validateRegisterInput = (req, res, next) => {
+export const validateRegisterInput = (req: Request, res: Response, next: NextFunction): void => {
   const { email, password, fullName, phoneNumber, role } = req.body;
-  const errors = [];
+  const errors: string[] = [];
 
   if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
     errors.push("A valid email address is required");
@@ -22,7 +24,7 @@ export const validateRegisterInput = (req, res, next) => {
   if (role) {
     if (role === "ADMIN") {
       errors.push("Admin accounts cannot be registered through public registration");
-    } else if (!ALLOWED_REGISTER_ROLES.includes(role)) {
+    } else if (!ALLOWED_REGISTER_ROLES.includes(role as Role)) {
       errors.push(`Invalid role. Allowed roles are: ${ALLOWED_REGISTER_ROLES.join(", ")}`);
     }
   }
@@ -43,9 +45,9 @@ export const validateRegisterInput = (req, res, next) => {
   next();
 };
 
-export const validateLoginInput = (req, res, next) => {
+export const validateLoginInput = (req: Request, res: Response, next: NextFunction): void => {
   const { email, password } = req.body;
-  const errors = [];
+  const errors: string[] = [];
 
   if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
     errors.push("A valid email address is required");
