@@ -1,16 +1,21 @@
 import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import env from "../config/env.ts";
+import { firebaseAuth } from "../config/firebase.ts";
 import prisma from "../config/db.ts";
 import { AppError } from "./errorHandler.ts";
-import type { JwtPayload, SafeUser } from "../modules/auth/auth.types.ts";
-import type { Role } from "../generated/prisma/enums.ts";
+import type { DecodedIdToken } from "firebase-admin/auth";
+import type { User, Profile } from "../generated/prisma/client.ts";
 
-export interface AuthenticatedRequest extends Request {
-  user?: SafeUser;
+export interface AuthenticatedUser extends User {
+  profile?: Profile | null;
 }
 
-export const authenticate = async (
+export interface AuthenticatedRequest extends Request {
+  firebaseUid?: string;
+  firebaseUser?: DecodedIdToken;
+  user?: AuthenticatedUser;
+}
+
+export const authenticateFirebase = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -18,63 +23,58 @@ export const authenticate = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next(new AppError("Authentication token is required", 401));
+      console.warn("[AuthMiddleware] ⚠️ Request missing Bearer authorization token header");
+      return next(new AppError("Authorization token is required (Bearer <token>)", 401));
     }
 
     const token = authHeader.split(" ")[1];
-    let decoded: JwtPayload;
+    let decodedToken: DecodedIdToken;
+
     try {
-      decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    } catch {
-      return next(new AppError("Invalid or expired token", 401));
+      console.log("[AuthMiddleware] 🔑 Verifying Firebase ID token...");
+      decodedToken = await firebaseAuth.verifyIdToken(token);
+      console.log(`[AuthMiddleware] ✅ Verified token for UID: ${decodedToken.uid} (email: ${decodedToken.email})`);
+    } catch (err: any) {
+      console.error("[AuthMiddleware] ❌ Firebase token verification failed:", err.message);
+      return next(new AppError(`Invalid or expired Firebase authentication token: ${err.message}`, 401));
     }
 
+    req.firebaseUid = decodedToken.uid;
+    req.firebaseUser = decodedToken;
+
+    // Look up existing PostgreSQL user record
+    console.log(`[AuthMiddleware] 🔍 Checking PostgreSQL for user: ${decodedToken.uid}`);
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phoneNumber: true,
-        role: true,
-        status: true,
-        profileImage: true,
-        address: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      where: { firebaseUid: decodedToken.uid },
+      include: { profile: true },
     });
 
-    if (!user) {
-      return next(new AppError("User account not found", 401));
+    if (user) {
+      console.log(`[AuthMiddleware] 👤 PostgreSQL user record found: ID ${user.id}`);
+      req.user = user;
+    } else {
+      console.log(`[AuthMiddleware] ℹ️ User ${decodedToken.uid} not yet in PostgreSQL`);
     }
 
-    if (user.status === "SUSPENDED") {
-      return next(new AppError("Account has been suspended. Please contact support.", 403));
-    }
-
-    req.user = user as SafeUser;
     next();
   } catch (error) {
+    console.error("[AuthMiddleware] ❌ Unexpected error in auth middleware:", error);
     next(error);
   }
 };
 
-export const authorizeRoles = (...allowedRoles: Role[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(new AppError("Authentication required", 401));
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(
-        new AppError(
-          `Access forbidden: Role '${req.user.role}' is not authorized to access this resource`,
-          403
-        )
-      );
-    }
-
-    next();
-  };
+export const requireInitializedUser = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    return next(
+      new AppError(
+        "User profile has not been initialized. Please complete registration initialization first.",
+        403
+      )
+    );
+  }
+  next();
 };

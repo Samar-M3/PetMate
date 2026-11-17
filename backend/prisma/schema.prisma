@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,31 +7,55 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  PET_OWNER
-  SELLER
-  VETERINARIAN
-  ADMIN
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-}
-
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  password     String
-  fullName     String
-  phoneNumber  String?
-  role         Role       @default(PET_OWNER)
-  status       UserStatus @default(ACTIVE)
-  profileImage String?
-  address      String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                  String    @id @default(uuid())
+  firebaseUid         String    @unique @map("firebase_uid")
+  email               String?
+  phoneNumber         String?   @map("phone_number")
+  onboardingCompleted Boolean   @default(false) @map("onboarding_completed")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  profile             Profile?
+  pets                Pet[]
 
   @@map("users")
 }
 
+model Profile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  fullName          String?  @map("full_name")
+  profilePictureUrl String?  @map("profile_picture_url")
+  location          String?
+  area              String?
+  bio               String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Pet {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  name              String
+  profilePictureUrl String?   @map("profile_picture_url")
+  animalType        String?   @map("animal_type")
+  breed             String?
+  gender            String?
+  dateOfBirth       DateTime? @map("date_of_birth")
+  color             String?
+  personality       String[]  @default([])
+  vaccinationStatus String?   @map("vaccination_status")
+  allergies         String?
+  description       String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pets")
+}

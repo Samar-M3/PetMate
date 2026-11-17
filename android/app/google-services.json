@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "376139253985",
+    "project_id": "petmate-d7a43",
+    "storage_bucket": "petmate-d7a43.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376139253985:android:db0dcc1394efb676bf8fa0",
+        "android_client_info": {
+          "package_name": "com.example.petmatee"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "376139253985-ekka6qr52s1nkn8a3gstts4va1nilahq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.petmatee",
+            "certificate_hash": "faa5035a7bd03940c15a9fb55d35ddf3fa9f8838"
+          }
+        },
+        {
+          "client_id": "376139253985-88k3dgcl2957v8bv6dqre8dv7tqv3hab.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGZe57uhYikvD2I3mfcsjIYJybMtHgST8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "376139253985-88k3dgcl2957v8bv6dqre8dv7tqv3hab.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
