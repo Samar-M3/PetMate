@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../care_events/screens/events_home_screen.dart';
+import '../../../care_events/screens/vet_appts_home_screen.dart';
 import '../providers/discovery_provider.dart';
 import '../providers/requests_provider.dart';
 import '../widgets/action_buttons.dart';
@@ -155,13 +157,8 @@ class _HomePageState extends ConsumerState<HomePage>
                   // Tab 1: Playdate Requests
                   const RequestsPage(),
 
-                  // Tab 2: Events
-                  const TabPlaceholderView(
-                    title: 'Pet Events & Meetups',
-                    subtitle: 'Discover pet shows, adoption drives, and community meetups near you.',
-                    icon: Icons.calendar_month_rounded,
-                    iconColor: Color(0xFF5D69B0),
-                  ),
+                  // Tab 2: Events (Your Events Screen)
+                  const EventsHomeScreen(),
 
                   // Tab 3: Shop
                   const TabPlaceholderView(
@@ -171,13 +168,8 @@ class _HomePageState extends ConsumerState<HomePage>
                     iconColor: Color(0xFFE68A00),
                   ),
 
-                  // Tab 4: Vet Appointments
-                  const TabPlaceholderView(
-                    title: 'Veterinarian Services',
-                    subtitle: 'Find verified veterinary clinics, check fees, and book appointments easily.',
-                    icon: Icons.medical_services_rounded,
-                    iconColor: AppColors.primary,
-                  ),
+                  // Tab 4: Vet Appointments (Your Vet Appts Screen)
+                  const VetApptsHomeScreen(),
                 ],
               ),
             ),
