@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { getSignature, uploadImage } from "./uploads.controller.ts";
+import { uploadImage } from "./uploads.controller.ts";
 import { authenticateFirebase } from "../../middleware/auth.middleware.ts";
+import { handleSingleImageUpload } from "../../middleware/upload.middleware.ts";
 
 const router = Router();
 
 // Protected with Firebase authentication
 router.use(authenticateFirebase);
 
-router.post("/signature", getSignature);
-router.post("/", uploadImage);
+// Upload endpoint supporting multipart "image" file
+router.post("/", handleSingleImageUpload("image"), uploadImage);
 
 export default router;

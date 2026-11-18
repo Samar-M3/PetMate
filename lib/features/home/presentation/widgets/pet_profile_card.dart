@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'owner_info_chip.dart';
 
@@ -36,34 +37,12 @@ class PetProfileCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Pet Full Cover Photo
-            Image.network(
-              pet.petImageUrl,
+            // 1. Pet Full Cover Photo with Cloudinary Optimization & Caching
+            AppNetworkImage(
+              imageUrl: pet.petImageUrl,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: AppColors.creamDark,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.creamDark,
-                  child: const Center(
-                    child: Icon(
-                      Icons.pets,
-                      size: 64,
-                      color: AppColors.primaryLight,
-                    ),
-                  ),
-                );
-              },
+              fallbackIcon: Icons.pets,
+              transformationWidth: 1080,
             ),
 
             // 2. Subtle Gradient Overlay for Top Contrast

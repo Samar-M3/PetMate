@@ -1,11 +1,22 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/firebase_auth_service.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../home/presentation/providers/discovery_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
+enum AuthStatus {
+  unknown,
+  authenticated,
+  unauthenticated,
+}
+
 class AuthState {
+  final AuthStatus status;
   final bool isLoading;
   final User? firebaseUser;
   final UserModel? user;
@@ -13,6 +24,7 @@ class AuthState {
   final String? errorMessage;
 
   const AuthState({
+    this.status = AuthStatus.unknown,
     this.isLoading = false,
     this.firebaseUser,
     this.user,
@@ -20,11 +32,14 @@ class AuthState {
     this.errorMessage,
   });
 
-  bool get isAuthenticated => firebaseUser != null;
+  bool get isUnknown => status == AuthStatus.unknown;
+  bool get isAuthenticated => status == AuthStatus.authenticated && firebaseUser != null;
+  bool get isUnauthenticated => status == AuthStatus.unauthenticated;
   bool get isOnboardingCompleted =>
       onboardingStatus?.onboardingCompleted ?? user?.onboardingCompleted ?? false;
 
   AuthState copyWith({
+    AuthStatus? status,
     bool? isLoading,
     User? firebaseUser,
     UserModel? user,
@@ -32,6 +47,7 @@ class AuthState {
     String? errorMessage,
   }) {
     return AuthState(
+      status: status ?? this.status,
       isLoading: isLoading ?? this.isLoading,
       firebaseUser: firebaseUser ?? this.firebaseUser,
       user: user ?? this.user,
@@ -41,44 +57,144 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends Notifier<AuthState> {
+class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
+  StreamSubscription<User?>? _authSubscription;
+  bool _isCleaningUp = false;
+
   @override
   AuthState build() {
-    Future.microtask(() => checkAuthAndOnboarding());
-    return const AuthState(isLoading: true);
+    WidgetsBinding.instance.addObserver(this);
+
+    _authSubscription?.cancel();
+    _authSubscription = _authService.idTokenChanges.listen(
+      _handleAuthUserChanged,
+      onError: (error) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Auth stream encountered error: $error');
+        }
+        _performCleanupAndResetState();
+      },
+    );
+
+    ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
+      _authSubscription?.cancel();
+    });
+
+    return const AuthState(status: AuthStatus.unknown, isLoading: true);
   }
 
   FirebaseAuthService get _authService => ref.read(firebaseAuthServiceProvider);
   AuthRepository get _repository => ref.read(authRepositoryProvider);
 
-  Future<void> checkAuthAndOnboarding() async {
-    final currentFbUser = _authService.currentUser;
-    if (currentFbUser == null) {
-      state = const AuthState(isLoading: false);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _authService.currentUser != null) {
+      _checkSessionFreshness();
+    }
+  }
+
+  Future<void> _checkSessionFreshness() async {
+    try {
+      await _authService.reloadUser();
+      final currentFbUser = _authService.currentUser;
+      if (currentFbUser != null) {
+        await _syncBackendProfile(currentFbUser);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthNotifier] Session reload on resume detected invalid session: $e');
+      }
+      await _performCleanupAndResetState();
+    }
+  }
+
+  Future<void> _handleAuthUserChanged(User? fbUser) async {
+    if (fbUser == null) {
+      await _performCleanupAndResetState();
       return;
     }
 
-    state = state.copyWith(isLoading: true, firebaseUser: currentFbUser, errorMessage: null);
+    // If already authenticated with the same UID and details are loaded, avoid duplicate fetch
+    if (state.status == AuthStatus.authenticated &&
+        state.firebaseUser?.uid == fbUser.uid &&
+        state.user != null) {
+      state = state.copyWith(firebaseUser: fbUser);
+      return;
+    }
+
+    await _syncBackendProfile(fbUser);
+  }
+
+  Future<void> _syncBackendProfile(User fbUser) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       final status = await _repository.getOnboardingStatus();
       UserModel? userDetails;
       if (status.isInitialized) {
         userDetails = await _repository.getMe();
+      } else {
+        userDetails = await _repository.initializeUser();
       }
 
       state = state.copyWith(
+        status: AuthStatus.authenticated,
         isLoading: false,
-        firebaseUser: currentFbUser,
+        firebaseUser: fbUser,
         user: userDetails,
         onboardingStatus: status,
+        errorMessage: null,
       );
     } catch (e) {
-      // In development or if backend user isn't initialized yet
+      if (kDebugMode) {
+        debugPrint('[AuthNotifier] Backend profile sync failed: $e');
+      }
       state = state.copyWith(
+        status: AuthStatus.authenticated,
         isLoading: false,
-        firebaseUser: currentFbUser,
+        firebaseUser: fbUser,
+        errorMessage: 'Backend synchronization failed. Please check network.',
       );
+    }
+  }
+
+  Future<void> _performCleanupAndResetState() async {
+    if (_isCleaningUp) return;
+    _isCleaningUp = true;
+
+    try {
+      // 1. Sign out of Firebase & Google
+      try {
+        await _authService.signOut();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Sign-out service error (ignored for complete cleanup): $e');
+        }
+      }
+
+      // 2. Clear legacy storage / SharedPreferences tokens
+      try {
+        await ref.read(storageServiceProvider).clearAuth();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Storage clear error: $e');
+        }
+      }
+
+      // 3. Reset user-specific Riverpod providers
+      try {
+        ref.read(discoveryProvider.notifier).resetDeck();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Provider reset error: $e');
+        }
+      }
+
+      // 4. Move state to unauthenticated
+      state = const AuthState(status: AuthStatus.unauthenticated, isLoading: false);
+    } finally {
+      _isCleaningUp = false;
     }
   }
 
@@ -90,22 +206,9 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
       );
 
-      final status = await _repository.getOnboardingStatus();
-      UserModel? userDetails;
-      if (status.isInitialized) {
-        userDetails = await _repository.getMe();
-      } else {
-        userDetails = await _repository.initializeUser();
-      }
-
-      state = state.copyWith(
-        isLoading: false,
-        firebaseUser: cred.user,
-        user: userDetails,
-        onboardingStatus: status,
-      );
-
-      return status.nextStep;
+      // Profile is synced via stream or fallback
+      await _syncBackendProfile(cred.user!);
+      return state.onboardingStatus?.nextStep ?? 'PET_INFO';
     } on FirebaseAuthException catch (e) {
       String msg = 'Authentication failed. Please check your credentials.';
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
@@ -126,29 +229,19 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<String?> loginWithGoogle() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      debugPrint('[AuthNotifier] 🔑 Launching Google Sign-In flow...');
       final cred = await _authService.signInWithGoogle();
-      debugPrint('[AuthNotifier] ✅ Firebase Google Auth succeeded: UID=${cred.user?.uid}, email=${cred.user?.email}');
-
-      debugPrint('[AuthNotifier] 🌐 Initializing user in PostgreSQL via Express backend...');
-      final user = await _repository.initializeUser();
-      debugPrint('[AuthNotifier] ✅ PostgreSQL user initialized: id=${user.id}');
-
-      debugPrint('[AuthNotifier] 🌐 Fetching onboarding status...');
-      final status = await _repository.getOnboardingStatus();
-      debugPrint('[AuthNotifier] 🏁 Onboarding status: nextStep=${status.nextStep}, completed=${status.onboardingCompleted}');
-
-      state = state.copyWith(
-        isLoading: false,
-        firebaseUser: cred.user,
-        user: user,
-        onboardingStatus: status,
-      );
-
-      return status.nextStep;
-    } catch (e, stack) {
-      debugPrint('[AuthNotifier] ❌ Google login failed: $e\n$stack');
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      await _syncBackendProfile(cred.user!);
+      return state.onboardingStatus?.nextStep ?? 'PET_INFO';
+    } catch (e) {
+      String msg = e.toString();
+      if (msg.contains('ApiException: 7') || msg.contains('network_error')) {
+        msg = 'Google network error (Code 7). Please ensure your phone has an active internet connection (Wi-Fi or Mobile Data) to reach Google services.';
+      } else if (msg.contains('ApiException: 10') || msg.contains('developer_error')) {
+        msg = 'Google configuration error (Code 10). Please verify SHA-1 fingerprint in Firebase Console.';
+      } else if (msg.contains('ApiException: 12500')) {
+        msg = 'Google Sign-In failed (Code 12500). Please check Google Play Services on your device.';
+      }
+      state = state.copyWith(isLoading: false, errorMessage: msg);
       return null;
     }
   }
@@ -160,23 +253,13 @@ class AuthNotifier extends Notifier<AuthState> {
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      // 1. Create account with Firebase Authentication
       final cred = await _authService.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // 2. Initialize PostgreSQL user record with Firebase UID and phone number
-      final user = await _repository.initializeUser(phoneNumber: phoneNumber);
-      final status = await _repository.getOnboardingStatus();
-
-      state = state.copyWith(
-        isLoading: false,
-        firebaseUser: cred.user,
-        user: user,
-        onboardingStatus: status,
-      );
-
+      await _repository.initializeUser(phoneNumber: phoneNumber);
+      await _syncBackendProfile(cred.user!);
       return true;
     } on FirebaseAuthException catch (e) {
       String msg = 'Registration failed.';
@@ -208,6 +291,8 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<PetModel?> addPet({
     required String name,
     String? profilePictureUrl,
+    String? imageUrl,
+    String? imagePublicId,
     required String animalType,
     required String breed,
     required String gender,
@@ -223,6 +308,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final pet = await _repository.createPet(
         name: name,
         profilePictureUrl: profilePictureUrl,
+        imageUrl: imageUrl,
+        imagePublicId: imagePublicId,
         animalType: animalType,
         breed: breed,
         gender: gender,
@@ -253,6 +340,8 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<bool> completeOwnerProfile({
     required String fullName,
     String? profilePictureUrl,
+    String? imageUrl,
+    String? imagePublicId,
     required String location,
     String? area,
     String? bio,
@@ -263,6 +352,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final updatedUser = await _repository.updateOwnerProfile(
         fullName: fullName,
         profilePictureUrl: profilePictureUrl,
+        imageUrl: imageUrl,
+        imagePublicId: imagePublicId,
         location: location,
         area: area,
         bio: bio,
@@ -286,9 +377,12 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _authService.signOut();
-    state = const AuthState();
+    await _performCleanupAndResetState();
   }
 }
 
 final authStateProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+
+final currentUserIdProvider = Provider<String?>((ref) {
+  return ref.watch(authStateProvider).firebaseUser?.uid;
+});

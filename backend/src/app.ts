@@ -3,6 +3,8 @@ import cors from "cors";
 import usersRoutes from "./modules/users/users.routes.ts";
 import petsRoutes from "./modules/pets/pets.routes.ts";
 import uploadsRoutes from "./modules/uploads/uploads.routes.ts";
+import adminRoutes from "./modules/admin/admin.routes.ts";
+import matchingRoutes from "./modules/matching/matching.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -45,6 +47,12 @@ app.use("/api/v1/pets", petsRoutes);
 
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/v1/uploads", uploadsRoutes);
+
+app.use("/api/admin", adminRoutes);
+app.use("/api/v1/admin", adminRoutes);
+
+app.use("/api", matchingRoutes);
+app.use("/api/v1", matchingRoutes);
 
 // Catch-all 404
 app.use((req: Request, res: Response, next: NextFunction) => {

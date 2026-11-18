@@ -1,14 +1,20 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
+import { Role } from "../../middleware/auth.middleware.ts";
 import {
   createPetForUser,
   getPetsForUser,
   getPetById,
   updatePetForUser,
   deletePetForUser,
+  uploadPetPhoto,
+  removePetPhoto,
 } from "./pets.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+
+const isAdmin = (req: AuthenticatedRequest): boolean =>
+  req.user?.role === Role.ADMIN;
 
 export const createPet = async (
   req: AuthenticatedRequest,
@@ -64,7 +70,7 @@ export const getSinglePet = async (
       return next(new AppError("User not found", 404));
     }
 
-    const pet = await getPetById(req.user.id, req.params.id as string);
+    const pet = await getPetById(req.user.id, req.params.id as string, isAdmin(req));
 
     sendSuccess(res, {
       statusCode: 200,
@@ -86,7 +92,12 @@ export const updatePet = async (
       return next(new AppError("User not found", 404));
     }
 
-    const pet = await updatePetForUser(req.user.id, req.params.id as string, req.body);
+    const pet = await updatePetForUser(
+      req.user.id,
+      req.params.id as string,
+      req.body,
+      isAdmin(req)
+    );
 
     sendSuccess(res, {
       statusCode: 200,
@@ -108,11 +119,64 @@ export const deletePet = async (
       return next(new AppError("User not found", 404));
     }
 
-    const result = await deletePetForUser(req.user.id, req.params.id as string);
+    const result = await deletePetForUser(req.user.id, req.params.id as string, isAdmin(req));
 
     sendSuccess(res, {
       statusCode: 200,
       message: "Pet deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPetImage = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (!req.file || !req.file.buffer) {
+      return next(new AppError("Image file is required under form field 'image'", 400));
+    }
+
+    const result = await uploadPetPhoto(
+      req.user.id,
+      req.params.id as string,
+      req.file.buffer,
+      isAdmin(req)
+    );
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Pet photo uploaded successfully to Cloudinary",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deletePetImageHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const result = await removePetPhoto(req.user.id, req.params.id as string, isAdmin(req));
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Pet photo removed successfully",
       data: result,
     });
   } catch (error) {

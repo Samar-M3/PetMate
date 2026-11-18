@@ -4,6 +4,7 @@ import {
   initializeUserRecord,
   getUserDetails,
   updateOwnerProfile,
+  updateUserAvatar,
   getOnboardingStatus,
 } from "./users.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
@@ -69,12 +70,26 @@ export const updateMe = async (
       return next(new AppError("User not found", 404));
     }
 
-    const { fullName, profilePictureUrl, location, area, bio, phoneNumber, onboardingCompleted } =
-      req.body;
+    // Strip role and isActive — never accept from client
+    const {
+      role: _ignoreRole,
+      isActive: _ignoreActive,
+      fullName,
+      profilePictureUrl,
+      imageUrl,
+      imagePublicId,
+      location,
+      area,
+      bio,
+      phoneNumber,
+      onboardingCompleted,
+    } = req.body;
 
     const user = await updateOwnerProfile(req.user.id, {
       fullName,
       profilePictureUrl,
+      imageUrl,
+      imagePublicId,
       location,
       area,
       bio,
@@ -86,6 +101,32 @@ export const updateMe = async (
       statusCode: 200,
       message: "Owner profile updated successfully",
       data: { user },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadAvatar = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (!req.file || !req.file.buffer) {
+      return next(new AppError("Image file is required under form field 'image'", 400));
+    }
+
+    const result = await updateUserAvatar(req.user.id, req.file.buffer);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Avatar uploaded successfully to Cloudinary",
+      data: result,
     });
   } catch (error) {
     next(error);

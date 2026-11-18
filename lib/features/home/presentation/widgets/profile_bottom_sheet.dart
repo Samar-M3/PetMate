@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -53,26 +54,12 @@ class ProfileBottomSheet extends ConsumerWidget {
           // User Header
           Row(
             children: [
-              CircleAvatar(
+              UserAvatar(
+                imageUrl: profile?.effectiveImageUrl ?? profile?.profilePictureUrl,
                 radius: 30,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                backgroundImage: profile?.profilePictureUrl != null &&
-                        profile!.profilePictureUrl!.isNotEmpty
-                    ? NetworkImage(profile.profilePictureUrl!)
-                    : null,
-                child: (profile?.profilePictureUrl == null ||
-                        profile!.profilePictureUrl!.isEmpty)
-                    ? Text(
-                        (profile?.fullName != null && profile!.fullName!.isNotEmpty)
-                            ? profile.fullName![0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
-                        ),
-                      )
-                    : null,
+                initials: (profile?.fullName != null && profile!.fullName!.isNotEmpty)
+                    ? profile.fullName![0].toUpperCase()
+                    : 'U',
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -191,15 +178,12 @@ class ProfileBottomSheet extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                          backgroundImage: pet.profilePictureUrl != null
-                              ? NetworkImage(pet.profilePictureUrl!)
-                              : null,
-                          child: pet.profilePictureUrl == null
-                              ? const Icon(Icons.pets, color: AppColors.primary, size: 20)
-                              : null,
+                        AppNetworkImage(
+                          imageUrl: pet.effectiveImageUrl ?? pet.profilePictureUrl,
+                          width: 44,
+                          height: 44,
+                          shape: BoxShape.circle,
+                          fallbackIcon: Icons.pets,
                         ),
                         const SizedBox(height: 6),
                         Text(

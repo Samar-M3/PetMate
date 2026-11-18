@@ -3,12 +3,14 @@ import {
   initializeUser,
   getMe,
   updateMe,
+  uploadAvatar,
   getStatus,
 } from "./users.controller.ts";
 import {
   authenticateFirebase,
   requireInitializedUser,
 } from "../../middleware/auth.middleware.ts";
+import { handleSingleImageUpload } from "../../middleware/upload.middleware.ts";
 
 const router = Router();
 
@@ -24,5 +26,13 @@ router.get("/onboarding-status", getStatus);
 // 3. User details and profile updates (requires initialized user)
 router.get("/me", requireInitializedUser, getMe);
 router.put("/me", requireInitializedUser, updateMe);
+
+// 4. User avatar upload (multipart field name: "image")
+router.post(
+  "/me/avatar",
+  requireInitializedUser,
+  handleSingleImageUpload("image"),
+  uploadAvatar
+);
 
 export default router;

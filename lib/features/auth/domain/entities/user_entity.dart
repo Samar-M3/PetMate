@@ -1,8 +1,12 @@
+import 'user_role.dart';
+
 class ProfileEntity {
   final String id;
   final String userId;
   final String? fullName;
   final String? profilePictureUrl;
+  final String? imageUrl;
+  final String? imagePublicId;
   final String? location;
   final String? area;
   final String? bio;
@@ -12,10 +16,14 @@ class ProfileEntity {
     required this.userId,
     this.fullName,
     this.profilePictureUrl,
+    this.imageUrl,
+    this.imagePublicId,
     this.location,
     this.area,
     this.bio,
   });
+
+  String? get effectiveImageUrl => imageUrl ?? profilePictureUrl;
 }
 
 class PetEntity {
@@ -23,6 +31,8 @@ class PetEntity {
   final String userId;
   final String name;
   final String? profilePictureUrl;
+  final String? imageUrl;
+  final String? imagePublicId;
   final String? animalType;
   final String? breed;
   final String? gender;
@@ -38,6 +48,8 @@ class PetEntity {
     required this.userId,
     required this.name,
     this.profilePictureUrl,
+    this.imageUrl,
+    this.imagePublicId,
     this.animalType,
     this.breed,
     this.gender,
@@ -48,6 +60,8 @@ class PetEntity {
     this.allergies,
     this.description,
   });
+
+  String? get effectiveImageUrl => imageUrl ?? profilePictureUrl;
 
   String get ageString {
     if (dateOfBirth == null) return 'Unknown age';
@@ -79,6 +93,8 @@ class UserEntity {
   final String firebaseUid;
   final String? email;
   final String? phoneNumber;
+  final UserRole role;
+  final bool isActive;
   final bool onboardingCompleted;
   final ProfileEntity? profile;
   final List<PetEntity> pets;
@@ -88,8 +104,14 @@ class UserEntity {
     required this.firebaseUid,
     this.email,
     this.phoneNumber,
+    this.role = UserRole.petOwner,
+    this.isActive = true,
     this.onboardingCompleted = false,
     this.profile,
     this.pets = const [],
   });
+
+  bool get isAdmin => role == UserRole.admin;
+  bool get isSeller => role == UserRole.seller;
+  bool get isVeterinarian => role == UserRole.veterinarian;
 }

@@ -8,6 +8,8 @@ class DiscoveryPet {
   final String petImageUrl;
   final List<String> personality;
   final String ownerName;
+  final String? ownerUsername;
+  final String? ownerId;
   final String? ownerAge;
   final String ownerLocation;
   final String? ownerAvatarUrl;
@@ -22,6 +24,8 @@ class DiscoveryPet {
     required this.petImageUrl,
     required this.personality,
     required this.ownerName,
+    this.ownerUsername,
+    this.ownerId,
     this.ownerAge,
     required this.ownerLocation,
     this.ownerAvatarUrl,

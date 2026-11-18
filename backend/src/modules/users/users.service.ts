@@ -1,5 +1,6 @@
 import prisma from "../../config/db.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+import { uploadImage, deleteImage } from "../../services/image.service.ts";
 
 export const initializeUserRecord = async (
   firebaseUid: string,
@@ -34,6 +35,7 @@ export const getUserDetails = async (userId: string) => {
       profile: true,
       pets: {
         orderBy: { createdAt: "desc" },
+        include: { images: true },
       },
     },
   });
@@ -48,6 +50,8 @@ export const getUserDetails = async (userId: string) => {
 export interface UpdateOwnerProfileDTO {
   fullName?: string;
   profilePictureUrl?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
   location?: string;
   area?: string;
   bio?: string;
@@ -59,6 +63,8 @@ export const updateOwnerProfile = async (
   userId: string,
   data: UpdateOwnerProfileDTO
 ) => {
+  const resolvedImageUrl = data.imageUrl || data.profilePictureUrl;
+
   return await prisma.$transaction(async (tx) => {
     // 1. Update phone number or onboarding status on User
     const updatedUser = await tx.user.update({
@@ -77,7 +83,9 @@ export const updateOwnerProfile = async (
       where: { userId },
       update: {
         fullName: data.fullName ?? undefined,
-        profilePictureUrl: data.profilePictureUrl ?? undefined,
+        profilePictureUrl: resolvedImageUrl ?? undefined,
+        imageUrl: resolvedImageUrl ?? undefined,
+        imagePublicId: data.imagePublicId ?? undefined,
         location: data.location ?? undefined,
         area: data.area ?? undefined,
         bio: data.bio ?? undefined,
@@ -85,7 +93,9 @@ export const updateOwnerProfile = async (
       create: {
         userId,
         fullName: data.fullName ?? null,
-        profilePictureUrl: data.profilePictureUrl ?? null,
+        profilePictureUrl: resolvedImageUrl ?? null,
+        imageUrl: resolvedImageUrl ?? null,
+        imagePublicId: data.imagePublicId ?? null,
         location: data.location ?? null,
         area: data.area ?? null,
         bio: data.bio ?? null,
@@ -97,6 +107,56 @@ export const updateOwnerProfile = async (
       profile,
     };
   });
+};
+
+/**
+ * Uploads user avatar to Cloudinary, updates DB, cleans up old image,
+ * and ensures no orphan image remains on DB failure.
+ */
+export const updateUserAvatar = async (userId: string, fileBuffer: Buffer) => {
+  // 1. Check existing profile for previous publicId
+  const existingProfile = await prisma.profile.findUnique({
+    where: { userId },
+  });
+
+  const oldPublicId = existingProfile?.imagePublicId;
+
+  // 2. Upload to Cloudinary with fixed publicId for avatars to allow overwrite
+  const avatarPublicId = `avatar_${userId}`;
+  const uploaded = await uploadImage(fileBuffer, "users", avatarPublicId);
+
+  // 3. Update database
+  try {
+    const updatedProfile = await prisma.profile.upsert({
+      where: { userId },
+      update: {
+        imageUrl: uploaded.imageUrl,
+        profilePictureUrl: uploaded.imageUrl,
+        imagePublicId: uploaded.imagePublicId,
+      },
+      create: {
+        userId,
+        imageUrl: uploaded.imageUrl,
+        profilePictureUrl: uploaded.imageUrl,
+        imagePublicId: uploaded.imagePublicId,
+      },
+    });
+
+    // 4. Delete old image if publicId changed
+    if (oldPublicId && oldPublicId !== uploaded.imagePublicId) {
+      await deleteImage(oldPublicId);
+    }
+
+    return {
+      imageUrl: updatedProfile.imageUrl!,
+      imagePublicId: updatedProfile.imagePublicId!,
+      profile: updatedProfile,
+    };
+  } catch (error) {
+    // If DB update fails, clean up the newly uploaded image immediately
+    await deleteImage(uploaded.imagePublicId);
+    throw error;
+  }
 };
 
 export const getOnboardingStatus = async (firebaseUid: string) => {
@@ -121,7 +181,12 @@ export const getOnboardingStatus = async (firebaseUid: string) => {
   }
 
   const hasPets = user.pets.length > 0;
-  const hasProfile = Boolean(user.profile && user.profile.fullName && user.profile.location);
+  const hasProfile = Boolean(
+    user.profile &&
+      user.profile.fullName &&
+      user.profile.location &&
+      (user.profile.imageUrl || user.profile.profilePictureUrl)
+  );
 
   let nextStep: "INITIALIZE" | "PET_INFO" | "OWNER_INFO" | "COMPLETED" = "COMPLETED";
   if (!user.onboardingCompleted) {

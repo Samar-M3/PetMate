@@ -1,4 +1,5 @@
 import '../../domain/entities/user_entity.dart';
+import '../../domain/entities/user_role.dart';
 
 class ProfileModel extends ProfileEntity {
   const ProfileModel({
@@ -6,17 +7,26 @@ class ProfileModel extends ProfileEntity {
     required super.userId,
     super.fullName,
     super.profilePictureUrl,
+    super.imageUrl,
+    super.imagePublicId,
     super.location,
     super.area,
     super.bio,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
+    final rawUrl = json['imageUrl'] as String? ??
+        json['image_url'] as String? ??
+        json['profilePictureUrl'] as String? ??
+        json['profile_picture_url'] as String?;
+
     return ProfileModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
       fullName: json['fullName'] as String? ?? json['full_name'] as String?,
-      profilePictureUrl: json['profilePictureUrl'] as String? ?? json['profile_picture_url'] as String?,
+      profilePictureUrl: rawUrl,
+      imageUrl: rawUrl,
+      imagePublicId: json['imagePublicId'] as String? ?? json['image_public_id'] as String?,
       location: json['location'] as String?,
       area: json['area'] as String?,
       bio: json['bio'] as String?,
@@ -29,6 +39,8 @@ class ProfileModel extends ProfileEntity {
       'userId': userId,
       'fullName': fullName,
       'profilePictureUrl': profilePictureUrl,
+      'imageUrl': imageUrl,
+      'imagePublicId': imagePublicId,
       'location': location,
       'area': area,
       'bio': bio,
@@ -42,6 +54,8 @@ class PetModel extends PetEntity {
     required super.userId,
     required super.name,
     super.profilePictureUrl,
+    super.imageUrl,
+    super.imagePublicId,
     super.animalType,
     super.breed,
     super.gender,
@@ -66,11 +80,18 @@ class PetModel extends PetEntity {
       persList = (json['personality'] as List).map((e) => e.toString()).toList();
     }
 
+    final rawUrl = json['imageUrl'] as String? ??
+        json['image_url'] as String? ??
+        json['profilePictureUrl'] as String? ??
+        json['profile_picture_url'] as String?;
+
     return PetModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      profilePictureUrl: json['profilePictureUrl'] as String? ?? json['profile_picture_url'] as String?,
+      profilePictureUrl: rawUrl,
+      imageUrl: rawUrl,
+      imagePublicId: json['imagePublicId'] as String? ?? json['image_public_id'] as String?,
       animalType: json['animalType'] as String? ?? json['animal_type'] as String?,
       breed: json['breed'] as String?,
       gender: json['gender'] as String?,
@@ -89,6 +110,8 @@ class PetModel extends PetEntity {
       'userId': userId,
       'name': name,
       'profilePictureUrl': profilePictureUrl,
+      'imageUrl': imageUrl,
+      'imagePublicId': imagePublicId,
       'animalType': animalType,
       'breed': breed,
       'gender': gender,
@@ -108,6 +131,8 @@ class UserModel extends UserEntity {
     required super.firebaseUid,
     super.email,
     super.phoneNumber,
+    super.role,
+    super.isActive,
     super.onboardingCompleted,
     super.profile,
     super.pets,
@@ -132,6 +157,8 @@ class UserModel extends UserEntity {
       firebaseUid: json['firebaseUid'] as String? ?? json['firebase_uid'] as String? ?? '',
       email: json['email'] as String?,
       phoneNumber: json['phoneNumber'] as String? ?? json['phone_number'] as String?,
+      role: UserRole.fromString(json['role'] as String?),
+      isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
       onboardingCompleted: json['onboardingCompleted'] as bool? ??
           json['onboarding_completed'] as bool? ??
           false,
@@ -146,6 +173,8 @@ class UserModel extends UserEntity {
       'firebaseUid': firebaseUid,
       'email': email,
       'phoneNumber': phoneNumber,
+      'role': role.toBackendString(),
+      'isActive': isActive,
       'onboardingCompleted': onboardingCompleted,
       if (profile != null) 'profile': (profile as ProfileModel).toJson(),
       'pets': pets.map((p) => (p as PetModel).toJson()).toList(),

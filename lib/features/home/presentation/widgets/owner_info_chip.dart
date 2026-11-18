@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 class OwnerInfoChip extends StatelessWidget {
   final String ownerName;
@@ -39,23 +39,11 @@ class OwnerInfoChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Owner Avatar
-              CircleAvatar(
+              // Owner Avatar with Caching & Fallback
+              UserAvatar(
+                imageUrl: ownerAvatarUrl,
                 radius: 16,
-                backgroundColor: AppColors.creamDark,
-                backgroundImage: ownerAvatarUrl != null && ownerAvatarUrl!.isNotEmpty
-                    ? NetworkImage(ownerAvatarUrl!)
-                    : null,
-                child: (ownerAvatarUrl == null || ownerAvatarUrl!.isEmpty)
-                    ? Text(
-                        ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'O',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      )
-                    : null,
+                initials: ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'O',
               ),
               const SizedBox(width: 8),
 
@@ -71,30 +59,28 @@ class OwnerInfoChip extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.location_on,
                           size: 11,
-                          color: AppColors.terracottaLight,
+                          color: Colors.white.withValues(alpha: 0.75),
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 2),
                         Flexible(
                           child: Text(
                             ownerLocation,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 10,
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ),
