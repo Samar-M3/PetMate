@@ -2,6 +2,7 @@
 // (e.g., 499), isOnline (boolean for the "3 vets online" dot), isVerified ("Trusted
 // care"), and availableSlots (list of times).
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
 import '../../widgets/event_list_card.dart';
@@ -17,10 +18,10 @@ class MyEventBookingsScreen extends StatefulWidget {
 class _MyEventBookingsScreenState extends State<MyEventBookingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final bookedEvents =
-    MockCareData.events.where((e) => e.isBooked).toList();
-    final savedEvents =
-    MockCareData.events.where((e) => e.isBookmarked).toList();
+    final bookedEvents = MockCareData.events.where((e) => e.isBooked).toList();
+    final savedEvents = MockCareData.events
+        .where((e) => e.isBookmarked)
+        .toList();
 
     return DefaultTabController(
       length: 2,

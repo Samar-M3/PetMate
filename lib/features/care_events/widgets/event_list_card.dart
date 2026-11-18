@@ -1,6 +1,7 @@
 // The event row card with the colored square date badge (SUN 18),
 // category tag, title, location pin, overlapping attendee avatars, and bookmark icon.
 import 'package:flutter/material.dart';
+
 import '../models/app_theme.dart';
 import '../models/event_model.dart';
 
@@ -70,9 +71,11 @@ class EventListCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: CareTheme.sageGreen.withOpacity(0.2),
+                          color: CareTheme.sageGreen.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -109,8 +112,11 @@ class EventListCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 14, color: CareTheme.mutedText),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: CareTheme.mutedText,
+                      ),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(

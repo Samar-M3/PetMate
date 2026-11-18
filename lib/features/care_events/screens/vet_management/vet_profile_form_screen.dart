@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
 import '../../models/vet_model.dart';
@@ -47,9 +48,13 @@ class _VetProfileFormScreenState extends State<VetProfileFormScreen> {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Register Veterinarian',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Register Veterinarian',
+          style: TextStyle(
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -79,8 +84,11 @@ class _VetProfileFormScreenState extends State<VetProfileFormScreen> {
     );
   }
 
-  Widget _field(TextEditingController ctrl, String hint,
-      {bool isNumber = false}) {
+  Widget _field(
+    TextEditingController ctrl,
+    String hint, {
+    bool isNumber = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(

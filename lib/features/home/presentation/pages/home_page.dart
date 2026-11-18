@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/discovery_provider.dart';
@@ -20,9 +21,11 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends ConsumerState<HomePage>
+    with WidgetsBindingObserver {
   int _selectedNavIndex = 0;
-  final GlobalKey<SwipeableCardDeckState> _deckKey = GlobalKey<SwipeableCardDeckState>();
+  final GlobalKey<SwipeableCardDeckState> _deckKey =
+      GlobalKey<SwipeableCardDeckState>();
 
   @override
   void initState() {
@@ -85,9 +88,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
         child: Column(
           children: [
             // 1. Top Header Section (PetMate logo & user avatar)
-            HomeHeader(
-              onProfileTap: () => ProfileBottomSheet.show(context),
-            ),
+            HomeHeader(onProfileTap: () => ProfileBottomSheet.show(context)),
 
             // 2. Active Pet Switcher (if user has several pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
@@ -97,7 +98,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: userPets.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final pet = userPets[index];
                     final isSelected = pet.id == discoveryState.activePetId;
@@ -111,15 +112,23 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                         ],
                       ),
                       selected: isSelected,
-                      selectedColor: AppColors.terracotta.withValues(alpha: 0.18),
+                      selectedColor: AppColors.terracotta.withValues(
+                        alpha: 0.18,
+                      ),
                       backgroundColor: Colors.white,
                       labelStyle: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? AppColors.terracotta : AppColors.textSecondary,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.terracotta
+                            : AppColors.textSecondary,
                       ),
                       side: BorderSide(
-                        color: isSelected ? AppColors.terracotta : AppColors.border,
+                        color: isSelected
+                            ? AppColors.terracotta
+                            : AppColors.border,
                         width: 1.2,
                       ),
                       onSelected: (_) {
@@ -182,7 +191,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                   _selectedNavIndex = index;
                 });
                 if (index == 1) {
-                  ref.read(requestsProvider.notifier).loadRequests(refresh: true);
+                  ref
+                      .read(requestsProvider.notifier)
+                      .loadRequests(refresh: true);
                 }
               },
             ),
@@ -242,7 +253,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.terracotta,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -323,7 +337,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),

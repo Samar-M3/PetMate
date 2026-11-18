@@ -1,5 +1,7 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
+
 import '../../../../core/widgets/app_network_image.dart';
 
 class OwnerInfoChip extends StatelessWidget {
@@ -43,7 +45,9 @@ class OwnerInfoChip extends StatelessWidget {
               UserAvatar(
                 imageUrl: ownerAvatarUrl,
                 radius: 16,
-                initials: ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'O',
+                initials: ownerName.isNotEmpty
+                    ? ownerName[0].toUpperCase()
+                    : 'O',
               ),
               const SizedBox(width: 8),
 

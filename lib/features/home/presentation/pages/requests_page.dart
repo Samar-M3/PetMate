@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../data/models/connection_request_model.dart';
@@ -63,7 +64,10 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                   ),
                   if (requestsState.pendingCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.terracotta.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
@@ -116,7 +120,11 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 54, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 54,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Could not load requests',
@@ -144,7 +152,10 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Try Again', style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      'Try Again',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -310,7 +321,11 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline, size: 13, color: AppColors.textMuted),
+                        const Icon(
+                          Icons.person_outline,
+                          size: 13,
+                          color: AppColors.textMuted,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -328,7 +343,10 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
@@ -362,7 +380,9 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.terracotta),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.terracotta,
+                    ),
                   ),
                 ),
               ),
@@ -379,7 +399,9 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                         onRejected: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Request from ${request.senderPetName} declined'),
+                              content: Text(
+                                'Request from ${request.senderPetName} declined',
+                              ),
                               duration: const Duration(seconds: 2),
                             ),
                           );
@@ -394,7 +416,11 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                         },
                       );
                     },
-                    icon: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
                     label: const Text(
                       'Decline',
                       style: TextStyle(
@@ -442,7 +468,11 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                         },
                       );
                     },
-                    icon: const Icon(Icons.favorite, size: 16, color: Colors.white),
+                    icon: const Icon(
+                      Icons.favorite,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                     label: const Text(
                       'Accept',
                       style: TextStyle(

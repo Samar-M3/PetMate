@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+
 import '../config/app_config.dart';
 import '../errors/app_exception.dart';
 import 'firebase_auth_service.dart';
@@ -18,10 +20,8 @@ class ApiClient {
   final FirebaseAuthService firebaseAuth;
   final http.Client client;
 
-  ApiClient({
-    required this.firebaseAuth,
-    http.Client? client,
-  }) : client = client ?? http.Client();
+  ApiClient({required this.firebaseAuth, http.Client? client})
+    : client = client ?? http.Client();
 
   Future<Map<String, String>> _buildHeaders({
     Map<String, String>? extraHeaders,
@@ -58,7 +58,10 @@ class ApiClient {
     return uri;
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     return _sendWithRetry((forceRefresh) async {
       final headers = await _buildHeaders(forceRefresh: forceRefresh);
       final uri = _buildUri(path, queryParameters);
@@ -169,7 +172,8 @@ class ApiClient {
         fileBytes = await file.readAsBytes();
       }
 
-      final resolvedFilename = filename ??
+      final resolvedFilename =
+          filename ??
           (file != null && file.path.isNotEmpty
               ? file.path.split(RegExp(r'[\\/]')).last
               : 'upload.jpg');
@@ -184,19 +188,32 @@ class ApiClient {
       );
       request.files.add(multipartFile);
 
-      final streamedResponse = await client.send(request).timeout(AppConfig.connectTimeout);
+      final streamedResponse = await client
+          .send(request)
+          .timeout(AppConfig.connectTimeout);
       return await http.Response.fromStream(streamedResponse);
     });
   }
 
   MediaType _resolveImageContentType(String filename, List<int> bytes) {
-    if (bytes.length >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xff &&
+        bytes[1] == 0xd8 &&
+        bytes[2] == 0xff) {
       return MediaType('image', 'jpeg');
     }
-    if (bytes.length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47) {
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4e &&
+        bytes[3] == 0x47) {
       return MediaType('image', 'png');
     }
-    if (bytes.length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46) {
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46) {
       return MediaType('image', 'webp');
     }
     final lower = filename.toLowerCase();
@@ -205,41 +222,59 @@ class ApiClient {
     return MediaType('image', 'jpeg');
   }
 
-  Future<dynamic> _sendWithRetry(Future<http.Response> Function(bool forceRefresh) requestFn) async {
+  Future<dynamic> _sendWithRetry(
+    Future<http.Response> Function(bool forceRefresh) requestFn,
+  ) async {
     try {
       final response = await requestFn(false);
       if (kDebugMode) {
-        debugPrint('[ApiClient] 📥 Received response ${response.statusCode} (${response.body.length} bytes)');
+        debugPrint(
+          '[ApiClient] 📥 Received response ${response.statusCode} (${response.body.length} bytes)',
+        );
       }
       // If token expired, try refreshing once
       if (response.statusCode == 401 && firebaseAuth.currentUser != null) {
         if (kDebugMode) {
-          debugPrint('[ApiClient] 🔄 401 Unauthorized received, attempting token force-refresh and retry...');
+          debugPrint(
+            '[ApiClient] 🔄 401 Unauthorized received, attempting token force-refresh and retry...',
+          );
         }
         final retryResponse = await requestFn(true);
         if (kDebugMode) {
-          debugPrint('[ApiClient] 📥 Retry response: ${retryResponse.statusCode}');
+          debugPrint(
+            '[ApiClient] 📥 Retry response: ${retryResponse.statusCode}',
+          );
         }
         return _handleResponse(retryResponse);
       }
       return _handleResponse(response);
     } on SocketException catch (e) {
       if (kDebugMode) {
-        debugPrint('[ApiClient] ❌ SocketException: ${e.message} (OS Error: ${e.osError})');
+        debugPrint(
+          '[ApiClient] ❌ SocketException: ${e.message} (OS Error: ${e.osError})',
+        );
       }
-      throw NetworkException('Unable to reach server. Please check backend is running and URL is reachable.');
+      throw NetworkException(
+        'Unable to reach server. Please check backend is running and URL is reachable.',
+      );
     } on TimeoutException catch (e) {
       if (kDebugMode) {
-        debugPrint('[ApiClient] ⏱️ TimeoutException after ${AppConfig.connectTimeout.inSeconds}s: ${e.message}');
+        debugPrint(
+          '[ApiClient] ⏱️ TimeoutException after ${AppConfig.connectTimeout.inSeconds}s: ${e.message}',
+        );
       }
-      throw NetworkException('Request timed out. Please check your server connectivity.');
+      throw NetworkException(
+        'Request timed out. Please check your server connectivity.',
+      );
     } on AppException {
       rethrow;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[ApiClient] ❌ Unexpected error in request: $e');
       }
-      throw ApiException(message: 'An unexpected error occurred: ${e.toString()}');
+      throw ApiException(
+        message: 'An unexpected error occurred: ${e.toString()}',
+      );
     }
   }
 

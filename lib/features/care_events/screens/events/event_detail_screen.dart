@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/event_model.dart';
 
@@ -33,9 +34,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Event Details',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Event Details',
+          style: TextStyle(
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -52,54 +57,80 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(e.category,
-                      style: const TextStyle(
-                          color: Colors.white70, fontWeight: FontWeight.bold)),
+                  Text(
+                    e.category,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(e.title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    e.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  Text('${e.fullDate} • ${e.time}',
-                      style: const TextStyle(color: Colors.white)),
-                  Text(e.location,
-                      style: const TextStyle(color: Colors.white)),
+                  Text(
+                    '${e.fullDate} • ${e.time}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(e.location, style: const TextStyle(color: Colors.white)),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text('About this Event',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'About this Event',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(e.description,
-                style: const TextStyle(
-                    fontSize: 14, height: 1.5, color: CareTheme.charcoal)),
+            Text(
+              e.description,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 16),
-            Text('+${e.attendeeCount} pet parents going',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.deepOlive)),
+            Text(
+              '+${e.attendeeCount} pet parents going',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.deepOlive,
+              ),
+            ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  e.isBooked ? CareTheme.deepOlive : CareTheme.terracotta,
+                  backgroundColor: e.isBooked
+                      ? CareTheme.deepOlive
+                      : CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: _toggleBooking,
                 child: Text(
-                  e.isBooked ? 'Spot Booked (Tap to Cancel)' : 'Book Event Spot',
+                  e.isBooked
+                      ? 'Spot Booked (Tap to Cancel)'
+                      : 'Book Event Spot',
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

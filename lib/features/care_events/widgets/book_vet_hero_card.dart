@@ -1,6 +1,7 @@
 // The large top card from your mockup featuring the clinic photo,
 // "Trusted care" badge, "★ 4.9" pill, "Book a Vet" heading, "from ₹499" text, and the circular terracotta arrow button.
 import 'package:flutter/material.dart';
+
 import '../models/app_theme.dart';
 
 class BookVetHeroCard extends StatelessWidget {
@@ -18,7 +19,7 @@ class BookVetHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -41,7 +42,7 @@ class BookVetHeroCard extends StatelessWidget {
                     child: Icon(
                       Icons.local_hospital_rounded,
                       size: 64,
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                   Row(
@@ -49,7 +50,9 @@ class BookVetHeroCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: CareTheme.deepOlive,
                           borderRadius: BorderRadius.circular(20),
@@ -65,7 +68,9 @@ class BookVetHeroCard extends StatelessWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: CareTheme.cardBg,
                           borderRadius: BorderRadius.circular(20),

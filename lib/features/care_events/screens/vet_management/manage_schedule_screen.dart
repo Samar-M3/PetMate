@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 
@@ -29,20 +30,27 @@ class _ManageScheduleScreenState extends State<ManageScheduleScreen> {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Clinic Time Slots',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Clinic Time Slots',
+          style: TextStyle(
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Toggle Active In-Clinic Slots',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Toggle Active In-Clinic Slots',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,

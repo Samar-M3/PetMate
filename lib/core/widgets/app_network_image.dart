@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 /// Helper to inject Cloudinary on-the-fly optimization and transformation parameters
@@ -73,15 +74,20 @@ class AppNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final validUrl = imageUrl != null && imageUrl!.trim().isNotEmpty && imageUrl!.startsWith('http');
+    final validUrl =
+        imageUrl != null &&
+        imageUrl!.trim().isNotEmpty &&
+        imageUrl!.startsWith('http');
 
     if (!validUrl) {
       return _buildFallback();
     }
 
     // Auto-calculate transformation sizes from widget width/height if not explicitly set
-    final tWidth = transformationWidth ?? (width != null ? (width! * 2).round() : null);
-    final tHeight = transformationHeight ?? (height != null ? (height! * 2).round() : null);
+    final tWidth =
+        transformationWidth ?? (width != null ? (width! * 2).round() : null);
+    final tHeight =
+        transformationHeight ?? (height != null ? (height! * 2).round() : null);
     final processedUrl = buildTransformedCloudinaryUrl(
       imageUrl!.trim(),
       width: tWidth,
@@ -110,7 +116,9 @@ class AppNetworkImage extends StatelessWidget {
       ),
       errorWidget: (context, url, error) {
         if (kDebugMode) {
-          debugPrint('[AppNetworkImage] ⚠️ Failed to load image from $url: $error');
+          debugPrint(
+            '[AppNetworkImage] ⚠️ Failed to load image from $url: $error',
+          );
         }
         return _buildFallback();
       },
@@ -121,10 +129,7 @@ class AppNetworkImage extends StatelessWidget {
     }
 
     if (borderRadius != null) {
-      return ClipRRect(
-        borderRadius: borderRadius!,
-        child: imageWidget,
-      );
+      return ClipRRect(borderRadius: borderRadius!, child: imageWidget);
     }
 
     return imageWidget;
@@ -144,14 +149,18 @@ class AppNetworkImage extends StatelessWidget {
             ? Text(
                 fallbackInitials!.trim()[0].toUpperCase(),
                 style: TextStyle(
-                  fontSize: (height != null ? height! * 0.42 : 16.0).clamp(11.0, 28.0).toDouble(),
+                  fontSize: (height != null ? height! * 0.42 : 16.0)
+                      .clamp(11.0, 28.0)
+                      .toDouble(),
                   fontWeight: FontWeight.bold,
                   color: AppColors.primaryDark,
                 ),
               )
             : Icon(
                 fallbackIcon,
-                size: (height != null ? height! * 0.45 : 24.0).clamp(16.0, 48.0).toDouble(),
+                size: (height != null ? height! * 0.45 : 24.0)
+                    .clamp(16.0, 48.0)
+                    .toDouble(),
                 color: AppColors.primaryLight,
               ),
       ),
@@ -183,10 +192,7 @@ class UserAvatar extends StatelessWidget {
     Widget avatar = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: border,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: border),
       child: AppNetworkImage(
         imageUrl: imageUrl,
         width: size,

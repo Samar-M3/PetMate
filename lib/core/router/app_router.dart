@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -14,15 +15,14 @@ class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   RouterNotifier(this._ref) {
-    _ref.listen<AuthState>(
-      authStateProvider,
-      (_, _) => notifyListeners(),
-    );
+    _ref.listen<AuthState>(authStateProvider, (_, _) => notifyListeners());
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = _ref.read(authStateProvider);
-    final isAuthPage = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+    final isAuthPage =
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/register';
     final isSplashPage = state.matchedLocation == '/splash';
 
     // 1. Initial unknown state -> show splash screen, do not redirect to /login
@@ -46,10 +46,12 @@ class RouterNotifier extends ChangeNotifier {
 
       final status = authState.onboardingStatus;
       if (status != null && !status.onboardingCompleted) {
-        if (status.nextStep == 'PET_INFO' && state.matchedLocation != '/onboarding/pet') {
+        if (status.nextStep == 'PET_INFO' &&
+            state.matchedLocation != '/onboarding/pet') {
           return '/onboarding/pet';
         }
-        if (status.nextStep == 'OWNER_INFO' && state.matchedLocation != '/onboarding/owner') {
+        if (status.nextStep == 'OWNER_INFO' &&
+            state.matchedLocation != '/onboarding/owner') {
           return '/onboarding/owner';
         }
       }
@@ -76,18 +78,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: routerNotifier,
     redirect: routerNotifier.redirect,
     routes: [
-      GoRoute(
-        path: '/splash',
-        builder: (context, state) => const SplashPage(),
-      ),
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
+      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+      GoRoute(path: '/', builder: (context, state) => const HomePage()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterPage(),
@@ -102,11 +95,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/admin',
-        builder: (context, state) => const Scaffold(
-          body: Center(
-            child: Text('Admin Panel'),
-          ),
-        ),
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('Admin Panel'))),
       ),
     ],
   );

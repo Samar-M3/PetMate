@@ -15,11 +15,7 @@ class FirebaseAuthService {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
 
-  FirebaseAuthService({
-    required FirebaseAuth auth,
-    required GoogleSignIn googleSignIn,
-  })  : _auth = auth,
-        _googleSignIn = googleSignIn;
+  FirebaseAuthService({required this._auth, required this._googleSignIn});
 
   User? get currentUser => _auth.currentUser;
 
@@ -61,7 +57,8 @@ class FirebaseAuthService {
       throw Exception('Google sign-in was cancelled by the user.');
     }
 
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
     final OAuthCredential credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,

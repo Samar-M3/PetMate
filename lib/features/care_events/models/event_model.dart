@@ -5,8 +5,8 @@ class PetEvent {
   final String id;
   final String title;
   final String category; // 'MEETUP', 'AGILITY', 'WORKSHOP'
-  final String dayName;  // 'SUN'
-  final String dayNum;   // '18'
+  final String dayName; // 'SUN'
+  final String dayNum; // '18'
   final String fullDate; // 'Nov 18, 2026'
   final String time;
   final String location;

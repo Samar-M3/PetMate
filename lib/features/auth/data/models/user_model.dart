@@ -15,7 +15,8 @@ class ProfileModel extends ProfileEntity {
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
-    final rawUrl = json['imageUrl'] as String? ??
+    final rawUrl =
+        json['imageUrl'] as String? ??
         json['image_url'] as String? ??
         json['profilePictureUrl'] as String? ??
         json['profile_picture_url'] as String?;
@@ -26,7 +27,9 @@ class ProfileModel extends ProfileEntity {
       fullName: json['fullName'] as String? ?? json['full_name'] as String?,
       profilePictureUrl: rawUrl,
       imageUrl: rawUrl,
-      imagePublicId: json['imagePublicId'] as String? ?? json['image_public_id'] as String?,
+      imagePublicId:
+          json['imagePublicId'] as String? ??
+          json['image_public_id'] as String?,
       location: json['location'] as String?,
       area: json['area'] as String?,
       bio: json['bio'] as String?,
@@ -77,10 +80,13 @@ class PetModel extends PetEntity {
 
     List<String> persList = [];
     if (json['personality'] is List) {
-      persList = (json['personality'] as List).map((e) => e.toString()).toList();
+      persList = (json['personality'] as List)
+          .map((e) => e.toString())
+          .toList();
     }
 
-    final rawUrl = json['imageUrl'] as String? ??
+    final rawUrl =
+        json['imageUrl'] as String? ??
         json['image_url'] as String? ??
         json['profilePictureUrl'] as String? ??
         json['profile_picture_url'] as String?;
@@ -91,14 +97,19 @@ class PetModel extends PetEntity {
       name: json['name'] as String? ?? '',
       profilePictureUrl: rawUrl,
       imageUrl: rawUrl,
-      imagePublicId: json['imagePublicId'] as String? ?? json['image_public_id'] as String?,
-      animalType: json['animalType'] as String? ?? json['animal_type'] as String?,
+      imagePublicId:
+          json['imagePublicId'] as String? ??
+          json['image_public_id'] as String?,
+      animalType:
+          json['animalType'] as String? ?? json['animal_type'] as String?,
       breed: json['breed'] as String?,
       gender: json['gender'] as String?,
       dateOfBirth: dob,
       color: json['color'] as String?,
       personality: persList,
-      vaccinationStatus: json['vaccinationStatus'] as String? ?? json['vaccination_status'] as String?,
+      vaccinationStatus:
+          json['vaccinationStatus'] as String? ??
+          json['vaccination_status'] as String?,
       allergies: json['allergies'] as String?,
       description: json['description'] as String?,
     );
@@ -154,12 +165,17 @@ class UserModel extends UserEntity {
 
     return UserModel(
       id: json['id'] as String? ?? '',
-      firebaseUid: json['firebaseUid'] as String? ?? json['firebase_uid'] as String? ?? '',
+      firebaseUid:
+          json['firebaseUid'] as String? ??
+          json['firebase_uid'] as String? ??
+          '',
       email: json['email'] as String?,
-      phoneNumber: json['phoneNumber'] as String? ?? json['phone_number'] as String?,
+      phoneNumber:
+          json['phoneNumber'] as String? ?? json['phone_number'] as String?,
       role: UserRole.fromString(json['role'] as String?),
       isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
-      onboardingCompleted: json['onboardingCompleted'] as bool? ??
+      onboardingCompleted:
+          json['onboardingCompleted'] as bool? ??
           json['onboarding_completed'] as bool? ??
           false,
       profile: prof,

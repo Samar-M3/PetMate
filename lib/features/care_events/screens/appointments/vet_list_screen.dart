@@ -1,6 +1,7 @@
 // Opens when tapping "Book a Vet" or "Video consult".
 // Displays a searchable, filterable list of doctors (with an "Online Now" filter toggle).
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
 import '../../models/vet_model.dart';
@@ -33,7 +34,9 @@ class _VetListScreenState extends State<VetListScreen> {
         title: const Text(
           'Book a Vet Clinic',
           style: TextStyle(
-              color: CareTheme.charcoal, fontWeight: FontWeight.bold),
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: Padding(
@@ -44,7 +47,10 @@ class _VetListScreenState extends State<VetListScreen> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search doctor or specialty...',
-                prefixIcon: const Icon(Icons.search, color: CareTheme.mutedText),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: CareTheme.mutedText,
+                ),
                 filled: true,
                 fillColor: CareTheme.cardBg,
                 border: OutlineInputBorder(
@@ -57,7 +63,8 @@ class _VetListScreenState extends State<VetListScreen> {
             Expanded(
               child: ListView.builder(
                 itemCount: filteredVets.length,
-                itemBuilder: (context, index) => _buildVetTile(filteredVets[index]),
+                itemBuilder: (context, index) =>
+                    _buildVetTile(filteredVets[index]),
               ),
             ),
           ],
@@ -82,7 +89,10 @@ class _VetListScreenState extends State<VetListScreen> {
               const CircleAvatar(
                 radius: 26,
                 backgroundColor: CareTheme.sageGreen,
-                child: Icon(Icons.medical_services_rounded, color: Colors.white),
+                child: Icon(
+                  Icons.medical_services_rounded,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -100,12 +110,16 @@ class _VetListScreenState extends State<VetListScreen> {
                     Text(
                       vet.specialty,
                       style: const TextStyle(
-                          fontSize: 13, color: CareTheme.mutedText),
+                        fontSize: 13,
+                        color: CareTheme.mutedText,
+                      ),
                     ),
                     Text(
                       '${vet.clinicName} • ${vet.address}',
                       style: const TextStyle(
-                          fontSize: 12, color: CareTheme.deepOlive),
+                        fontSize: 12,
+                        color: CareTheme.deepOlive,
+                      ),
                     ),
                   ],
                 ),
@@ -137,7 +151,8 @@ class _VetListScreenState extends State<VetListScreen> {
                 backgroundColor: CareTheme.terracotta,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               onPressed: () {
                 Navigator.push(

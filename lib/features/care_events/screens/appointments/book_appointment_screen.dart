@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/appointment_model.dart';
 import '../../models/mock_care_data.dart';
@@ -19,11 +20,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   String? _selectedSlot;
   final TextEditingController _reasonController = TextEditingController();
 
-  final List<String> _dates = [
-    'Nov 24, 2026',
-    'Nov 25, 2026',
-    'Nov 26, 2026',
-  ];
+  final List<String> _dates = ['Nov 24, 2026', 'Nov 25, 2026', 'Nov 26, 2026'];
 
   @override
   void initState() {
@@ -52,9 +49,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       ),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Clinic appointment booked!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Clinic appointment booked!')));
     Navigator.popUntil(context, (route) => route.isFirst);
   }
 
@@ -69,7 +66,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         title: const Text(
           'Schedule Clinic Visit',
           style: TextStyle(
-              color: CareTheme.charcoal, fontWeight: FontWeight.bold),
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -86,25 +85,37 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.vet.name,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: CareTheme.charcoal)),
-                  Text('${widget.vet.clinicName} (${widget.vet.address})',
-                      style: const TextStyle(color: CareTheme.mutedText)),
+                  Text(
+                    widget.vet.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: CareTheme.charcoal,
+                    ),
+                  ),
+                  Text(
+                    '${widget.vet.clinicName} (${widget.vet.address})',
+                    style: const TextStyle(color: CareTheme.mutedText),
+                  ),
                   const SizedBox(height: 6),
-                  Text('Consultation Fee: ₹${widget.vet.fee} (Pay at Clinic)',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: CareTheme.deepOlive)),
+                  Text(
+                    'Consultation Fee: ₹${widget.vet.fee} (Pay at Clinic)',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: CareTheme.deepOlive,
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Select Pet',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
+            const Text(
+              'Select Pet',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -118,9 +129,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text('Select Date',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
+            const Text(
+              'Select Date',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -134,9 +149,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text('Available Time Slots',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
+            const Text(
+              'Available Time Slots',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -155,9 +174,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text('Reason for Visit',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
+            const Text(
+              'Reason for Visit',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _reasonController,
@@ -180,12 +203,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   backgroundColor: CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: _confirmBooking,
-                child: const Text('Confirm Clinic Appointment',
-                    style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Confirm Clinic Appointment',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

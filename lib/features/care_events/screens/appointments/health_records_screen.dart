@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
 
@@ -17,9 +18,13 @@ class HealthRecordsScreen extends StatelessWidget {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Toto\'s Health Records',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Toto\'s Health Records',
+          style: TextStyle(
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -40,13 +45,18 @@ class HealthRecordsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Upcoming Vaccination',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
-                        Text('Annual DHPP Booster due Dec 28, 2026',
-                            style: TextStyle(color: Colors.white70)),
+                        Text(
+                          'Upcoming Vaccination',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          'Annual DHPP Booster due Dec 28, 2026',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ],
                     ),
                   ),
@@ -54,11 +64,14 @@ class HealthRecordsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Past Clinic Notes',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Past Clinic Notes',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
@@ -75,16 +88,25 @@ class HealthRecordsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${rec.reason} (${rec.date})',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: CareTheme.charcoal)),
-                        Text('Vet: ${rec.vetName}',
-                            style: const TextStyle(
-                                fontSize: 12, color: CareTheme.mutedText)),
+                        Text(
+                          '${rec.reason} (${rec.date})',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: CareTheme.charcoal,
+                          ),
+                        ),
+                        Text(
+                          'Vet: ${rec.vetName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: CareTheme.mutedText,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        Text(rec.vetNotes ?? 'No notes added.',
-                            style: const TextStyle(color: CareTheme.charcoal)),
+                        Text(
+                          rec.vetNotes ?? 'No notes added.',
+                          style: const TextStyle(color: CareTheme.charcoal),
+                        ),
                       ],
                     ),
                   );

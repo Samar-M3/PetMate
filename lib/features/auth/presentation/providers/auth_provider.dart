@@ -1,19 +1,17 @@
 import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
-enum AuthStatus {
-  unknown,
-  authenticated,
-  unauthenticated,
-}
+enum AuthStatus { unknown, authenticated, unauthenticated }
 
 class AuthState {
   final AuthStatus status;
@@ -33,10 +31,13 @@ class AuthState {
   });
 
   bool get isUnknown => status == AuthStatus.unknown;
-  bool get isAuthenticated => status == AuthStatus.authenticated && firebaseUser != null;
+  bool get isAuthenticated =>
+      status == AuthStatus.authenticated && firebaseUser != null;
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
   bool get isOnboardingCompleted =>
-      onboardingStatus?.onboardingCompleted ?? user?.onboardingCompleted ?? false;
+      onboardingStatus?.onboardingCompleted ??
+      user?.onboardingCompleted ??
+      false;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -89,7 +90,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _authService.currentUser != null) {
+    if (state == AppLifecycleState.resumed &&
+        _authService.currentUser != null) {
       _checkSessionFreshness();
     }
   }
@@ -103,7 +105,9 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[AuthNotifier] Session reload on resume detected invalid session: $e');
+        debugPrint(
+          '[AuthNotifier] Session reload on resume detected invalid session: $e',
+        );
       }
       await _performCleanupAndResetState();
     }
@@ -169,7 +173,9 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         await _authService.signOut();
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('[AuthNotifier] Sign-out service error (ignored for complete cleanup): $e');
+          debugPrint(
+            '[AuthNotifier] Sign-out service error (ignored for complete cleanup): $e',
+          );
         }
       }
 
@@ -192,7 +198,10 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       }
 
       // 4. Move state to unauthenticated
-      state = const AuthState(status: AuthStatus.unauthenticated, isLoading: false);
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        isLoading: false,
+      );
     } finally {
       _isCleaningUp = false;
     }
@@ -211,7 +220,9 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       return state.onboardingStatus?.nextStep ?? 'PET_INFO';
     } on FirebaseAuthException catch (e) {
       String msg = 'Authentication failed. Please check your credentials.';
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
         msg = 'Invalid email or password.';
       } else if (e.code == 'network-request-failed') {
         msg = 'Network error. Please check your connection.';
@@ -236,7 +247,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       String msg = e.toString();
       if (msg.contains('ApiException: 7') || msg.contains('network_error')) {
         msg = 'Google network error (Code 7). Please ensure your phone has an active internet connection (Wi-Fi or Mobile Data) to reach Google services.';
-      } else if (msg.contains('ApiException: 10') || msg.contains('developer_error')) {
+      } else if (msg.contains('ApiException: 10') ||
+          msg.contains('developer_error')) {
         msg = 'Google configuration error (Code 10). Please verify SHA-1 fingerprint in Firebase Console.';
       } else if (msg.contains('ApiException: 12500')) {
         msg = 'Google Sign-In failed (Code 12500). Please check Google Play Services on your device.';
@@ -283,7 +295,9 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       await _authService.sendPasswordResetEmail(email);
       return true;
     } on FirebaseAuthException catch (e) {
-      state = state.copyWith(errorMessage: e.message ?? 'Failed to send reset email.');
+      state = state.copyWith(
+        errorMessage: e.message ?? 'Failed to send reset email.',
+      );
       return false;
     }
   }
@@ -381,7 +395,9 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
   }
 }
 
-final authStateProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final authStateProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
 
 final currentUserIdProvider = Provider<String?>((ref) {
   return ref.watch(authStateProvider).firebaseUser?.uid;

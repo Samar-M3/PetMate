@@ -73,8 +73,7 @@ class MockCareData {
       fullDate: 'Nov 22, 2026',
       time: '08:30 AM - 11:00 AM',
       location: 'Central Zoo Park Lawn, Jawalakhel',
-      description:
-      'Morning off-leash socialization meetup for friendly dogs and pet parents. Complimentary treats and hydration bowls provided.',
+      description: 'Morning off-leash socialization meetup for friendly dogs and pet parents. Complimentary treats and hydration bowls provided.',
       attendeeCount: 46,
     ),
     PetEvent(
@@ -86,8 +85,7 @@ class MockCareData {
       fullDate: 'Nov 28, 2026',
       time: '03:00 PM - 05:30 PM',
       location: 'Greenfield Pet Arena, Sanepa',
-      description:
-      'Beginner-friendly obstacle course run guided by certified trainers. Open to all breeds and ages.',
+      description: 'Beginner-friendly obstacle course run guided by certified trainers. Open to all breeds and ages.',
       attendeeCount: 29,
     ),
   ];

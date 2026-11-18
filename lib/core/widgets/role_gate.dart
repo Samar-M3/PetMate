@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 

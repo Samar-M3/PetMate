@@ -1,6 +1,7 @@
 // Combines your top header (PetMate / Care & Events),
 // BookVetHeroCard, QuickCareCards, and a scrollable list of EventListCard widgets on a Warm Beige (#E9E6D8) background.
 import 'package:flutter/material.dart';
+
 import '../models/app_theme.dart';
 import '../models/mock_care_data.dart';
 import '../widgets/book_vet_hero_card.dart';
@@ -47,21 +48,31 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                           color: CareTheme.deepOlive,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.pets_rounded,
-                            color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.pets_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('PetMate',
-                              style: TextStyle(
-                                  fontSize: 12, color: CareTheme.mutedText)),
-                          Text('Care & Events',
-                              style: TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.bold,
-                                  color: CareTheme.charcoal)),
+                          Text(
+                            'PetMate',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: CareTheme.mutedText,
+                            ),
+                          ),
+                          Text(
+                            'Care & Events',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                              color: CareTheme.charcoal,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -72,17 +83,24 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                       backgroundColor: CareTheme.cardBg,
                       foregroundColor: CareTheme.charcoal,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
-                    icon: const Icon(Icons.medical_information_outlined,
-                        size: 18, color: CareTheme.deepOlive),
-                    label: const Text('Vet Portal',
-                        style: TextStyle(fontSize: 12)),
+                    icon: const Icon(
+                      Icons.medical_information_outlined,
+                      size: 18,
+                      color: CareTheme.deepOlive,
+                    ),
+                    label: const Text(
+                      'Vet Portal',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () async {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const VetAdminDashboard()),
+                          builder: (_) => const VetAdminDashboard(),
+                        ),
                       );
                       setState(() {});
                     },
@@ -120,7 +138,8 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const MyAppointmentsScreen()),
+                      builder: (_) => const MyAppointmentsScreen(),
+                    ),
                   );
                   setState(() {});
                 },
@@ -128,7 +147,8 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const HealthRecordsScreen()),
+                      builder: (_) => const HealthRecordsScreen(),
+                    ),
                   );
                 },
               ),
@@ -151,7 +171,8 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const EventsCalendarScreen()),
+                          builder: (_) => const EventsCalendarScreen(),
+                        ),
                       );
                       setState(() {});
                     },
@@ -168,7 +189,7 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
               ),
               const SizedBox(height: 12),
               ...MockCareData.events.map(
-                    (event) => EventListCard(
+                (event) => EventListCard(
                   event: event,
                   onBookmarkTap: () =>
                       setState(() => event.isBookmarked = !event.isBookmarked),
@@ -176,7 +197,8 @@ class _CareEventsDashboardState extends State<CareEventsDashboard> {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => EventDetailScreen(event: event)),
+                        builder: (_) => EventDetailScreen(event: event),
+                      ),
                     );
                     setState(() {});
                   },

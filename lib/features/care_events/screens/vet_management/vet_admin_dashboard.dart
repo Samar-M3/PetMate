@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
 import 'manage_schedule_screen.dart';
@@ -23,9 +24,13 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Vet Clinic Portal',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Vet Clinic Portal',
+          style: TextStyle(
+            color: CareTheme.charcoal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Add New Vet',
@@ -55,13 +60,18 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(vet.name,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: CareTheme.charcoal)),
-                  Text(vet.clinicName,
-                      style: const TextStyle(color: CareTheme.mutedText)),
+                  Text(
+                    vet.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: CareTheme.charcoal,
+                    ),
+                  ),
+                  Text(
+                    vet.clinicName,
+                    style: const TextStyle(color: CareTheme.mutedText),
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -86,11 +96,14 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Patient Appointment Queue',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Patient Appointment Queue',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
@@ -110,18 +123,27 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Pet: ${appt.petName}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text(appt.status,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: CareTheme.terracotta)),
+                            Text(
+                              'Pet: ${appt.petName}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              appt.status,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: CareTheme.terracotta,
+                              ),
+                            ),
                           ],
                         ),
                         Text('${appt.date} • ${appt.timeSlot}'),
-                        Text('Reason: ${appt.reason}',
-                            style: const TextStyle(color: CareTheme.mutedText)),
+                        Text(
+                          'Reason: ${appt.reason}',
+                          style: const TextStyle(color: CareTheme.mutedText),
+                        ),
                         if (appt.status == 'Upcoming') ...[
                           const SizedBox(height: 10),
                           Row(
@@ -134,8 +156,7 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
                                 onPressed: () {
                                   setState(() {
                                     appt.status = 'Completed';
-                                    appt.vetNotes =
-                                    'In-clinic exam completed. Pet is healthy.';
+                                    appt.vetNotes = 'In-clinic exam completed. Pet is healthy.';
                                   });
                                 },
                                 child: const Text('Mark Completed'),
@@ -144,9 +165,10 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
                               TextButton(
                                 onPressed: () =>
                                     setState(() => appt.status = 'Cancelled'),
-                                child: const Text('Decline',
-                                    style:
-                                    TextStyle(color: CareTheme.terracotta)),
+                                child: const Text(
+                                  'Decline',
+                                  style: TextStyle(color: CareTheme.terracotta),
+                                ),
                               ),
                             ],
                           ),
