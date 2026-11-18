@@ -5,7 +5,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
   return FirebaseAuthService(
     auth: FirebaseAuth.instance,
-    googleSignIn: GoogleSignIn(),
+    googleSignIn: GoogleSignIn(
+      serverClientId: '376139253985-88k3dgcl2957v8bv6dqre8dv7tqv3hab.apps.googleusercontent.com',
+    ),
   );
 });
 
@@ -22,6 +24,12 @@ class FirebaseAuthService {
   User? get currentUser => _auth.currentUser;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Stream<User?> get idTokenChanges => _auth.idTokenChanges();
+
+  Future<void> reloadUser() async {
+    await _auth.currentUser?.reload();
+  }
 
   Future<String?> getIdToken([bool forceRefresh = false]) async {
     return await _auth.currentUser?.getIdToken(forceRefresh);

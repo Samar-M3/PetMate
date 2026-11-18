@@ -1,0 +1,55 @@
+
+name: Flutter CI Build
+
+# When should this workflow run?
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Jobs to execute
+jobs:
+  build:
+    name: Build Flutter Android App
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.3'
+          cache: true
+
+      # 3. Install project dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4. Check for code errors
+      - name: Analyze code
+        run: flutter analyze
+
+      # 5. Run tests
+      - name: Run tests
+        run: flutter test
+
+      # 6. Build Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 7. Save APK as workflow artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: petmate-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

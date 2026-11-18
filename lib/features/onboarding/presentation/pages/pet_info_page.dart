@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   final _descriptionController = TextEditingController();
 
   File? _selectedImage;
+  Uint8List? _imageBytes;
+  String? _imageName;
   String? _uploadedImageUrl;
   bool _isUploadingImage = false;
 
@@ -83,13 +86,34 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (picked != null) {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1080,
+        imageQuality: 80,
+      );
+      if (picked == null) return; // User cancelled gracefully
+
+      final bytes = await picked.readAsBytes();
+
       setState(() {
-        _selectedImage = File(picked.path);
+        _imageBytes = bytes;
+        _imageName = picked.name;
+        if (!kIsWeb) {
+          _selectedImage = File(picked.path);
+        }
         _uploadedImageUrl = null;
       });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not access image. Please check camera and gallery permissions.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -148,6 +172,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   void _resetFormForNextPet() {
     setState(() {
       _selectedImage = null;
+      _imageBytes = null;
+      _imageName = null;
       _uploadedImageUrl = null;
       _nameController.clear();
       _customBreedController.clear();
@@ -167,7 +193,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   Future<void> _savePet() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedImage == null && _uploadedImageUrl == null) {
+    if (_imageBytes == null && _selectedImage == null && _uploadedImageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a photo for your pet.'),
@@ -188,21 +214,28 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
     }
 
     String? photoUrl = _uploadedImageUrl;
-    if (photoUrl == null && _selectedImage != null) {
+    if (photoUrl == null && (_imageBytes != null || _selectedImage != null)) {
       setState(() => _isUploadingImage = true);
       try {
         final cloudinary = ref.read(cloudinaryServiceProvider);
-        photoUrl = await cloudinary.uploadImage(_selectedImage!, folder: 'pets');
+        photoUrl = await cloudinary.uploadImage(
+          _selectedImage,
+          bytes: _imageBytes,
+          filename: _imageName,
+          folder: 'pets',
+        );
         _uploadedImageUrl = photoUrl;
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Image upload warning: ${e.toString()}. Saving with local placeholder.'),
-              backgroundColor: AppColors.warning,
+              content: Text('Failed to upload pet photo: $e'),
+              backgroundColor: AppColors.error,
             ),
           );
         }
+        setState(() => _isUploadingImage = false);
+        return;
       } finally {
         if (mounted) {
           setState(() => _isUploadingImage = false);
@@ -217,6 +250,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
     final pet = await ref.read(authStateProvider.notifier).addPet(
           name: _nameController.text.trim(),
           profilePictureUrl: photoUrl,
+          imageUrl: photoUrl,
           animalType: _selectedAnimalType,
           breed: finalBreed,
           gender: _selectedGender,
@@ -362,28 +396,42 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                             color: AppColors.inputFill,
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.primary, width: 2),
-                            image: _selectedImage != null
-                                ? DecorationImage(
-                                    image: FileImage(_selectedImage!),
-                                    fit: BoxFit.cover,
-                                  )
+                            image: (!_isUploadingImage)
+                                ? (_imageBytes != null
+                                    ? DecorationImage(
+                                        image: MemoryImage(_imageBytes!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : (_selectedImage != null
+                                        ? DecorationImage(
+                                            image: FileImage(_selectedImage!),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null))
                                 : null,
                           ),
-                          child: _selectedImage == null
-                              ? const Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.primary),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Add Photo *',
-                                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                    ),
-                                  ],
+                          child: _isUploadingImage
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.primary,
+                                  ),
                                 )
-                              : null,
+                              : (_imageBytes == null && _selectedImage == null && _uploadedImageUrl == null)
+                                  ? const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.primary),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Add Photo *',
+                                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
                         ),
-                        if (_selectedImage != null)
+                        if (_imageBytes != null || _selectedImage != null || _uploadedImageUrl != null)
                           Positioned(
                             bottom: 0,
                             right: 0,

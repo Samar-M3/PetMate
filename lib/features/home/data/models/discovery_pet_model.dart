@@ -11,22 +11,31 @@ class DiscoveryPetModel extends DiscoveryPet {
     required super.petImageUrl,
     required super.personality,
     required super.ownerName,
+    super.ownerUsername,
+    super.ownerId,
     super.ownerAge,
     required super.ownerLocation,
     super.ownerAvatarUrl,
   });
 
   factory DiscoveryPetModel.fromJson(Map<String, dynamic> json) {
+    final rawImageUrl = json['petImageUrl'] as String? ??
+        json['imageUrl'] as String? ??
+        json['profilePictureUrl'] as String? ??
+        '';
+
     return DiscoveryPetModel(
       id: json['id'] as String? ?? '',
       petName: json['petName'] as String? ?? json['name'] as String? ?? '',
       petAge: json['petAge'] as String? ?? '1 yr old',
       petBreed: json['petBreed'] as String? ?? json['breed'] as String? ?? '',
       petGender: json['petGender'] as String? ?? json['gender'] as String? ?? 'Male',
-      petBio: json['petBio'] as String? ?? json['description'] as String? ?? '',
-      petImageUrl: json['petImageUrl'] as String? ?? json['profilePictureUrl'] as String? ?? '',
+      petBio: json['petBio'] as String? ?? json['bio'] as String? ?? json['description'] as String? ?? '',
+      petImageUrl: rawImageUrl,
       personality: (json['personality'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      ownerName: json['ownerName'] as String? ?? 'Pet Parent',
+      ownerName: json['ownerName'] as String? ?? json['ownerUsername'] as String? ?? 'Pet Parent',
+      ownerUsername: json['ownerUsername'] as String? ?? json['ownerName'] as String?,
+      ownerId: json['ownerId'] as String?,
       ownerAge: json['ownerAge'] as String?,
       ownerLocation: json['ownerLocation'] as String? ?? 'Kathmandu, Nepal',
       ownerAvatarUrl: json['ownerAvatarUrl'] as String?,
@@ -44,6 +53,8 @@ class DiscoveryPetModel extends DiscoveryPet {
       'petImageUrl': petImageUrl,
       'personality': personality,
       'ownerName': ownerName,
+      'ownerUsername': ownerUsername,
+      'ownerId': ownerId,
       'ownerAge': ownerAge,
       'ownerLocation': ownerLocation,
       'ownerAvatarUrl': ownerAvatarUrl,

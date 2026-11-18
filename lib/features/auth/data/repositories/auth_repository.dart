@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/api_client.dart';
 import '../models/user_model.dart';
@@ -65,17 +66,22 @@ class AuthRepository {
   Future<UserModel> updateOwnerProfile({
     required String fullName,
     String? profilePictureUrl,
+    String? imageUrl,
+    String? imagePublicId,
     required String location,
     String? area,
     String? bio,
     String? phoneNumber,
     bool onboardingCompleted = true,
   }) async {
+    final effectiveUrl = imageUrl ?? profilePictureUrl;
     final response = await apiClient.put(
       '/users/me',
       body: {
         'fullName': fullName,
-        if (profilePictureUrl != null) 'profilePictureUrl': profilePictureUrl,
+        if (effectiveUrl != null) 'imageUrl': effectiveUrl,
+        if (effectiveUrl != null) 'profilePictureUrl': effectiveUrl,
+        if (imagePublicId != null) 'imagePublicId': imagePublicId,
         'location': location,
         if (area != null && area.isNotEmpty) 'area': area,
         if (bio != null && bio.isNotEmpty) 'bio': bio,
@@ -87,9 +93,21 @@ class AuthRepository {
     return UserModel.fromJson(response['user'] as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> uploadUserAvatar(File file) async {
+    final response = await apiClient.postMultipart(
+      '/users/me/avatar',
+      file: file,
+      fieldName: 'image',
+    );
+
+    return response as Map<String, dynamic>;
+  }
+
   Future<PetModel> createPet({
     required String name,
     String? profilePictureUrl,
+    String? imageUrl,
+    String? imagePublicId,
     required String animalType,
     required String breed,
     required String gender,
@@ -100,11 +118,14 @@ class AuthRepository {
     String? allergies,
     String? description,
   }) async {
+    final effectiveUrl = imageUrl ?? profilePictureUrl;
     final response = await apiClient.post(
       '/pets',
       body: {
         'name': name,
-        if (profilePictureUrl != null) 'profilePictureUrl': profilePictureUrl,
+        if (effectiveUrl != null) 'imageUrl': effectiveUrl,
+        if (effectiveUrl != null) 'profilePictureUrl': effectiveUrl,
+        if (imagePublicId != null) 'imagePublicId': imagePublicId,
         'animalType': animalType,
         'breed': breed,
         'gender': gender,
@@ -120,6 +141,16 @@ class AuthRepository {
     return PetModel.fromJson(response['pet'] as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> uploadPetImage(String petId, File file) async {
+    final response = await apiClient.postMultipart(
+      '/pets/$petId/image',
+      file: file,
+      fieldName: 'image',
+    );
+
+    return response as Map<String, dynamic>;
+  }
+
   Future<List<PetModel>> getPets() async {
     final response = await apiClient.get('/pets');
     final list = response['pets'] as List;
@@ -128,5 +159,9 @@ class AuthRepository {
 
   Future<void> deletePet(String petId) async {
     await apiClient.delete('/pets/$petId');
+  }
+
+  Future<void> deletePetImage(String petId) async {
+    await apiClient.delete('/pets/$petId/image');
   }
 }
