@@ -1,5 +1,7 @@
 import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../data/repositories/matching_repository.dart';
 
 class RequestsState {
@@ -70,16 +72,20 @@ class RequestsNotifier extends Notifier<RequestsState> {
   }) async {
     if (state.actionLoadingIds.contains(requestId)) return;
 
-    final updatedActionIds = Set<String>.from(state.actionLoadingIds)..add(requestId);
+    final updatedActionIds = Set<String>.from(state.actionLoadingIds)
+      ..add(requestId);
     state = state.copyWith(actionLoadingIds: updatedActionIds);
 
     try {
       final result = await _repository.acceptRequest(requestId);
 
       // Successfully accepted: remove from list and decrement pendingCount
-      final updatedRequests = state.requests.where((r) => r.id != requestId).toList();
+      final updatedRequests = state.requests
+          .where((r) => r.id != requestId)
+          .toList();
       final newPendingCount = max(0, state.pendingCount - 1);
-      final finalActionIds = Set<String>.from(state.actionLoadingIds)..remove(requestId);
+      final finalActionIds = Set<String>.from(state.actionLoadingIds)
+        ..remove(requestId);
 
       state = state.copyWith(
         requests: updatedRequests,
@@ -91,12 +97,15 @@ class RequestsNotifier extends Notifier<RequestsState> {
       // // PART 3 HOOK: navigate to chat window
       onAccepted(result);
     } catch (e) {
-      final finalActionIds = Set<String>.from(state.actionLoadingIds)..remove(requestId);
+      final finalActionIds = Set<String>.from(state.actionLoadingIds)
+        ..remove(requestId);
       final errMsg = e.toString();
 
       // If already responded to (409), also remove from the list
       if (errMsg.contains('409') || errMsg.contains('already been')) {
-        final updatedRequests = state.requests.where((r) => r.id != requestId).toList();
+        final updatedRequests = state.requests
+            .where((r) => r.id != requestId)
+            .toList();
         final newPendingCount = max(0, state.pendingCount - 1);
         state = state.copyWith(
           requests: updatedRequests,
@@ -118,16 +127,20 @@ class RequestsNotifier extends Notifier<RequestsState> {
   }) async {
     if (state.actionLoadingIds.contains(requestId)) return;
 
-    final updatedActionIds = Set<String>.from(state.actionLoadingIds)..add(requestId);
+    final updatedActionIds = Set<String>.from(state.actionLoadingIds)
+      ..add(requestId);
     state = state.copyWith(actionLoadingIds: updatedActionIds);
 
     try {
       await _repository.rejectRequest(requestId);
 
       // Successfully rejected: remove from list and decrement pendingCount
-      final updatedRequests = state.requests.where((r) => r.id != requestId).toList();
+      final updatedRequests = state.requests
+          .where((r) => r.id != requestId)
+          .toList();
       final newPendingCount = max(0, state.pendingCount - 1);
-      final finalActionIds = Set<String>.from(state.actionLoadingIds)..remove(requestId);
+      final finalActionIds = Set<String>.from(state.actionLoadingIds)
+        ..remove(requestId);
 
       state = state.copyWith(
         requests: updatedRequests,
@@ -137,12 +150,15 @@ class RequestsNotifier extends Notifier<RequestsState> {
 
       onRejected?.call();
     } catch (e) {
-      final finalActionIds = Set<String>.from(state.actionLoadingIds)..remove(requestId);
+      final finalActionIds = Set<String>.from(state.actionLoadingIds)
+        ..remove(requestId);
       final errMsg = e.toString();
 
       // If already responded to (409), also remove from list
       if (errMsg.contains('409') || errMsg.contains('already been')) {
-        final updatedRequests = state.requests.where((r) => r.id != requestId).toList();
+        final updatedRequests = state.requests
+            .where((r) => r.id != requestId)
+            .toList();
         final newPendingCount = max(0, state.pendingCount - 1);
         state = state.copyWith(
           requests: updatedRequests,
@@ -162,4 +178,6 @@ class RequestsNotifier extends Notifier<RequestsState> {
   }
 }
 
-final requestsProvider = NotifierProvider<RequestsNotifier, RequestsState>(RequestsNotifier.new);
+final requestsProvider = NotifierProvider<RequestsNotifier, RequestsState>(
+  RequestsNotifier.new,
+);

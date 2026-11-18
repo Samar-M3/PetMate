@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../data/repositories/matching_repository.dart';
 import '../../domain/entities/discovery_pet.dart';
 
@@ -34,10 +36,14 @@ class DiscoveryState {
   });
 
   DiscoveryPet? get currentPet =>
-      (currentIndex >= 0 && currentIndex < pets.length) ? pets[currentIndex] : null;
+      (currentIndex >= 0 && currentIndex < pets.length)
+      ? pets[currentIndex]
+      : null;
 
   DiscoveryPet? get nextPet =>
-      (currentIndex + 1 >= 0 && currentIndex + 1 < pets.length) ? pets[currentIndex + 1] : null;
+      (currentIndex + 1 >= 0 && currentIndex + 1 < pets.length)
+      ? pets[currentIndex + 1]
+      : null;
 
   bool get hasMore => currentIndex < pets.length;
 
@@ -66,7 +72,9 @@ class DiscoveryState {
       nextCursor: nextCursor ?? this.nextCursor,
       hasMoreServer: hasMoreServer ?? this.hasMoreServer,
       errorMessage: errorMessage,
-      snackbarMessage: clearSnackbar ? null : (snackbarMessage ?? this.snackbarMessage),
+      snackbarMessage: clearSnackbar
+          ? null
+          : (snackbarMessage ?? this.snackbarMessage),
       lastSwipedPetName: lastSwipedPetName ?? this.lastSwipedPetName,
       lastDirection: lastDirection ?? this.lastDirection,
     );
@@ -80,11 +88,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
 
   @override
   DiscoveryState build() {
-    return const DiscoveryState(
-      pets: [],
-      currentIndex: 0,
-      isLoading: false,
-    );
+    return const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
   }
 
   Future<void> loadInitial(String petId) async {
@@ -107,7 +111,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       );
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[Discovery] ❌ Failed to load initial feed for pet $petId: $e');
+        debugPrint(
+          '[Discovery] ❌ Failed to load initial feed for pet $petId: $e',
+        );
       }
       state = state.copyWith(
         isLoading: false,
@@ -120,7 +126,10 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     final petId = state.activePetId;
     final cursor = state.nextCursor;
 
-    if (petId == null || cursor == null || !state.hasMoreServer || state.isPrefetching) {
+    if (petId == null ||
+        cursor == null ||
+        !state.hasMoreServer ||
+        state.isPrefetching) {
       return;
     }
 
@@ -176,7 +185,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     });
 
     if (kDebugMode) {
-      debugPrint('[Discovery] ${direction == SwipeDirection.right ? "❤️ Liked" : "✖️ Passed"} pet: ${targetPet.petName} (ID: ${targetPet.id})');
+      debugPrint(
+        '[Discovery] ${direction == SwipeDirection.right ? "❤️ Liked" : "✖️ Passed"} pet: ${targetPet.petName} (ID: ${targetPet.id})',
+      );
     }
 
     // 1. Optimistic UI update immediately
@@ -187,7 +198,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     );
 
     // 2. Prefetch next page when ~3 cards remain
-    if (state.remainingCount <= 3 && state.hasMoreServer && !state.isPrefetching) {
+    if (state.remainingCount <= 3 &&
+        state.hasMoreServer &&
+        !state.isPrefetching) {
       _prefetchNextPage();
     }
 
@@ -214,7 +227,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       );
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[Discovery] ⚠️ Background swipe attempt 1 failed for $petName: $e. Retrying once...');
+        debugPrint(
+          '[Discovery] ⚠️ Background swipe attempt 1 failed for $petName: $e. Retrying once...',
+        );
       }
       // Retry once
       try {
@@ -225,10 +240,13 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
         );
       } catch (retryError) {
         if (kDebugMode) {
-          debugPrint('[Discovery] ❌ Background swipe attempt 2 failed: $retryError');
+          debugPrint(
+            '[Discovery] ❌ Background swipe attempt 2 failed: $retryError',
+          );
         }
         state = state.copyWith(
-          snackbarMessage: 'Failed to record swipe for $petName. Please check your connection.',
+          snackbarMessage:
+              'Failed to record swipe for $petName. Please check your connection.',
         );
       }
     }
@@ -243,13 +261,11 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     if (petId != null) {
       loadInitial(petId);
     } else {
-      state = const DiscoveryState(
-        pets: [],
-        currentIndex: 0,
-        isLoading: false,
-      );
+      state = const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
     }
   }
 }
 
-final discoveryProvider = NotifierProvider<DiscoveryNotifier, DiscoveryState>(DiscoveryNotifier.new);
+final discoveryProvider = NotifierProvider<DiscoveryNotifier, DiscoveryState>(
+  DiscoveryNotifier.new,
+);

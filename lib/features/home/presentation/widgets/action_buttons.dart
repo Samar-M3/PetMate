@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
 
 class ActionButtons extends StatefulWidget {
@@ -52,10 +53,7 @@ class _ActionButtonsState extends State<ActionButtons> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
-                  border: Border.all(
-                    color: AppColors.border,
-                    width: 2,
-                  ),
+                  border: Border.all(color: AppColors.border, width: 2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
@@ -65,11 +63,7 @@ class _ActionButtonsState extends State<ActionButtons> {
                   ],
                 ),
                 child: const Center(
-                  child: Icon(
-                    Icons.close,
-                    color: AppColors.error,
-                    size: 32,
-                  ),
+                  child: Icon(Icons.close, color: AppColors.error, size: 32),
                 ),
               ),
             ),
@@ -99,10 +93,7 @@ class _ActionButtonsState extends State<ActionButtons> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFFF6B6B),
-                      AppColors.terracotta,
-                    ],
+                    colors: [Color(0xFFFF6B6B), AppColors.terracotta],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -115,11 +106,7 @@ class _ActionButtonsState extends State<ActionButtons> {
                   ],
                 ),
                 child: const Center(
-                  child: Icon(
-                    Icons.favorite,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                  child: Icon(Icons.favorite, color: Colors.white, size: 32),
                 ),
               ),
             ),

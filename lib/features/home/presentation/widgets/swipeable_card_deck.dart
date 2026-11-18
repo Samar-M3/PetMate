@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'pet_profile_card.dart';
@@ -78,30 +79,33 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void _animateCardOut(Offset targetOffset, double targetRotation) {
     _isAnimatingOut = true;
-    _slideAnimation = Tween<Offset>(
-      begin: _dragOffset,
-      end: targetOffset,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    _slideAnimation = Tween<Offset>(begin: _dragOffset, end: targetOffset)
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
 
-    _rotateAnimation = Tween<double>(
-      begin: _dragOffset.dx / 1000,
-      end: targetRotation,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    _rotateAnimation =
+        Tween<double>(
+          begin: _dragOffset.dx / 1000,
+          end: targetRotation,
+        ).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
 
     _animController.forward(from: 0.0);
   }
 
   void _animateCardBack() {
     _isAnimatingOut = false;
-    _slideAnimation = Tween<Offset>(
-      begin: _dragOffset,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutBack));
+    _slideAnimation = Tween<Offset>(begin: _dragOffset, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+        );
 
-    _rotateAnimation = Tween<double>(
-      begin: _dragOffset.dx / 1000,
-      end: 0.0,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutBack));
+    _rotateAnimation = Tween<double>(begin: _dragOffset.dx / 1000, end: 0.0)
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+        );
 
     _animController.forward(from: 0.0);
   }
@@ -139,7 +143,9 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     }
 
     final currentPet = pets[currentIndex];
-    final nextPet = (currentIndex + 1 < pets.length) ? pets[currentIndex + 1] : null;
+    final nextPet = (currentIndex + 1 < pets.length)
+        ? pets[currentIndex + 1]
+        : null;
 
     final screenWidth = MediaQuery.of(context).size.width;
     final swipeRatio = (_dragOffset.dx / (screenWidth * 0.35)).clamp(-1.0, 1.0);
@@ -158,10 +164,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                   offset: Offset(0, 14 * (1.0 - absRatio)),
                   child: Opacity(
                     opacity: 0.80 + (0.20 * absRatio),
-                    child: PetProfileCard(
-                      pet: nextPet,
-                      swipeProgress: 0.0,
-                    ),
+                    child: PetProfileCard(pet: nextPet, swipeProgress: 0.0),
                   ),
                 ),
               ),

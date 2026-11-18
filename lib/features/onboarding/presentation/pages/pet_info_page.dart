@@ -1,10 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -40,9 +42,29 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   int _savedPetsCount = 0;
 
   final Map<String, List<String>> _breedsByAnimal = {
-    'Dog': ['Labrador', 'Golden Retriever', 'German Shepherd', 'Pug', 'Husky', 'Other'],
-    'Cat': ['Persian', 'Siamese', 'Maine Coon', 'British Shorthair', 'Bengal', 'Other'],
-    'Rabbit': ['Holland Lop', 'Netherland Dwarf', 'Lionhead', 'Mini Rex', 'Other'],
+    'Dog': [
+      'Labrador',
+      'Golden Retriever',
+      'German Shepherd',
+      'Pug',
+      'Husky',
+      'Other',
+    ],
+    'Cat': [
+      'Persian',
+      'Siamese',
+      'Maine Coon',
+      'British Shorthair',
+      'Bengal',
+      'Other',
+    ],
+    'Rabbit': [
+      'Holland Lop',
+      'Netherland Dwarf',
+      'Lionhead',
+      'Mini Rex',
+      'Other',
+    ],
     'Bird': ['Parakeet', 'Cockatiel', 'Lovebird', 'Canary', 'Other'],
     'Other': ['Other'],
   };
@@ -109,7 +131,9 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not access image. Please check camera and gallery permissions.'),
+            content: Text(
+              'Could not access image. Please check camera and gallery permissions.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -193,7 +217,9 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   Future<void> _savePet() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_imageBytes == null && _selectedImage == null && _uploadedImageUrl == null) {
+    if (_imageBytes == null &&
+        _selectedImage == null &&
+        _uploadedImageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a photo for your pet.'),
@@ -243,11 +269,15 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
       }
     }
 
-    final finalBreed = _selectedBreed == 'Other' && _customBreedController.text.trim().isNotEmpty
+    final finalBreed =
+        _selectedBreed == 'Other' &&
+            _customBreedController.text.trim().isNotEmpty
         ? _customBreedController.text.trim()
         : _selectedBreed;
 
-    final pet = await ref.read(authStateProvider.notifier).addPet(
+    final pet = await ref
+        .read(authStateProvider.notifier)
+        .addPet(
           name: _nameController.text.trim(),
           profilePictureUrl: photoUrl,
           imageUrl: photoUrl,
@@ -281,7 +311,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
           children: [
             Icon(Icons.check_circle, color: AppColors.success, size: 28),
             SizedBox(width: 10),
-            Text('Pet Profile Saved!', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Pet Profile Saved!',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Text(
@@ -338,7 +371,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
               padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -395,19 +431,24 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                           decoration: BoxDecoration(
                             color: AppColors.inputFill,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primary, width: 2),
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
                             image: (!_isUploadingImage)
                                 ? (_imageBytes != null
-                                    ? DecorationImage(
-                                        image: MemoryImage(_imageBytes!),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : (_selectedImage != null
-                                        ? DecorationImage(
-                                            image: FileImage(_selectedImage!),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null))
+                                      ? DecorationImage(
+                                          image: MemoryImage(_imageBytes!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : (_selectedImage != null
+                                            ? DecorationImage(
+                                                image: FileImage(
+                                                  _selectedImage!,
+                                                ),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null))
                                 : null,
                           ),
                           child: _isUploadingImage
@@ -417,21 +458,32 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                                     color: AppColors.primary,
                                   ),
                                 )
-                              : (_imageBytes == null && _selectedImage == null && _uploadedImageUrl == null)
-                                  ? const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.primary),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          'Add Photo *',
-                                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                        ),
-                                      ],
-                                    )
-                                  : null,
+                              : (_imageBytes == null &&
+                                    _selectedImage == null &&
+                                    _uploadedImageUrl == null)
+                              ? const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_a_photo_outlined,
+                                      size: 36,
+                                      color: AppColors.primary,
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Add Photo *',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : null,
                         ),
-                        if (_imageBytes != null || _selectedImage != null || _uploadedImageUrl != null)
+                        if (_imageBytes != null ||
+                            _selectedImage != null ||
+                            _uploadedImageUrl != null)
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -441,7 +493,11 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                                 color: AppColors.terracotta,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                              child: const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                       ],
@@ -472,7 +528,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   initialValue: _selectedAnimalType,
                   decoration: const InputDecoration(
                     labelText: 'Animal Type *',
-                    prefixIcon: Icon(Icons.category_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.category_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                   items: _breedsByAnimal.keys.map((type) {
                     return DropdownMenuItem(value: type, child: Text(type));
@@ -490,10 +549,15 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
 
                 // Breed (Required Dropdown)
                 DropdownButtonFormField<String>(
-                  value: breeds.contains(_selectedBreed) ? _selectedBreed : breeds.first,
+                  initialValue: breeds.contains(_selectedBreed)
+                      ? _selectedBreed
+                      : breeds.first,
                   decoration: const InputDecoration(
                     labelText: 'Breed *',
-                    prefixIcon: Icon(Icons.badge_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.badge_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                   items: breeds.map((b) {
                     return DropdownMenuItem(value: b, child: Text(b));
@@ -514,10 +578,14 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                     controller: _customBreedController,
                     decoration: const InputDecoration(
                       labelText: 'Specify Breed *',
-                      prefixIcon: Icon(Icons.edit_note, color: AppColors.primary),
+                      prefixIcon: Icon(
+                        Icons.edit_note,
+                        color: AppColors.primary,
+                      ),
                     ),
                     validator: (val) {
-                      if (_selectedBreed == 'Other' && (val == null || val.trim().isEmpty)) {
+                      if (_selectedBreed == 'Other' &&
+                          (val == null || val.trim().isEmpty)) {
                         return 'Please enter the breed name';
                       }
                       return null;
@@ -531,7 +599,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   initialValue: _selectedGender,
                   decoration: const InputDecoration(
                     labelText: 'Gender *',
-                    prefixIcon: Icon(Icons.transgender, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.transgender,
+                      color: AppColors.primary,
+                    ),
                   ),
                   items: _genders.map((g) {
                     return DropdownMenuItem(value: g, child: Text(g));
@@ -553,7 +624,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   child: InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Date of Birth *',
-                      prefixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.primary),
+                      prefixIcon: Icon(
+                        Icons.calendar_today_outlined,
+                        color: AppColors.primary,
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -563,12 +637,17 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                               ? DateFormat('MMM dd, yyyy').format(_selectedDob!)
                               : 'Select birth date',
                           style: TextStyle(
-                            color: _selectedDob != null ? AppColors.textPrimary : AppColors.textMuted,
+                            color: _selectedDob != null
+                                ? AppColors.textPrimary
+                                : AppColors.textMuted,
                           ),
                         ),
                         if (_selectedDob != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -594,7 +673,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   decoration: const InputDecoration(
                     labelText: 'Color (Optional)',
                     hintText: 'e.g. Golden, Black & White',
-                    prefixIcon: Icon(Icons.palette_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.palette_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -620,8 +702,12 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                       selectedColor: AppColors.primary.withValues(alpha: 0.2),
                       checkmarkColor: AppColors.primary,
                       labelStyle: TextStyle(
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                       onSelected: (selected) {
                         setState(() {
@@ -642,7 +728,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   initialValue: _selectedVaccination,
                   decoration: const InputDecoration(
                     labelText: 'Vaccination Status *',
-                    prefixIcon: Icon(Icons.health_and_safety_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.health_and_safety_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                   items: _vaccinationOptions.map((v) {
                     return DropdownMenuItem(value: v, child: Text(v));
@@ -663,7 +752,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   decoration: const InputDecoration(
                     labelText: 'Allergies (Optional)',
                     hintText: 'e.g. Dairy, Pollen, Grain',
-                    prefixIcon: Icon(Icons.warning_amber_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.warning_amber_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -675,21 +767,28 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                   decoration: const InputDecoration(
                     labelText: 'Additional Description (Optional)',
                     hintText: 'Tell other pet parents more about your pet...',
-                    prefixIcon: Icon(Icons.notes_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.notes_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),
 
                 // Save Pet Button
                 ElevatedButton(
-                  onPressed: (authState.isLoading || _isUploadingImage) ? null : _savePet,
+                  onPressed: (authState.isLoading || _isUploadingImage)
+                      ? null
+                      : _savePet,
                   child: (authState.isLoading || _isUploadingImage)
                       ? const SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text('Save Pet Profile'),

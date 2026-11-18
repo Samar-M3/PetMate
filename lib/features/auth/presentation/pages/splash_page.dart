@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
 
 class SplashPage extends StatelessWidget {
@@ -30,11 +31,7 @@ class SplashPage extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.pets,
-                color: Colors.white,
-                size: 38,
-              ),
+              child: const Icon(Icons.pets, color: Colors.white, size: 38),
             ),
             const SizedBox(height: 20),
             RichText(

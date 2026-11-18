@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -7,10 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 class HomeHeader extends ConsumerWidget {
   final VoidCallback onProfileTap;
 
-  const HomeHeader({
-    super.key,
-    required this.onProfileTap,
-  });
+  const HomeHeader({super.key, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,8 +18,8 @@ class HomeHeader extends ConsumerWidget {
     final initial = (profile?.fullName != null && profile!.fullName!.isNotEmpty)
         ? profile.fullName![0].toUpperCase()
         : (user?.email != null && user!.email!.isNotEmpty)
-            ? user.email![0].toUpperCase()
-            : 'P';
+        ? user.email![0].toUpperCase()
+        : 'P';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -50,11 +48,7 @@ class HomeHeader extends ConsumerWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.pets,
-                  color: Colors.white,
-                  size: 22,
-                ),
+                child: const Icon(Icons.pets, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 10),
               Text.rich(

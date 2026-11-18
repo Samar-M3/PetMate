@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
 
 class PetMateBottomNavBar extends StatelessWidget {
@@ -35,11 +36,7 @@ class PetMateBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
-              ),
+              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
               _buildNavItem(
                 index: 1,
                 icon: Icons.favorite_rounded,
@@ -105,11 +102,7 @@ class PetMateBottomNavBar extends StatelessWidget {
                   ),
                 ),
                 backgroundColor: AppColors.terracotta,
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: color,
-                ),
+                child: Icon(icon, size: 22, color: color),
               ),
             ),
             const SizedBox(height: 2),

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/api_client.dart';
 import '../models/connection_request_model.dart';
 import '../models/discovery_pet_model.dart';
@@ -41,10 +42,7 @@ class MatchingRepository {
     String? cursor,
     int limit = 10,
   }) async {
-    final queryParams = <String, dynamic>{
-      'petId': petId,
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'petId': petId, 'limit': limit};
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
     }
@@ -68,11 +66,7 @@ class MatchingRepository {
   }) async {
     final response = await _apiClient.post(
       '/swipes',
-      body: {
-        'petId': petId,
-        'targetPetId': targetPetId,
-        'action': action,
-      },
+      body: {'petId': petId, 'targetPetId': targetPetId, 'action': action},
     );
 
     if (response is Map<String, dynamic>) {
@@ -86,9 +80,7 @@ class MatchingRepository {
     String? cursor,
     int limit = 20,
   }) async {
-    final queryParams = <String, dynamic>{
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'limit': limit};
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
     }
@@ -110,9 +102,7 @@ class MatchingRepository {
   }
 
   Future<Map<String, dynamic>> acceptRequest(String requestId) async {
-    final response = await _apiClient.post(
-      '/requests/$requestId/accept',
-    );
+    final response = await _apiClient.post('/requests/$requestId/accept');
 
     if (response is Map<String, dynamic>) {
       return response;
@@ -122,9 +112,7 @@ class MatchingRepository {
   }
 
   Future<Map<String, dynamic>> rejectRequest(String requestId) async {
-    final response = await _apiClient.post(
-      '/requests/$requestId/reject',
-    );
+    final response = await _apiClient.post('/requests/$requestId/reject');
 
     if (response is Map<String, dynamic>) {
       return response;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -55,9 +56,11 @@ class ProfileBottomSheet extends ConsumerWidget {
           Row(
             children: [
               UserAvatar(
-                imageUrl: profile?.effectiveImageUrl ?? profile?.profilePictureUrl,
+                imageUrl:
+                    profile?.effectiveImageUrl ?? profile?.profilePictureUrl,
                 radius: 30,
-                initials: (profile?.fullName != null && profile!.fullName!.isNotEmpty)
+                initials:
+                    (profile?.fullName != null && profile!.fullName!.isNotEmpty)
                     ? profile.fullName![0].toUpperCase()
                     : 'U',
               ),
@@ -78,7 +81,11 @@ class ProfileBottomSheet extends ConsumerWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, size: 14, color: AppColors.terracotta),
+                          const Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: AppColors.terracotta,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             profile!.location!,
@@ -124,7 +131,11 @@ class ProfileBottomSheet extends ConsumerWidget {
                   Navigator.pop(context);
                   context.go('/onboarding/pet');
                 },
-                icon: const Icon(Icons.add, size: 16, color: AppColors.terracotta),
+                icon: const Icon(
+                  Icons.add,
+                  size: 16,
+                  color: AppColors.terracotta,
+                ),
                 label: const Text(
                   'Add Pet',
                   style: TextStyle(
@@ -152,7 +163,10 @@ class ProfileBottomSheet extends ConsumerWidget {
                   SizedBox(width: 10),
                   Text(
                     'No pets added yet',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -164,7 +178,7 @@ class ProfileBottomSheet extends ConsumerWidget {
                 shrinkWrap: true,
                 scrollDirection: Axis.horizontal,
                 itemCount: pets.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final pet = pets[index];
                   return Container(
@@ -179,7 +193,8 @@ class ProfileBottomSheet extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         AppNetworkImage(
-                          imageUrl: pet.effectiveImageUrl ?? pet.profilePictureUrl,
+                          imageUrl:
+                              pet.effectiveImageUrl ?? pet.profilePictureUrl,
                           width: 44,
                           height: 44,
                           shape: BoxShape.circle,

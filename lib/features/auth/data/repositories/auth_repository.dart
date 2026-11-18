@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/api_client.dart';
 import '../models/user_model.dart';
 
@@ -46,7 +48,8 @@ class AuthRepository {
     final response = await apiClient.post(
       '/users/initialize',
       body: {
-        if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+        if (phoneNumber != null && phoneNumber.isNotEmpty)
+          'phoneNumber': phoneNumber,
       },
     );
 
@@ -79,13 +82,14 @@ class AuthRepository {
       '/users/me',
       body: {
         'fullName': fullName,
-        if (effectiveUrl != null) 'imageUrl': effectiveUrl,
-        if (effectiveUrl != null) 'profilePictureUrl': effectiveUrl,
-        if (imagePublicId != null) 'imagePublicId': imagePublicId,
+        'imageUrl': ?effectiveUrl,
+        'profilePictureUrl': ?effectiveUrl,
+        'imagePublicId': ?imagePublicId,
         'location': location,
         if (area != null && area.isNotEmpty) 'area': area,
         if (bio != null && bio.isNotEmpty) 'bio': bio,
-        if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+        if (phoneNumber != null && phoneNumber.isNotEmpty)
+          'phoneNumber': phoneNumber,
         'onboardingCompleted': onboardingCompleted,
       },
     );
@@ -123,9 +127,9 @@ class AuthRepository {
       '/pets',
       body: {
         'name': name,
-        if (effectiveUrl != null) 'imageUrl': effectiveUrl,
-        if (effectiveUrl != null) 'profilePictureUrl': effectiveUrl,
-        if (imagePublicId != null) 'imagePublicId': imagePublicId,
+        'imageUrl': ?effectiveUrl,
+        'profilePictureUrl': ?effectiveUrl,
+        'imagePublicId': ?imagePublicId,
         'animalType': animalType,
         'breed': breed,
         'gender': gender,
@@ -134,7 +138,8 @@ class AuthRepository {
         'personality': personality,
         'vaccinationStatus': vaccinationStatus,
         if (allergies != null && allergies.isNotEmpty) 'allergies': allergies,
-        if (description != null && description.isNotEmpty) 'description': description,
+        if (description != null && description.isNotEmpty)
+          'description': description,
       },
     );
 
@@ -154,7 +159,9 @@ class AuthRepository {
   Future<List<PetModel>> getPets() async {
     final response = await apiClient.get('/pets');
     final list = response['pets'] as List;
-    return list.map((item) => PetModel.fromJson(item as Map<String, dynamic>)).toList();
+    return list
+        .map((item) => PetModel.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> deletePet(String petId) async {
