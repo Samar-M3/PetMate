@@ -5,6 +5,7 @@ import {
   updateMe,
   uploadAvatar,
   getStatus,
+  applyRole,
 } from "./users.controller.ts";
 import {
   authenticateFirebase,
@@ -34,5 +35,8 @@ router.post(
   handleSingleImageUpload("image"),
   uploadAvatar
 );
+
+// 5. Submit role application (e.g. SELLER, VETERINARIAN)
+router.post("/apply-role", requireInitializedUser, applyRole);
 
 export default router;

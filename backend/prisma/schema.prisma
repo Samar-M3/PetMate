@@ -25,6 +25,17 @@ enum RequestStatus {
   REJECTED
 }
 
+enum ApplicationType {
+  SELLER
+  VETERINARIAN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                  String          @id @default(uuid())
   firebaseUid         String          @unique @map("firebase_uid")
@@ -44,6 +55,8 @@ model User {
   swipesReceived      PetSwipe[]          @relation("SwipesReceived")
   requestsSent        ConnectionRequest[] @relation("RequestsSent")
   requestsReceived    ConnectionRequest[] @relation("RequestsReceived")
+  applications        RoleApplication[]   @relation("UserApplications")
+  reviewedApplications RoleApplication[]  @relation("ReviewedApplications")
 
   @@map("users")
 }
@@ -164,4 +177,23 @@ model ConnectionRequest {
   @@index([senderUserId])
   @@index([receiverUserId])
   @@map("connection_requests")
+}
+
+model RoleApplication {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  type        ApplicationType
+  status      ApplicationStatus @default(PENDING)
+  notes       String?
+  reviewedBy  String?           @map("reviewed_by")
+  reviewedAt  DateTime?         @map("reviewed_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  user        User              @relation("UserApplications", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("ReviewedApplications", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+  @@index([userId])
+  @@map("role_applications")
 }

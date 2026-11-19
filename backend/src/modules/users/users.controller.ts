@@ -6,6 +6,7 @@ import {
   updateOwnerProfile,
   updateUserAvatar,
   getOnboardingStatus,
+  submitRoleApplication,
 } from "./users.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
@@ -21,7 +22,11 @@ export const initializeUser = async (
       return next(new AppError("Missing Firebase UID in request context", 401));
     }
 
-    const { phoneNumber } = req.body;
+    if (req.body && req.body.role !== undefined) {
+      return next(new AppError("Role cannot be set or updated through this endpoint", 403));
+    }
+
+    const { phoneNumber } = req.body || {};
     const email = req.firebaseUser?.email;
 
     const user = await initializeUserRecord(req.firebaseUid, email, phoneNumber);
@@ -60,6 +65,18 @@ export const getMe = async (
   }
 };
 
+const ALLOWED_UPDATE_ME_FIELDS = new Set([
+  "fullName",
+  "profilePictureUrl",
+  "imageUrl",
+  "imagePublicId",
+  "location",
+  "area",
+  "bio",
+  "phoneNumber",
+  "onboardingCompleted",
+]);
+
 export const updateMe = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -70,10 +87,24 @@ export const updateMe = async (
       return next(new AppError("User not found", 404));
     }
 
-    // Strip role and isActive — never accept from client
+    // Explicit check for role tampering
+    if (req.body && req.body.role !== undefined) {
+      return next(new AppError("Role cannot be set or updated through this endpoint", 403));
+    }
+    if (req.body && req.body.isActive !== undefined) {
+      return next(new AppError("Account status cannot be modified through this endpoint", 403));
+    }
+
+    // Allowlist validation
+    if (req.body && typeof req.body === "object") {
+      for (const key of Object.keys(req.body)) {
+        if (!ALLOWED_UPDATE_ME_FIELDS.has(key)) {
+          return next(new AppError(`Invalid field in request body: ${key}`, 400));
+        }
+      }
+    }
+
     const {
-      role: _ignoreRole,
-      isActive: _ignoreActive,
       fullName,
       profilePictureUrl,
       imageUrl,
@@ -83,7 +114,7 @@ export const updateMe = async (
       bio,
       phoneNumber,
       onboardingCompleted,
-    } = req.body;
+    } = req.body || {};
 
     const user = await updateOwnerProfile(req.user.id, {
       fullName,
@@ -154,6 +185,35 @@ export const getStatus = async (
     });
   } catch (error) {
     console.error("[UsersController] ❌ Error in getStatus:", error);
+    next(error);
+  }
+};
+
+export const applyRole = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const { type, notes } = req.body || {};
+    if (!type || (type !== "SELLER" && type !== "VETERINARIAN")) {
+      return next(
+        new AppError("type is required and must be SELLER or VETERINARIAN", 400)
+      );
+    }
+
+    const application = await submitRoleApplication(req.user.id, type, notes);
+
+    sendSuccess(res, {
+      statusCode: 201,
+      message: "Role application submitted successfully",
+      data: { application },
+    });
+  } catch (error) {
     next(error);
   }
 };

@@ -208,3 +208,32 @@ export const getOnboardingStatus = async (firebaseUid: string) => {
     nextStep,
   };
 };
+
+export const submitRoleApplication = async (
+  userId: string,
+  type: "SELLER" | "VETERINARIAN",
+  notes?: string
+) => {
+  if (type !== "SELLER" && type !== "VETERINARIAN") {
+    throw new AppError("Invalid application type. Must be SELLER or VETERINARIAN", 400);
+  }
+
+  const existing = await prisma.roleApplication.findFirst({
+    where: { userId, type, status: "PENDING" },
+  });
+
+  if (existing) {
+    throw new AppError(
+      `You already have a pending application for ${type}`,
+      409
+    );
+  }
+
+  return prisma.roleApplication.create({
+    data: {
+      userId,
+      type,
+      notes,
+    },
+  });
+};
