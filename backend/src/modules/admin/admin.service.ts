@@ -1,5 +1,9 @@
 import prisma from "../../config/db.ts";
-import { Role } from "../../generated/prisma/client.ts";
+import {
+  Role,
+  ApplicationType,
+  ApplicationStatus,
+} from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
 export interface ListUsersParams {
@@ -208,4 +212,196 @@ export const getAuditLogs = async (page = 1, limit = 50) => {
       totalPages: Math.ceil(total / limit),
     },
   };
+};
+
+export const getAdminStats = async () => {
+  const [roleCounts, totalPets, pendingApplications, totalUsers] =
+    await Promise.all([
+      prisma.user.groupBy({
+        by: ["role"],
+        _count: { _all: true },
+      }),
+      prisma.pet.count(),
+      prisma.roleApplication.count({
+        where: { status: "PENDING" },
+      }),
+      prisma.user.count(),
+    ]);
+
+  const usersByRole: Record<string, number> = {
+    PET_OWNER: 0,
+    SELLER: 0,
+    VETERINARIAN: 0,
+    ADMIN: 0,
+  };
+
+  for (const group of roleCounts) {
+    usersByRole[group.role] = group._count._all;
+  }
+
+  return {
+    totalUsers,
+    usersByRole,
+    totalPets,
+    totalOrders: 0,
+    pendingApplications,
+  };
+};
+
+export interface ListApplicationsParams {
+  status?: ApplicationStatus;
+  type?: ApplicationType;
+  page?: number;
+  limit?: number;
+}
+
+export const listRoleApplications = async ({
+  status = "PENDING",
+  type,
+  page = 1,
+  limit = 20,
+}: ListApplicationsParams = {}) => {
+  const skip = (page - 1) * limit;
+  const where: any = {};
+  if (status) where.status = status;
+  if (type) where.type = type;
+
+  const [applications, total] = await Promise.all([
+    prisma.roleApplication.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phoneNumber: true,
+            role: true,
+            profile: {
+              select: {
+                fullName: true,
+                imageUrl: true,
+                location: true,
+              },
+            },
+          },
+        },
+        reviewer: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { fullName: true } },
+          },
+        },
+      },
+    }),
+    prisma.roleApplication.count({ where }),
+  ]);
+
+  return {
+    applications,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+export const approveRoleApplication = async (
+  actorId: string,
+  applicationId: string
+) => {
+  const application = await prisma.roleApplication.findUnique({
+    where: { id: applicationId },
+    include: { user: true },
+  });
+
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  if (application.status !== "PENDING") {
+    throw new AppError(
+      `Application is already ${application.status.toLowerCase()}`,
+      400
+    );
+  }
+
+  const targetRole =
+    application.type === "SELLER" ? Role.SELLER : Role.VETERINARIAN;
+
+  const [updatedApp, updatedUser] = await prisma.$transaction([
+    prisma.roleApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "APPROVED",
+        reviewedBy: actorId,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.user.update({
+      where: { id: application.userId },
+      data: { role: targetRole },
+      include: { profile: true },
+    }),
+    prisma.adminAuditLog.create({
+      data: {
+        actorId,
+        targetId: application.userId,
+        action: "APPROVE_APPLICATION",
+        oldValue: `${application.user.role} (PENDING ${application.type})`,
+        newValue: `${targetRole} (APPROVED)`,
+      },
+    }),
+  ]);
+
+  return { application: updatedApp, user: updatedUser };
+};
+
+export const rejectRoleApplication = async (
+  actorId: string,
+  applicationId: string,
+  notes?: string
+) => {
+  const application = await prisma.roleApplication.findUnique({
+    where: { id: applicationId },
+  });
+
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  if (application.status !== "PENDING") {
+    throw new AppError(
+      `Application is already ${application.status.toLowerCase()}`,
+      400
+    );
+  }
+
+  const [updatedApp] = await prisma.$transaction([
+    prisma.roleApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "REJECTED",
+        notes: notes || application.notes,
+        reviewedBy: actorId,
+        reviewedAt: new Date(),
+      },
+    }),
+    prisma.adminAuditLog.create({
+      data: {
+        actorId,
+        targetId: application.userId,
+        action: "REJECT_APPLICATION",
+        oldValue: "PENDING",
+        newValue: `REJECTED${notes ? `: ${notes}` : ""}`,
+      },
+    }),
+  ]);
+
+  return updatedApp;
 };

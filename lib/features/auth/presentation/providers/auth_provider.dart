@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
@@ -119,14 +120,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       return;
     }
 
-    // If already authenticated with the same UID and details are loaded, avoid duplicate fetch
-    if (state.status == AuthStatus.authenticated &&
-        state.firebaseUser?.uid == fbUser.uid &&
-        state.user != null) {
-      state = state.copyWith(firebaseUser: fbUser);
-      return;
-    }
-
+    // Always fetch latest backend profile on auth change/start so roles and statuses stay fresh
     await _syncBackendProfile(fbUser);
   }
 
@@ -149,6 +143,21 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         user: userDetails,
         onboardingStatus: status,
         errorMessage: null,
+      );
+    } on AuthException catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthNotifier] 401 Unauthorized during profile sync: $e');
+      }
+      await _performCleanupAndResetState();
+    } on ForbiddenException catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthNotifier] 403 Forbidden during profile sync: $e');
+      }
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        isLoading: false,
+        firebaseUser: fbUser,
+        errorMessage: e.message,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -398,6 +407,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
 final authStateProvider = NotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
+
+final authNotifierProvider = authStateProvider;
 
 final currentUserIdProvider = Provider<String?>((ref) {
   return ref.watch(authStateProvider).firebaseUser?.uid;

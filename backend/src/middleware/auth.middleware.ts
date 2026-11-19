@@ -30,60 +30,66 @@ declare global {
 /**
  * Verifies Firebase ID token and loads the PostgreSQL user record.
  * Rejects deactivated accounts with 403.
+ * Supports checking token revocation.
  */
-export const authenticateFirebase = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next(
-        new AppError("Authorization token is required (Bearer <token>)", 401)
-      );
-    }
-
-    const token = authHeader.split(" ")[1];
-    let decodedToken: DecodedIdToken;
-
+export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } = {}) => {
+  return async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
-      decodedToken = await firebaseAuth.verifyIdToken(token);
-    } catch (err: any) {
-      return next(
-        new AppError(
-          `Invalid or expired Firebase authentication token: ${err.message}`,
-          401
-        )
-      );
-    }
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return next(
+          new AppError("Authorization token is required (Bearer <token>)", 401)
+        );
+      }
 
-    req.firebaseUid = decodedToken.uid;
-    req.firebaseUser = decodedToken;
+      const token = authHeader.split(" ")[1];
+      let decodedToken: DecodedIdToken;
 
-    // Load PostgreSQL user — role comes from DB on every request
-    const user = await prisma.user.findUnique({
-      where: { firebaseUid: decodedToken.uid },
-      include: { profile: true },
-    });
-
-    if (user) {
-      if (!user.isActive) {
+      try {
+        decodedToken = await firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false);
+      } catch (err: any) {
         return next(
           new AppError(
-            "Account has been deactivated. Please contact support.",
-            403
+            `Invalid or expired Firebase authentication token: ${err.message}`,
+            401
           )
         );
       }
-      req.user = user;
-    }
 
-    next();
-  } catch (error) {
-    next(error);
-  }
+      req.firebaseUid = decodedToken.uid;
+      req.firebaseUser = decodedToken;
+
+      // Load PostgreSQL user — role comes from DB on every request
+      const user = await prisma.user.findUnique({
+        where: { firebaseUid: decodedToken.uid },
+        include: { profile: true },
+      });
+
+      if (user) {
+        if (!user.isActive) {
+          return next(
+            new AppError(
+              "Account has been deactivated. Please contact support.",
+              403
+            )
+          );
+        }
+        req.user = user;
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
+
+export const authenticateFirebase = createAuthenticateFirebase({ checkRevoked: false });
+export const authenticateAdmin = createAuthenticateFirebase({ checkRevoked: true });
 
 /**
  * Rejects requests where the PostgreSQL user record doesn't exist yet

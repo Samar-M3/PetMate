@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/presentation/pages/admin_shell.dart';
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -10,6 +11,8 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
+import '../../features/seller/presentation/pages/seller_shell.dart';
+import '../../features/vet/presentation/pages/vet_shell.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -20,10 +23,9 @@ class RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = _ref.read(authStateProvider);
-    final isAuthPage =
-        state.matchedLocation == '/login' ||
-        state.matchedLocation == '/register';
-    final isSplashPage = state.matchedLocation == '/splash';
+    final location = state.matchedLocation;
+    final isAuthPage = location == '/login' || location == '/register';
+    final isSplashPage = location == '/splash';
 
     // 1. Initial unknown state -> show splash screen, do not redirect to /login
     if (authState.isUnknown) {
@@ -35,30 +37,65 @@ class RouterNotifier extends ChangeNotifier {
       return isAuthPage ? null : '/login';
     }
 
-    // 3. Authenticated -> check onboarding status or redirect away from auth/splash pages
+    // 3. Authenticated -> decide first screen from role BEFORE anything else
     if (authState.isAuthenticated) {
-      // Admin route protection
-      if (state.matchedLocation.startsWith('/admin')) {
-        if (authState.user?.role != UserRole.admin) {
+      final role = authState.user?.role;
+
+      // 3.1. ADMIN: Always lands on AdminShell; never shown pet setup
+      if (role == UserRole.admin) {
+        if (location.startsWith('/admin')) {
+          return null;
+        }
+        return '/admin';
+      }
+
+      // Guard: Non-admins trying to access /admin (including deep links)
+      if (location.startsWith('/admin')) {
+        if (role == UserRole.veterinarian) return '/vet';
+        if (role == UserRole.seller) return '/seller';
+        return '/';
+      }
+
+      // 3.2. VETERINARIAN: Lands on Vet clinic portal
+      if (role == UserRole.veterinarian) {
+        if (location.startsWith('/vet')) {
+          return null;
+        }
+        if (isAuthPage || isSplashPage || location == '/') {
+          return '/vet';
+        }
+      }
+
+      // 3.3. SELLER: Lands on Seller dashboard
+      if (role == UserRole.seller) {
+        if (location.startsWith('/seller')) {
+          return null;
+        }
+        if (isAuthPage || isSplashPage || location == '/') {
+          return '/seller';
+        }
+      }
+
+      // 3.4. PET_OWNER (and default): Pet setup if no pets, else normal Home
+      if (role == UserRole.petOwner || role == null) {
+        final hasPets =
+            (authState.user?.pets.isNotEmpty ?? false) ||
+            (authState.onboardingStatus?.hasPets ?? false);
+
+        if (!hasPets) {
+          if (location != '/onboarding/pet' &&
+              location != '/onboarding/owner') {
+            return '/onboarding/pet';
+          }
+          return null;
+        }
+
+        if (isAuthPage ||
+            isSplashPage ||
+            location == '/onboarding/pet' ||
+            location == '/onboarding/owner') {
           return '/';
         }
-      }
-
-      final status = authState.onboardingStatus;
-      if (status != null && !status.onboardingCompleted) {
-        if (status.nextStep == 'PET_INFO' &&
-            state.matchedLocation != '/onboarding/pet') {
-          return '/onboarding/pet';
-        }
-        if (status.nextStep == 'OWNER_INFO' &&
-            state.matchedLocation != '/onboarding/owner') {
-          return '/onboarding/owner';
-        }
-      }
-
-      // If user is on /login, /register, or /splash, send them home
-      if (isAuthPage || isSplashPage) {
-        return '/';
       }
     }
 
@@ -93,10 +130,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/onboarding/owner',
         builder: (context, state) => const OwnerInfoPage(),
       ),
+      GoRoute(path: '/admin', builder: (context, state) => const AdminShell()),
+      GoRoute(path: '/vet', builder: (context, state) => const VetShell()),
       GoRoute(
-        path: '/admin',
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: Text('Admin Panel'))),
+        path: '/seller',
+        builder: (context, state) => const SellerShell(),
       ),
     ],
   );
