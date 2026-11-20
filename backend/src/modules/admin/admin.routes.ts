@@ -10,6 +10,7 @@ import {
   approveApplication,
   rejectApplication,
 } from "./admin.controller.ts";
+import { adminRevokeSlot } from "../slots/slots.controller.ts";
 import {
   authenticateAdmin,
   requireInitializedUser,
@@ -26,6 +27,9 @@ router.use(requireRole(Role.ADMIN));
 
 // Stats
 router.get("/stats", getStats);
+
+// Slot Entitlements Management
+router.post("/entitlements/:id/revoke", adminRevokeSlot);
 
 // Users Management
 router.get("/users", getUsers);

@@ -42,6 +42,8 @@ class PetEntity {
   final String? vaccinationStatus;
   final String? allergies;
   final String? description;
+  final bool isActive;
+  final DateTime? activatedAt;
 
   const PetEntity({
     required this.id,
@@ -59,6 +61,8 @@ class PetEntity {
     this.vaccinationStatus,
     this.allergies,
     this.description,
+    this.isActive = false,
+    this.activatedAt,
   });
 
   String? get effectiveImageUrl => imageUrl ?? profilePictureUrl;

@@ -9,8 +9,11 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/requests_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
+import '../../features/pets/presentation/pages/my_pets_page.dart';
+import '../../features/pets/presentation/pages/slots_purchase_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
 import '../../features/vet/presentation/pages/vet_shell.dart';
 
@@ -90,10 +93,7 @@ class RouterNotifier extends ChangeNotifier {
           return null;
         }
 
-        if (isAuthPage ||
-            isSplashPage ||
-            location == '/onboarding/pet' ||
-            location == '/onboarding/owner') {
+        if (isAuthPage || isSplashPage) {
           return '/';
         }
       }
@@ -135,6 +135,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/seller',
         builder: (context, state) => const SellerShell(),
+      ),
+      GoRoute(
+        path: '/my-pets',
+        builder: (context, state) => const MyPetsPage(),
+      ),
+      GoRoute(
+        path: '/slots',
+        builder: (context, state) => const SlotsPurchasePage(),
+      ),
+      GoRoute(
+        path: '/requests',
+        builder: (context, state) => const RequestsPage(),
       ),
     ],
   );

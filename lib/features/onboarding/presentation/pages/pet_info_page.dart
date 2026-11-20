@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../pets/presentation/providers/pets_activation_provider.dart';
 
 class PetInfoPage extends ConsumerStatefulWidget {
   const PetInfoPage({super.key});
@@ -293,6 +294,9 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
         );
 
     if (pet != null && mounted) {
+      try {
+        await ref.read(petsActivationProvider.notifier).loadSummary();
+      } catch (_) {}
       setState(() {
         _savedPetsCount++;
       });
@@ -301,6 +305,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   void _showSuccessDialog() {
+    final isOnboardingCompleted =
+        ref.read(authStateProvider).isOnboardingCompleted;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -318,8 +324,10 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
           ],
         ),
         content: Text(
-          'Your pet "${_nameController.text.trim()}" has been added successfully. '
-          'You can add another pet profile now or continue to set up your owner profile.',
+          isOnboardingCompleted
+              ? 'Your pet "${_nameController.text.trim()}" has been added successfully! You can add another pet now or return to your pets.'
+              : 'Your pet "${_nameController.text.trim()}" has been added successfully. '
+                  'You can add another pet profile now or continue to set up your owner profile.',
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [
@@ -347,9 +355,20 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              context.go('/onboarding/owner');
+              if (isOnboardingCompleted) {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
+              } else {
+                context.go('/onboarding/owner');
+              }
             },
-            child: const Text('Continue to Owner Info'),
+            child: Text(
+              isOnboardingCompleted ? 'Done' : 'Continue to Owner Info',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -795,13 +814,25 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // If at least one pet is already saved, allow skipping straight to owner info
+                // If at least one pet is already saved, allow returning or continuing
                 if (_savedPetsCount > 0)
                   TextButton(
-                    onPressed: () => context.go('/onboarding/owner'),
-                    child: const Text(
-                      'I have added all my pets. Continue to Owner Information →',
-                      style: TextStyle(
+                    onPressed: () {
+                      if (authState.isOnboardingCompleted) {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/');
+                        }
+                      } else {
+                        context.go('/onboarding/owner');
+                      }
+                    },
+                    child: Text(
+                      authState.isOnboardingCompleted
+                          ? 'Done. Return to Pets →'
+                          : 'I have added all my pets. Continue to Owner Information →',
+                      style: const TextStyle(
                         color: AppColors.terracotta,
                         fontWeight: FontWeight.bold,
                       ),

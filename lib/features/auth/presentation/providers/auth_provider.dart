@@ -399,6 +399,21 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     }
   }
 
+  /// Re-fetches the user profile from the backend and updates auth state.
+  /// Call this after mutations (e.g. pet activation) so the UI sees fresh data.
+  Future<void> refreshUserProfile() async {
+    final fbUser = _authService.currentUser;
+    if (fbUser == null) return;
+    try {
+      final userDetails = await _repository.getMe();
+      state = state.copyWith(user: userDetails);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthNotifier] refreshUserProfile failed: $e');
+      }
+    }
+  }
+
   Future<void> logout() async {
     await _performCleanupAndResetState();
   }

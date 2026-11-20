@@ -1,17 +1,19 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import {
-  getDiscoverFeed,
+  getDeckFeed,
   recordSwipe,
+  undoLastPassSwipe,
   getIncomingRequests,
   acceptConnectionRequest,
   rejectConnectionRequest,
+  getUserMatches,
   SwipeAction,
 } from "./matching.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
-export const getDiscover = async (
+export const getDeck = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -21,24 +23,34 @@ export const getDiscover = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const petId = req.query.petId as string;
-    if (!petId || petId.trim() === "") {
-      return next(new AppError("petId query parameter is required", 400));
+    const actingPetId = (req.query.actingPetId as string) || (req.query.petId as string);
+    if (!actingPetId || actingPetId.trim() === "") {
+      return next(new AppError("actingPetId query parameter is required", 400));
     }
 
     const cursor = (req.query.cursor as string) || undefined;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const species = (req.query.species as string) || (req.query.animalType as string) || undefined;
+    const breed = (req.query.breed as string) || undefined;
+    const area = (req.query.area as string) || undefined;
+    const ageMin = req.query.ageMin ? parseInt(req.query.ageMin as string) : undefined;
+    const ageMax = req.query.ageMax ? parseInt(req.query.ageMax as string) : undefined;
 
-    const result = await getDiscoverFeed({
+    const result = await getDeckFeed({
       userId: req.user.id,
-      petId: petId.trim(),
+      actingPetId: actingPetId.trim(),
       cursor,
       limit,
+      species,
+      breed,
+      ageMin,
+      ageMax,
+      area,
     });
 
     sendSuccess(res, {
       statusCode: 200,
-      message: "Discover feed retrieved successfully",
+      message: "Deck feed retrieved successfully",
       data: result,
     });
   } catch (error) {
@@ -56,10 +68,11 @@ export const postSwipe = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { petId, targetPetId, action } = req.body;
+    const { petId, actingPetId, targetPetId, action } = req.body;
+    const effectivePetId = actingPetId || petId;
 
-    if (!petId || typeof petId !== "string") {
-      return next(new AppError("petId (string) is required in request body", 400));
+    if (!effectivePetId || typeof effectivePetId !== "string") {
+      return next(new AppError("petId or actingPetId (string) is required in request body", 400));
     }
     if (!targetPetId || typeof targetPetId !== "string") {
       return next(
@@ -77,15 +90,47 @@ export const postSwipe = async (
 
     const result = await recordSwipe({
       userId: req.user.id,
-      petId: petId.trim(),
+      petId: effectivePetId.trim(),
       targetPetId: targetPetId.trim(),
       action: action as SwipeAction,
     });
 
     sendSuccess(res, {
       statusCode: 200,
-      message: "Swipe recorded successfully",
-      data: { status: result.status },
+      message: result.matched ? "It's a Match!" : "Swipe recorded successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postUndoSwipe = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const { petId, actingPetId } = req.body;
+    const effectivePetId = actingPetId || petId;
+
+    if (!effectivePetId || typeof effectivePetId !== "string") {
+      return next(new AppError("petId or actingPetId (string) is required in request body", 400));
+    }
+
+    const result = await undoLastPassSwipe({
+      userId: req.user.id,
+      petId: effectivePetId.trim(),
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: result.message,
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -167,8 +212,30 @@ export const rejectRequest = async (
 
     sendSuccess(res, {
       statusCode: 200,
-      message: "Connection request rejected successfully",
+      message: "Connection request declined successfully",
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMatches = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const matches = await getUserMatches(req.user.id);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Matches retrieved successfully",
+      data: { matches },
     });
   } catch (error) {
     next(error);

@@ -153,12 +153,15 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Onboarding completed! Welcome to PetMate.'),
+          content: Text('Owner profile saved successfully!'),
           backgroundColor: AppColors.success,
         ),
       );
-      // Navigate to Home screen
-      context.go('/');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/');
+      }
     }
   }
 

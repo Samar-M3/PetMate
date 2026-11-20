@@ -6,6 +6,7 @@ import {
   getPetsForUser,
   getPetById,
   updatePetForUser,
+  setPetActivation,
   deletePetForUser,
   uploadPetPhoto,
   removePetPhoto,
@@ -109,6 +110,38 @@ export const updatePet = async (
   }
 };
 
+export const activatePet = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const petId = req.params.id as string;
+    const { active, deactivatePetId } = req.body;
+
+    if (active === undefined || typeof active !== "boolean") {
+      return next(new AppError("Field 'active' (boolean) is required in request body", 400));
+    }
+
+    const result = await setPetActivation(req.user.id, petId, {
+      active,
+      deactivatePetId,
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deletePet = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -119,7 +152,11 @@ export const deletePet = async (
       return next(new AppError("User not found", 404));
     }
 
-    const result = await deletePetForUser(req.user.id, req.params.id as string, isAdmin(req));
+    const result = await deletePetForUser(
+      req.user.id,
+      req.params.id as string,
+      isAdmin(req)
+    );
 
     sendSuccess(res, {
       statusCode: 200,
@@ -141,21 +178,24 @@ export const uploadPetImage = async (
       return next(new AppError("User not found", 404));
     }
 
-    if (!req.file || !req.file.buffer) {
-      return next(new AppError("Image file is required under form field 'image'", 400));
+    const petId = req.params.id as string;
+    const file = req.file;
+
+    if (!file) {
+      return next(new AppError("No image file provided in request", 400));
     }
 
-    const result = await uploadPetPhoto(
+    const updatedPet = await uploadPetPhoto(
       req.user.id,
-      req.params.id as string,
-      req.file.buffer,
+      petId,
+      file.buffer,
       isAdmin(req)
     );
 
     sendSuccess(res, {
       statusCode: 200,
-      message: "Pet photo uploaded successfully to Cloudinary",
-      data: result,
+      message: "Pet photo uploaded successfully",
+      data: { pet: updatedPet },
     });
   } catch (error) {
     next(error);
@@ -172,12 +212,13 @@ export const deletePetImageHandler = async (
       return next(new AppError("User not found", 404));
     }
 
-    const result = await removePetPhoto(req.user.id, req.params.id as string, isAdmin(req));
+    const petId = req.params.id as string;
+    const updatedPet = await removePetPhoto(req.user.id, petId, isAdmin(req));
 
     sendSuccess(res, {
       statusCode: 200,
       message: "Pet photo removed successfully",
-      data: result,
+      data: { pet: updatedPet },
     });
   } catch (error) {
     next(error);

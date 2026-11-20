@@ -256,6 +256,10 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     state = state.copyWith(clearSnackbar: true);
   }
 
+  void clearActivePet() {
+    state = const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
+  }
+
   void resetDeck() {
     final petId = state.activePetId;
     if (petId != null) {

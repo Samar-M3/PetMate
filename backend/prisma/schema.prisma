@@ -22,7 +22,14 @@ enum SwipeAction {
 enum RequestStatus {
   PENDING
   ACCEPTED
+  DECLINED
   REJECTED
+  EXPIRED
+}
+
+enum MatchStatus {
+  ACTIVE
+  ENDED
 }
 
 enum ApplicationType {
@@ -34,6 +41,18 @@ enum ApplicationStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 model User {
@@ -57,6 +76,9 @@ model User {
   requestsReceived    ConnectionRequest[] @relation("RequestsReceived")
   applications        RoleApplication[]   @relation("UserApplications")
   reviewedApplications RoleApplication[]  @relation("ReviewedApplications")
+  slotEntitlements    ActiveSlotEntitlement[]
+  payments            SlotPayment[]
+  downgradeMessages   UserDowngradeMessage[]
 
   @@map("users")
 }
@@ -111,6 +133,8 @@ model Pet {
   vaccinationStatus String?    @map("vaccination_status")
   allergies         String?
   description       String?
+  isActive          Boolean    @default(false) @map("is_active")
+  activatedAt       DateTime?  @map("activated_at")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
@@ -120,7 +144,11 @@ model Pet {
   swipesReceived    PetSwipe[]          @relation("PetSwipesReceived")
   requestsSent      ConnectionRequest[] @relation("PetRequestsSent")
   requestsReceived  ConnectionRequest[] @relation("PetRequestsReceived")
+  matchesAsPetA     Match[]             @relation("MatchesAsPetA")
+  matchesAsPetB     Match[]             @relation("MatchesAsPetB")
 
+  @@index([userId])
+  @@index([animalType, gender])
   @@map("pets")
 }
 
@@ -145,6 +173,7 @@ model PetSwipe {
   targetUserId String      @map("target_user_id")
   action       SwipeAction
   createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
 
   swiperUser User @relation("SwipesGiven", fields: [swiperUserId], references: [id], onDelete: Cascade)
   targetUser User @relation("SwipesReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
@@ -152,6 +181,7 @@ model PetSwipe {
   targetPet  Pet  @relation("PetSwipesReceived", fields: [targetPetId], references: [id], onDelete: Cascade)
 
   @@unique([swiperPetId, targetPetId])
+  @@index([swiperPetId, action, createdAt])
   @@index([swiperPetId])
   @@index([targetPetId])
   @@map("pet_swipes")
@@ -166,6 +196,7 @@ model ConnectionRequest {
   status         RequestStatus @default(PENDING)
   createdAt      DateTime      @default(now()) @map("created_at")
   respondedAt    DateTime?     @map("responded_at")
+  expiresAt      DateTime?     @map("expires_at")
 
   senderUser   User @relation("RequestsSent", fields: [senderUserId], references: [id], onDelete: Cascade)
   receiverUser User @relation("RequestsReceived", fields: [receiverUserId], references: [id], onDelete: Cascade)
@@ -174,9 +205,30 @@ model ConnectionRequest {
 
   @@unique([senderPetId, receiverPetId])
   @@index([receiverUserId, status, createdAt])
+  @@index([senderPetId, receiverPetId])
+  @@index([senderUserId, status])
+  @@index([status, expiresAt])
   @@index([senderUserId])
   @@index([receiverUserId])
   @@map("connection_requests")
+}
+
+model Match {
+  id        String      @id @default(uuid())
+  petAId    String      @map("pet_a_id")
+  petBId    String      @map("pet_b_id")
+  status    MatchStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at")
+  endedAt   DateTime?   @map("ended_at")
+  endedBy   String?     @map("ended_by")
+
+  petA      Pet         @relation("MatchesAsPetA", fields: [petAId], references: [id], onDelete: Cascade)
+  petB      Pet         @relation("MatchesAsPetB", fields: [petBId], references: [id], onDelete: Cascade)
+
+  @@unique([petAId, petBId])
+  @@index([petAId, status])
+  @@index([petBId, status])
+  @@map("matches")
 }
 
 model RoleApplication {
@@ -196,4 +248,51 @@ model RoleApplication {
   @@index([status, type])
   @@index([userId])
   @@map("role_applications")
+}
+
+model ActiveSlotEntitlement {
+  id        String            @id @default(uuid())
+  ownerId   String            @map("owner_id")
+  paymentId String?           @map("payment_id")
+  startsAt  DateTime          @default(now()) @map("starts_at")
+  expiresAt DateTime          @map("expires_at")
+  status    EntitlementStatus @default(ACTIVE)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  owner     User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  payment   SlotPayment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, status, expiresAt])
+  @@map("active_slot_entitlements")
+}
+
+model SlotPayment {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  amount        Float
+  quantity      Int
+  gateway       String
+  transactionId String?         @unique @map("transaction_id")
+  status        PaymentStatus   @default(PENDING)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlements  ActiveSlotEntitlement[]
+
+  @@index([userId, status])
+  @@map("slot_payments")
+}
+
+model UserDowngradeMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@map("user_downgrade_messages")
 }

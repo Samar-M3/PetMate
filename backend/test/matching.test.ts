@@ -4,10 +4,32 @@ import {
   calculateAgeString,
   SwipeAction,
   RequestStatus,
-  acceptConnectionRequest,
-  rejectConnectionRequest,
+  MatchStatus,
 } from "../src/modules/matching/matching.service.ts";
+import matchingConfig from "../src/config/matching.config.ts";
 import { AppError } from "../src/middleware/errorHandler.ts";
+
+describe("Matching: Config Module", () => {
+  test("loads all required config keys with defaults or env overrides", () => {
+    assert.equal(typeof matchingConfig.FREE_ACTIVE_PETS, "number");
+    assert.equal(typeof matchingConfig.PASS_COOLDOWN_DAYS, "number");
+    assert.equal(typeof matchingConfig.REQUEST_EXPIRY_DAYS, "number");
+    assert.equal(typeof matchingConfig.MAX_PENDING_REQUESTS, "number");
+    assert.equal(typeof matchingConfig.MAX_PETS_PER_OWNER, "number");
+    assert.equal(typeof matchingConfig.SLOT_DURATION_DAYS, "number");
+    assert.equal(typeof matchingConfig.MAX_PAID_SLOTS, "number");
+    assert.equal(typeof matchingConfig.SLOT_PRICE_NPR, "number");
+
+    assert.equal(matchingConfig.FREE_ACTIVE_PETS, 1);
+    assert.equal(matchingConfig.PASS_COOLDOWN_DAYS, 30);
+    assert.equal(matchingConfig.REQUEST_EXPIRY_DAYS, 14);
+    assert.equal(matchingConfig.MAX_PENDING_REQUESTS, 20);
+    assert.equal(matchingConfig.MAX_PETS_PER_OWNER, 20);
+    assert.equal(matchingConfig.SLOT_DURATION_DAYS, 30);
+    assert.equal(matchingConfig.MAX_PAID_SLOTS, 5);
+    assert.ok(matchingConfig.SLOT_PRICE_NPR > 0);
+  });
+});
 
 describe("Matching: calculateAgeString", () => {
   test("returns Unknown age for null or undefined", () => {
@@ -33,95 +55,99 @@ describe("Matching: calculateAgeString", () => {
   });
 });
 
-describe("Matching: Enums", () => {
+describe("Matching: Enums & Statuses", () => {
   test("SwipeAction contains LIKE and PASS", () => {
     assert.equal(SwipeAction.LIKE, "LIKE");
     assert.equal(SwipeAction.PASS, "PASS");
   });
 
-  test("RequestStatus contains PENDING, ACCEPTED, and REJECTED", () => {
+  test("RequestStatus contains PENDING, ACCEPTED, DECLINED, REJECTED, and EXPIRED", () => {
     assert.equal(RequestStatus.PENDING, "PENDING");
     assert.equal(RequestStatus.ACCEPTED, "ACCEPTED");
+    assert.equal(RequestStatus.DECLINED, "DECLINED");
     assert.equal(RequestStatus.REJECTED, "REJECTED");
+    assert.equal(RequestStatus.EXPIRED, "EXPIRED");
+  });
+
+  test("MatchStatus contains ACTIVE and ENDED", () => {
+    assert.equal(MatchStatus.ACTIVE, "ACTIVE");
+    assert.equal(MatchStatus.ENDED, "ENDED");
   });
 });
 
-describe("Matching: Security & Data Isolation", () => {
-  test("discover response excludes sensitive user fields (email, phone, firebaseUid)", () => {
-    const mockPrismaPet = {
-      id: "pet-target-1",
-      name: "Bella",
+describe("Matching: Deck Visibility Rules", () => {
+  test("Deck payload excludes sensitive owner info (email, phone, firebaseUid, userId)", () => {
+    const mockCandidate = {
+      id: "candidate-pet-1",
+      name: "Rocky",
+      dateOfBirth: new Date("2022-05-10"),
       animalType: "Dog",
-      breed: "Golden Retriever",
-      gender: "Female",
-      dateOfBirth: new Date("2023-01-01"),
-      color: "Golden",
-      personality: ["Friendly", "Playful"],
-      vaccinationStatus: "Fully vaccinated",
-      allergies: null,
-      description: "Loves walks",
+      breed: "German Shepherd",
+      gender: "Male",
+      color: "Black & Tan",
+      personality: ["Loyal", "Protective"],
+      vaccinationStatus: "Up to date",
+      allergies: "None",
+      description: "Friendly and playful outdoor companion",
       imageUrl: "https://cloudinary.com/pet.jpg",
       profilePictureUrl: null,
+      images: [{ id: "img-1", imageUrl: "https://cloudinary.com/pet.jpg", isMain: true }],
       createdAt: new Date(),
       user: {
-        id: "owner-user-id",
+        id: "owner-secret-id",
+        email: "private@owner.com",
+        phoneNumber: "+9779800000000",
+        firebaseUid: "private-fb-uid",
         profile: {
-          fullName: "Sneha Sharma",
-          username: "sneha_s",
-          location: "Kathmandu",
-          area: "Baneshwor",
-          imageUrl: "https://cloudinary.com/avatar.jpg",
-          profilePictureUrl: null,
+          area: "Jhamsikhel",
+          location: "Lalitpur",
         },
       },
     };
 
-    const effectiveImageUrl =
-      mockPrismaPet.imageUrl || mockPrismaPet.profilePictureUrl || "";
-    const profile = mockPrismaPet.user.profile;
-    const item = {
-      id: mockPrismaPet.id,
-      name: mockPrismaPet.name,
-      petName: mockPrismaPet.name,
-      petAge: calculateAgeString(mockPrismaPet.dateOfBirth),
-      dateOfBirth: mockPrismaPet.dateOfBirth,
-      animalType: mockPrismaPet.animalType,
-      breed: mockPrismaPet.breed,
-      petBreed: mockPrismaPet.breed,
-      gender: mockPrismaPet.gender,
-      petGender: mockPrismaPet.gender,
-      color: mockPrismaPet.color,
-      personality: mockPrismaPet.personality,
-      vaccinationStatus: mockPrismaPet.vaccinationStatus,
-      allergies: mockPrismaPet.allergies,
-      bio: mockPrismaPet.description,
-      petBio: mockPrismaPet.description,
+    // Transformation helper matching getDeckFeed
+    const effectiveImageUrl = mockCandidate.imageUrl || "";
+    const areaString = `${mockCandidate.user.profile.area}, ${mockCandidate.user.profile.location}`;
+    const safeOutput = {
+      id: mockCandidate.id,
+      name: mockCandidate.name,
+      petName: mockCandidate.name,
+      petAge: calculateAgeString(mockCandidate.dateOfBirth),
+      dateOfBirth: mockCandidate.dateOfBirth,
+      animalType: mockCandidate.animalType,
+      breed: mockCandidate.breed,
+      petBreed: mockCandidate.breed,
+      gender: mockCandidate.gender,
+      petGender: mockCandidate.gender,
+      color: mockCandidate.color,
+      personality: mockCandidate.personality,
+      vaccinationStatus: mockCandidate.vaccinationStatus,
+      allergies: mockCandidate.allergies,
+      bio: mockCandidate.description,
+      petBio: mockCandidate.description,
       imageUrl: effectiveImageUrl,
       petImageUrl: effectiveImageUrl,
-      ownerId: mockPrismaPet.user.id,
-      ownerName: profile.fullName,
-      ownerUsername: profile.username,
-      ownerLocation: `${profile.area}, ${profile.location}`,
-      ownerAvatarUrl: profile.imageUrl,
-      createdAt: mockPrismaPet.createdAt,
+      photos: [effectiveImageUrl],
+      area: areaString,
+      location: areaString,
+      healthBadges: [
+        mockCandidate.vaccinationStatus,
+        `Allergies: ${mockCandidate.allergies}`,
+      ],
+      createdAt: mockCandidate.createdAt,
     };
 
-    assert.equal((item as any).email, undefined);
-    assert.equal((item as any).phoneNumber, undefined);
-    assert.equal((item as any).firebaseUid, undefined);
-    assert.equal((item as any).user?.email, undefined);
-
-    assert.equal(item.id, "pet-target-1");
-    assert.equal(item.petName, "Bella");
-    assert.equal(item.ownerUsername, "sneha_s");
-    assert.equal(item.ownerName, "Sneha Sharma");
-    assert.equal(item.ownerLocation, "Baneshwor, Kathmandu");
-    assert.equal(item.petImageUrl, "https://cloudinary.com/pet.jpg");
+    assert.equal((safeOutput as any).email, undefined);
+    assert.equal((safeOutput as any).phoneNumber, undefined);
+    assert.equal((safeOutput as any).firebaseUid, undefined);
+    assert.equal((safeOutput as any).ownerId, undefined);
+    assert.equal(safeOutput.name, "Rocky");
+    assert.equal(safeOutput.area, "Jhamsikhel, Lalitpur");
   });
 
   test("self-swipe is rejected with error", () => {
-    const swiperPetId = "same-pet-id";
-    const targetPetId = "same-pet-id";
+    const swiperPetId = "pet-1";
+    const targetPetId = "pet-1";
 
     assert.throws(
       () => {
@@ -137,89 +163,39 @@ describe("Matching: Security & Data Isolation", () => {
       }
     );
   });
-});
 
-describe("Matching: Connection Request Guards", () => {
-  test("non-existent connection request throws 404", () => {
-    const existing = null;
+  test("undo only allows PASS actions and rejects LIKE", () => {
+    const likeSwipe = { action: SwipeAction.LIKE, createdAt: new Date() };
     assert.throws(
       () => {
-        if (!existing) {
-          throw new AppError("Connection request not found", 404);
+        if (likeSwipe.action !== SwipeAction.PASS) {
+          throw new AppError("Only PASS swipes can be undone. LIKE swipes cannot be undone.", 400);
         }
       },
       (err: any) => {
         assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 404);
-        assert.match(err.message, /not found/i);
+        assert.equal(err.statusCode, 400);
+        assert.match(err.message, /Only PASS swipes can be undone/i);
         return true;
       }
     );
   });
 
-  test("rejecting non-existent connection request throws 404", () => {
-    const existing = null;
+  test("undo fails if swipe is older than 10 minutes", () => {
+    const elevenMinutesAgo = new Date(Date.now() - 11 * 60 * 1000);
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const passSwipe = { action: SwipeAction.PASS, createdAt: elevenMinutesAgo };
+
     assert.throws(
       () => {
-        if (!existing) {
-          throw new AppError("Connection request not found", 404);
+        if (passSwipe.createdAt < tenMinutesAgo) {
+          throw new AppError("Undo window expired. Swipes can only be undone within 10 minutes.", 400);
         }
       },
       (err: any) => {
         assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 404);
-        assert.match(err.message, /not found/i);
-        return true;
-      }
-    );
-  });
-
-  test("double-action check throws 409 when status is already ACCEPTED or REJECTED", () => {
-    const mockRequest = {
-      id: "req-1",
-      receiverUserId: "user-1",
-      status: RequestStatus.ACCEPTED,
-    };
-
-    assert.throws(
-      () => {
-        if (mockRequest.status !== RequestStatus.PENDING) {
-          throw new AppError(
-            `Request has already been ${mockRequest.status.toLowerCase()}`,
-            409
-          );
-        }
-      },
-      (err: any) => {
-        assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 409);
-        assert.match(err.message, /already been accepted/i);
-        return true;
-      }
-    );
-  });
-
-  test("non-receiver user attempting to accept/reject gets 403 forbidden", () => {
-    const mockRequest = {
-      id: "req-1",
-      receiverUserId: "user-receiver",
-      status: RequestStatus.PENDING,
-    };
-    const callerId = "user-attacker";
-
-    assert.throws(
-      () => {
-        if (mockRequest.receiverUserId !== callerId) {
-          throw new AppError(
-            "Access forbidden: you are not the receiver of this request",
-            403
-          );
-        }
-      },
-      (err: any) => {
-        assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 403);
-        assert.match(err.message, /not the receiver/i);
+        assert.equal(err.statusCode, 400);
+        assert.match(err.message, /Undo window expired/i);
         return true;
       }
     );

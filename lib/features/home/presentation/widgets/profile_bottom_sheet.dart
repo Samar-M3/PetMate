@@ -126,24 +126,50 @@ class ProfileBottomSheet extends ConsumerWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.go('/onboarding/pet');
-                },
-                icon: const Icon(
-                  Icons.add,
-                  size: 16,
-                  color: AppColors.terracotta,
-                ),
-                label: const Text(
-                  'Add Pet',
-                  style: TextStyle(
-                    color: AppColors.terracotta,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      final router = GoRouter.of(context);
+                      Navigator.of(context).pop();
+                      router.push('/my-pets');
+                    },
+                    icon: const Icon(
+                      Icons.settings,
+                      size: 15,
+                      color: AppColors.primary,
+                    ),
+                    label: const Text(
+                      'Manage',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
+                  TextButton.icon(
+                    onPressed: () {
+                      final router = GoRouter.of(context);
+                      Navigator.of(context).pop();
+                      router.push('/onboarding/pet');
+                    },
+                    icon: const Icon(
+                      Icons.add,
+                      size: 16,
+                      color: AppColors.terracotta,
+                    ),
+                    label: const Text(
+                      'Add Pet',
+                      style: TextStyle(
+                        color: AppColors.terracotta,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -238,8 +264,9 @@ class ProfileBottomSheet extends ConsumerWidget {
               ),
             ),
             onPressed: () {
-              Navigator.pop(context);
-              context.go('/onboarding/owner');
+              final router = GoRouter.of(context);
+              Navigator.of(context).pop();
+              router.push('/onboarding/owner');
             },
             icon: const Icon(Icons.edit, color: AppColors.primary, size: 18),
             label: const Text(
