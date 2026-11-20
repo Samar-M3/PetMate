@@ -132,9 +132,8 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
               content: Text(
                 'User ${newStatus ? "reactivated" : "suspended"} successfully',
               ),
-              backgroundColor: newStatus
-                  ? AppColors.success
-                  : AppColors.warning,
+              backgroundColor:
+                  newStatus ? AppColors.success : AppColors.warning,
             ),
           );
         }
@@ -160,80 +159,104 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
       children: [
         // Top Search & Filter Bar
         Container(
-          padding: const EdgeInsets.all(16),
           color: Colors.white,
-          child: Column(
-            children: [
-              TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                onSubmitted: _onSearchSubmitted,
-                decoration: InputDecoration(
-                  hintText: 'Search by name or email...',
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: AppColors.primary,
-                  ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchSubmitted('');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.inputFill,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Role Filter Chips
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _roleOptions.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final role = _roleOptions[index];
-                    final isSelected = usersState.roleFilter == role;
-                    return ChoiceChip(
-                      label: Text(_formatRoleName(role)),
-                      selected: isSelected,
-                      selectedColor: AppColors.primary,
-                      backgroundColor: AppColors.inputFill,
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textSecondary,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: _onSearchSubmitted,
+                      onChanged: (val) {
+                        setState(() {});
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search by name or email...',
+                        prefixIcon: IconButton(
+                          icon: const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.primary,
+                          ),
+                          tooltip: 'Search',
+                          onPressed: () =>
+                              _onSearchSubmitted(_searchController.text),
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _onSearchSubmitted('');
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: AppColors.inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
                       ),
-                      onSelected: (_) => _onRoleFilterSelected(role),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 12),
+                    // Role Filter Chips
+                    SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _roleOptions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final role = _roleOptions[index];
+                          final isSelected = usersState.roleFilter == role;
+                          return ChoiceChip(
+                            label: Text(_formatRoleName(role)),
+                            selected: isSelected,
+                            selectedColor: AppColors.primary,
+                            backgroundColor: AppColors.inputFill,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
+                            ),
+                            onSelected: (_) => _onRoleFilterSelected(role),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
         const Divider(height: 1, color: AppColors.border),
 
         // User List Body
-        Expanded(child: _buildUserList(usersState, currentUserId)),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: _buildUserList(usersState, currentUserId),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -344,193 +367,206 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
     final isMe = user.id == currentAdminId;
     final roleColor = _getRoleBadgeColor(user.role);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: user.isActive
-              ? AppColors.border
-              : AppColors.error.withValues(alpha: 0.3),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: roleColor.withValues(alpha: 0.15),
-                backgroundImage:
-                    user.imageUrl != null && user.imageUrl!.isNotEmpty
-                    ? NetworkImage(user.imageUrl!)
-                    : null,
-                child: (user.imageUrl == null || user.imageUrl!.isEmpty)
-                    ? Text(
-                        (user.fullName ?? user.email ?? 'U')
-                            .substring(0, 1)
-                            .toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: roleColor,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            user.fullName ?? 'Unnamed User',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isMe) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'YOU',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user.email ?? user.phoneNumber ?? 'No contact info',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: user.isActive
-                      ? AppColors.success.withValues(alpha: 0.12)
-                      : AppColors.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  user.isActive ? 'Active' : 'Suspended',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: user.isActive ? AppColors.success : AppColors.error,
-                  ),
-                ),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _promptRoleChange(user, currentAdminId),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: user.isActive
+                  ? AppColors.border
+                  : AppColors.error.withValues(alpha: 0.3),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-
-          // Role, Pets count, and Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                  // Avatar
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: roleColor.withValues(alpha: 0.15),
+                    backgroundImage:
+                        user.imageUrl != null && user.imageUrl!.isNotEmpty
+                            ? NetworkImage(user.imageUrl!)
+                            : null,
+                    child: (user.imageUrl == null || user.imageUrl!.isEmpty)
+                        ? Text(
+                            (user.fullName ?? user.email ?? 'U')
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: roleColor,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  // User Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                user.fullName ?? 'Unnamed User',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isMe) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'YOU',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email ?? user.phoneNumber ?? 'No contact info',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  // Status Badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: roleColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      color: user.isActive
+                          ? AppColors.success.withValues(alpha: 0.12)
+                          : AppColors.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      _formatRoleName(user.role),
+                      user.isActive ? 'Active' : 'Suspended',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: roleColor,
+                        color:
+                            user.isActive ? AppColors.success : AppColors.error,
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${user.petsCount} pet${user.petsCount == 1 ? '' : 's'}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+
+              // Role, Pets count, and Actions
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  OutlinedButton(
-                    onPressed: () => _promptRoleChange(user, currentAdminId),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: roleColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _formatRoleName(user.role),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: roleColor,
+                          ),
+                        ),
                       ),
-                      visualDensity: VisualDensity.compact,
-                      side: const BorderSide(color: AppColors.border),
-                    ),
-                    child: const Text('Role', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${user.petsCount} pet${user.petsCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      user.isActive
-                          ? Icons.block_rounded
-                          : Icons.check_circle_outline_rounded,
-                      color: user.isActive
-                          ? AppColors.error
-                          : AppColors.success,
-                      size: 20,
-                    ),
-                    tooltip: user.isActive ? 'Suspend' : 'Reactivate',
-                    onPressed: () => _promptStatusToggle(user, currentAdminId),
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: () =>
+                            _promptRoleChange(user, currentAdminId),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          side: const BorderSide(color: AppColors.border),
+                        ),
+                        child:
+                            const Text('Role', style: TextStyle(fontSize: 12)),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          user.isActive
+                              ? Icons.block_rounded
+                              : Icons.check_circle_outline_rounded,
+                          color: user.isActive
+                              ? AppColors.error
+                              : AppColors.success,
+                          size: 20,
+                        ),
+                        tooltip: user.isActive ? 'Suspend' : 'Reactivate',
+                        onPressed: () =>
+                            _promptStatusToggle(user, currentAdminId),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

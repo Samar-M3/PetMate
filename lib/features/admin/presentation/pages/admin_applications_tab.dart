@@ -166,81 +166,98 @@ class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
       children: [
         // Top Filter Bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           color: Colors.white,
-          child: Column(
-            children: [
-              // Status selector (Pending / Approved / Rejected)
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _statusOptions.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final status = _statusOptions[index];
-                    final isSelected = state.statusFilter == status;
-                    return ChoiceChip(
-                      label: Text(status),
-                      selected: isSelected,
-                      selectedColor: _getStatusColor(status),
-                      backgroundColor: AppColors.inputFill,
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textSecondary,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    // Status selector (Pending / Approved / Rejected)
+                    SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _statusOptions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final status = _statusOptions[index];
+                          final isSelected = state.statusFilter == status;
+                          return ChoiceChip(
+                            label: Text(status),
+                            selected: isSelected,
+                            selectedColor: _getStatusColor(status),
+                            backgroundColor: AppColors.inputFill,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
+                            ),
+                            onSelected: (_) => _onStatusFilterSelected(status),
+                          );
+                        },
                       ),
-                      onSelected: (_) => _onStatusFilterSelected(status),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 8),
+                    // Type filter (All / Seller / Vet)
+                    SizedBox(
+                      height: 32,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _typeOptions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final type = _typeOptions[index];
+                          final isSelected = state.typeFilter == type;
+                          return FilterChip(
+                            label: Text(
+                              type == 'ALL'
+                                  ? 'All Roles'
+                                  : (type == 'SELLER'
+                                      ? 'Sellers'
+                                      : 'Veterinarians'),
+                            ),
+                            selected: isSelected,
+                            selectedColor: AppColors.primaryLight.withValues(
+                              alpha: 0.3,
+                            ),
+                            backgroundColor: Colors.transparent,
+                            checkmarkColor: AppColors.primaryDark,
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              color: isSelected
+                                  ? AppColors.primaryDark
+                                  : AppColors.textSecondary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            onSelected: (_) => _onTypeFilterSelected(type),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              // Type filter (All / Seller / Vet)
-              SizedBox(
-                height: 32,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _typeOptions.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final type = _typeOptions[index];
-                    final isSelected = state.typeFilter == type;
-                    return FilterChip(
-                      label: Text(
-                        type == 'ALL'
-                            ? 'All Roles'
-                            : (type == 'SELLER' ? 'Sellers' : 'Veterinarians'),
-                      ),
-                      selected: isSelected,
-                      selectedColor: AppColors.primaryLight.withValues(
-                        alpha: 0.3,
-                      ),
-                      backgroundColor: Colors.transparent,
-                      checkmarkColor: AppColors.primaryDark,
-                      labelStyle: TextStyle(
-                        fontSize: 11,
-                        color: isSelected
-                            ? AppColors.primaryDark
-                            : AppColors.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                      onSelected: (_) => _onTypeFilterSelected(type),
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
         ),
         const Divider(height: 1, color: AppColors.border),
 
         // Body
-        Expanded(child: _buildBody(state)),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: _buildBody(state),
+            ),
+          ),
+        ),
       ],
     );
   }
