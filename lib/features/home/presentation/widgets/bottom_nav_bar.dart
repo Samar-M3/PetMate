@@ -39,8 +39,8 @@ class PetMateBottomNavBar extends StatelessWidget {
               _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
               _buildNavItem(
                 index: 1,
-                icon: Icons.favorite_rounded,
-                label: 'Requests',
+                icon: Icons.chat_bubble_rounded,
+                label: 'Chats',
                 badgeCount: pendingRequestsCount,
               ),
               _buildNavItem(

@@ -68,6 +68,8 @@ class PetModel extends PetEntity {
     super.vaccinationStatus,
     super.allergies,
     super.description,
+    super.isActive = false,
+    super.activatedAt,
   });
 
   factory PetModel.fromJson(Map<String, dynamic> json) {
@@ -112,6 +114,13 @@ class PetModel extends PetEntity {
           json['vaccination_status'] as String?,
       allergies: json['allergies'] as String?,
       description: json['description'] as String?,
+      isActive:
+          json['isActive'] as bool? ?? json['is_active'] as bool? ?? false,
+      activatedAt: json['activatedAt'] != null
+          ? DateTime.tryParse(json['activatedAt'].toString())
+          : (json['activated_at'] != null
+                ? DateTime.tryParse(json['activated_at'].toString())
+                : null),
     );
   }
 
@@ -132,6 +141,8 @@ class PetModel extends PetEntity {
       'vaccinationStatus': vaccinationStatus,
       'allergies': allergies,
       'description': description,
+      'isActive': isActive,
+      'activatedAt': activatedAt?.toIso8601String(),
     };
   }
 }

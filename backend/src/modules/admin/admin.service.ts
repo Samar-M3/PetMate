@@ -66,6 +66,9 @@ export const getUserById = async (userId: string) => {
         orderBy: { createdAt: "desc" },
         include: { images: true },
       },
+      slotEntitlements: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 

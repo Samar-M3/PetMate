@@ -1,10 +1,12 @@
 import { Router } from "express";
 import {
-  getDiscover,
+  getDeck,
   postSwipe,
+  postUndoSwipe,
   getIncoming,
   acceptRequest,
   rejectRequest,
+  getMatches,
 } from "./matching.controller.ts";
 import {
   authenticateFirebase,
@@ -19,10 +21,21 @@ router.use(authenticateFirebase);
 router.use(requireInitializedUser);
 router.use(requireRole(Role.PET_OWNER, Role.ADMIN));
 
-router.get("/discover", getDiscover);
+// Deck endpoints (support both /deck and legacy /discover)
+router.get("/deck", getDeck);
+router.get("/discover", getDeck);
+
+// Swipe endpoints
 router.post("/swipes", postSwipe);
+router.post("/swipes/undo", postUndoSwipe);
+
+// Request endpoints
 router.get("/requests/incoming", getIncoming);
 router.post("/requests/:id/accept", acceptRequest);
 router.post("/requests/:id/reject", rejectRequest);
+router.post("/requests/:id/decline", rejectRequest);
+
+// Matches / Conversations endpoints
+router.get("/matches", getMatches);
 
 export default router;
