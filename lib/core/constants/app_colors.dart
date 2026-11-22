@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Brand colors
-  static const Color primary = Color(0xFF0D9488); // Teal 600
-  static const Color primaryLight = Color(0xFF14B8A6); // Teal 500
-  static const Color primaryDark = Color(0xFF0F766E); // Teal 700
+  // Brand Colors (PetMate Design System)
+  // Sage Green (Primary)
+  static const Color primary = Color(0xFF7C9082);
+  static const Color primaryLight = Color(0xFF9FB2A5);
+  static const Color primaryDark = Color(0xFF55685B);
 
-  static const Color secondary = Color(0xFFF59E0B); // Amber 500
-  static const Color secondaryLight = Color(0xFFFBBF24); // Amber 400
+  // Terracotta (Accent / Action)
+  static const Color terracotta = Color(0xFFD97757);
+  static const Color terracottaLight = Color(0xFFE89376);
+  static const Color terracottaDark = Color(0xFFBA5F40);
 
-  // Neutral tones
-  static const Color background = Color(0xFFF8FAFC); // Slate 50
+  // Cream (Background & Surfaces)
+  static const Color cream = Color(0xFFFBF8F2);
+  static const Color creamDark = Color(0xFFF2ECE1);
   static const Color surface = Colors.white;
-  static const Color surfaceVariant = Color(0xFFF1F5F9); // Slate 100
 
-  // Text colors
-  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
-  static const Color textSecondary = Color(0xFF64748B); // Slate 500
-  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
+  // Text & Neutral Tones
+  static const Color textPrimary = Color(0xFF2C3531);
+  static const Color textSecondary = Color(0xFF6B7B73);
+  static const Color textMuted = Color(0xFF9DAAA2);
+
+  // Form & Border
+  static const Color border = Color(0xFFDDE3DF);
+  static const Color inputFill = Color(0xFFF6F8F6);
 
   // State colors
-  static const Color success = Color(0xFF10B981); // Emerald 500
-  static const Color error = Color(0xFFEF4444); // Red 500
-  static const Color warning = Color(0xFFF97316); // Orange 500
-  static const Color info = Color(0xFF3B82F6); // Blue 500
-
-  // Borders & Dividers
-  static const Color border = Color(0xFFE2E8F0); // Slate 200
-  static const Color divider = Color(0xFFF1F5F9); // Slate 100
+  static const Color success = Color(0xFF4E9F6E);
+  static const Color error = Color(0xFFD32F2F);
+  static const Color warning = Color(0xFFE68A00);
+  static const Color info = Color(0xFF4A89DC);
 }
