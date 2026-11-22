@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -39,10 +40,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void _submitLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final nextStep = await ref.read(authStateProvider.notifier).loginWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
+    final nextStep = await ref
+        .read(authStateProvider.notifier)
+        .loginWithEmail(_emailController.text.trim(), _passwordController.text);
 
     if (nextStep != null) {
       _handleNavigation(nextStep);
@@ -50,14 +50,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _submitGoogleLogin() async {
-    final nextStep = await ref.read(authStateProvider.notifier).loginWithGoogle();
+    final nextStep = await ref
+        .read(authStateProvider.notifier)
+        .loginWithGoogle();
     if (nextStep != null) {
       _handleNavigation(nextStep);
     }
   }
 
   void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(text: _emailController.text);
+    final resetEmailController = TextEditingController(
+      text: _emailController.text,
+    );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -65,7 +69,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Reset Password',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -89,7 +96,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -100,11 +110,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               final email = resetEmailController.text.trim();
               if (email.isNotEmpty && email.contains('@')) {
                 Navigator.pop(ctx);
-                final sent = await ref.read(authStateProvider.notifier).sendPasswordReset(email);
+                final sent = await ref
+                    .read(authStateProvider.notifier)
+                    .sendPasswordReset(email);
                 if (mounted && sent) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password reset link sent! Check your inbox.'),
+                      content: Text(
+                        'Password reset link sent! Check your inbox.',
+                      ),
                       backgroundColor: AppColors.success,
                     ),
                   );
@@ -174,20 +188,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   // Error Banner
                   if (authState.errorMessage != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                          const Icon(
+                            Icons.error_outline,
+                            color: AppColors.error,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               authState.errorMessage!,
-                              style: const TextStyle(color: AppColors.error, fontSize: 13),
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ],
@@ -202,7 +228,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email address',
-                      prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: AppColors.primary,
+                      ),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -222,10 +251,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
+                      prefixIcon: const Icon(
+                        Icons.lock_outline,
+                        color: AppColors.primary,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           color: AppColors.textSecondary,
                         ),
                         onPressed: () {
@@ -269,7 +303,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text('Login'),
@@ -279,7 +315,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   // Divider OR
                   Row(
                     children: [
-                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      Expanded(
+                        child: Divider(color: AppColors.border, thickness: 1),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
@@ -291,7 +329,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      Expanded(
+                        child: Divider(color: AppColors.border, thickness: 1),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -308,7 +348,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                       width: 20,
                       height: 20,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.g_mobiledata, size: 24),
                     ),
                     label: const Text('Continue with Google'),
                   ),
@@ -320,7 +361,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     children: [
                       const Text(
                         "Don't have an account? ",
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                       GestureDetector(
                         onTap: () => context.go('/register'),

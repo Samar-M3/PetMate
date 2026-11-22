@@ -5,6 +5,8 @@ class ProfileEntity {
   final String userId;
   final String? fullName;
   final String? profilePictureUrl;
+  final String? imageUrl;
+  final String? imagePublicId;
   final String? location;
   final String? area;
   final String? bio;
@@ -14,12 +16,14 @@ class ProfileEntity {
     required this.userId,
     this.fullName,
     this.profilePictureUrl,
+    this.imageUrl,
+    this.imagePublicId,
     this.location,
     this.area,
     this.bio,
   });
 
-  String? get effectiveImageUrl => profilePictureUrl;
+  String? get effectiveImageUrl => imageUrl ?? profilePictureUrl;
 }
 
 class PetEntity {
@@ -27,6 +31,8 @@ class PetEntity {
   final String userId;
   final String name;
   final String? profilePictureUrl;
+  final String? imageUrl;
+  final String? imagePublicId;
   final String? animalType;
   final String? breed;
   final String? gender;
@@ -37,12 +43,15 @@ class PetEntity {
   final String? allergies;
   final String? description;
   final bool isActive;
+  final DateTime? activatedAt;
 
   const PetEntity({
     required this.id,
     required this.userId,
     required this.name,
     this.profilePictureUrl,
+    this.imageUrl,
+    this.imagePublicId,
     this.animalType,
     this.breed,
     this.gender,
@@ -52,10 +61,11 @@ class PetEntity {
     this.vaccinationStatus,
     this.allergies,
     this.description,
-    this.isActive = true,
+    this.isActive = false,
+    this.activatedAt,
   });
 
-  String? get effectiveImageUrl => profilePictureUrl;
+  String? get effectiveImageUrl => imageUrl ?? profilePictureUrl;
 
   String get ageString {
     if (dateOfBirth == null) return 'Unknown age';
@@ -87,8 +97,9 @@ class UserEntity {
   final String firebaseUid;
   final String? email;
   final String? phoneNumber;
-  final bool onboardingCompleted;
   final UserRole role;
+  final bool isActive;
+  final bool onboardingCompleted;
   final ProfileEntity? profile;
   final List<PetEntity> pets;
 
@@ -97,9 +108,14 @@ class UserEntity {
     required this.firebaseUid,
     this.email,
     this.phoneNumber,
-    this.onboardingCompleted = false,
     this.role = UserRole.petOwner,
+    this.isActive = true,
+    this.onboardingCompleted = false,
     this.profile,
     this.pets = const [],
   });
+
+  bool get isAdmin => role == UserRole.admin;
+  bool get isSeller => role == UserRole.seller;
+  bool get isVeterinarian => role == UserRole.veterinarian;
 }

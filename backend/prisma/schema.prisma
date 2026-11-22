@@ -7,6 +7,54 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  PET_OWNER
+  SELLER
+  VETERINARIAN
+  ADMIN
+}
+
+enum SwipeAction {
+  LIKE
+  PASS
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REJECTED
+  EXPIRED
+}
+
+enum MatchStatus {
+  ACTIVE
+  ENDED
+}
+
+enum ApplicationType {
+  SELLER
+  VETERINARIAN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 enum ProductStatus {
   DRAFT
   ACTIVE
@@ -22,28 +70,59 @@ enum StoreStatus {
 }
 
 model User {
-  id                  String    @id @default(uuid())
-  firebaseUid         String    @unique @map("firebase_uid")
+  id                  String          @id @default(uuid())
+  firebaseUid         String          @unique @map("firebase_uid")
   email               String?
-  phoneNumber         String?   @map("phone_number")
-  onboardingCompleted Boolean   @default(false) @map("onboarding_completed")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  phoneNumber         String?         @map("phone_number")
+  role                Role            @default(PET_OWNER)
+  isActive            Boolean         @default(true) @map("is_active")
+  onboardingCompleted Boolean         @default(false) @map("onboarding_completed")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
 
   profile             Profile?
   pets                Pet[]
   store               Store?
   cart                Cart?
   wishlist            Wishlist?
+  actionsPerformed    AdminAuditLog[] @relation("ActorAdminAudit")
+  auditLogs           AdminAuditLog[] @relation("TargetUserAudit")
+  swipesGiven         PetSwipe[]          @relation("SwipesGiven")
+  swipesReceived      PetSwipe[]          @relation("SwipesReceived")
+  requestsSent        ConnectionRequest[] @relation("RequestsSent")
+  requestsReceived    ConnectionRequest[] @relation("RequestsReceived")
+  applications        RoleApplication[]   @relation("UserApplications")
+  reviewedApplications RoleApplication[]  @relation("ReviewedApplications")
+  slotEntitlements    ActiveSlotEntitlement[]
+  payments            SlotPayment[]
+  downgradeMessages   UserDowngradeMessage[]
 
   @@map("users")
+}
+
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  actorId   String   @map("actor_id")
+  targetId  String   @map("target_id")
+  action    String
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor     User     @relation("ActorAdminAudit", fields: [actorId], references: [id], onDelete: Cascade)
+  target    User     @relation("TargetUserAudit", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@map("admin_audit_logs")
 }
 
 model Profile {
   id                String   @id @default(uuid())
   userId            String   @unique @map("user_id")
+  username          String?  @unique
   fullName          String?  @map("full_name")
   profilePictureUrl String?  @map("profile_picture_url")
+  imageUrl          String?  @map("image_url")
+  imagePublicId     String?  @map("image_public_id")
   location          String?
   area              String?
   bio               String?
@@ -56,25 +135,183 @@ model Profile {
 }
 
 model Pet {
-  id                String    @id @default(uuid())
-  userId            String    @map("user_id")
+  id                String     @id @default(uuid())
+  userId            String     @map("user_id")
   name              String
-  profilePictureUrl String?   @map("profile_picture_url")
-  animalType        String?   @map("animal_type")
+  profilePictureUrl String?    @map("profile_picture_url")
+  imageUrl          String?    @map("image_url")
+  imagePublicId     String?    @map("image_public_id")
+  animalType        String?    @map("animal_type")
   breed             String?
   gender            String?
-  dateOfBirth       DateTime? @map("date_of_birth")
+  dateOfBirth       DateTime?  @map("date_of_birth")
   color             String?
-  personality       String[]  @default([])
-  vaccinationStatus String?   @map("vaccination_status")
+  personality       String[]   @default([])
+  vaccinationStatus String?    @map("vaccination_status")
   allergies         String?
   description       String?
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  isActive          Boolean    @default(false) @map("is_active")
+  activatedAt       DateTime?  @map("activated_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images            PetImage[]
+  swipesGiven       PetSwipe[]          @relation("PetSwipesGiven")
+  swipesReceived    PetSwipe[]          @relation("PetSwipesReceived")
+  requestsSent      ConnectionRequest[] @relation("PetRequestsSent")
+  requestsReceived  ConnectionRequest[] @relation("PetRequestsReceived")
+  matchesAsPetA     Match[]             @relation("MatchesAsPetA")
+  matchesAsPetB     Match[]             @relation("MatchesAsPetB")
 
+  @@index([userId])
+  @@index([animalType, gender])
   @@map("pets")
+}
+
+model PetImage {
+  id            String   @id @default(uuid())
+  petId         String   @map("pet_id")
+  imageUrl      String   @map("image_url")
+  imagePublicId String   @map("image_public_id")
+  isMain        Boolean  @default(false) @map("is_main")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  pet           Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("pet_images")
+}
+
+model PetSwipe {
+  id           String      @id @default(uuid())
+  swiperUserId String      @map("swiper_user_id")
+  swiperPetId  String      @map("swiper_pet_id")
+  targetPetId  String      @map("target_pet_id")
+  targetUserId String      @map("target_user_id")
+  action       SwipeAction
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  swiperUser User @relation("SwipesGiven", fields: [swiperUserId], references: [id], onDelete: Cascade)
+  targetUser User @relation("SwipesReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+  swiperPet  Pet  @relation("PetSwipesGiven", fields: [swiperPetId], references: [id], onDelete: Cascade)
+  targetPet  Pet  @relation("PetSwipesReceived", fields: [targetPetId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperPetId, targetPetId])
+  @@index([swiperPetId, action, createdAt])
+  @@index([swiperPetId])
+  @@index([targetPetId])
+  @@map("pet_swipes")
+}
+
+model ConnectionRequest {
+  id             String        @id @default(uuid())
+  senderUserId   String        @map("sender_user_id")
+  senderPetId    String        @map("sender_pet_id")
+  receiverUserId String        @map("receiver_user_id")
+  receiverPetId  String        @map("receiver_pet_id")
+  status         RequestStatus @default(PENDING)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  respondedAt    DateTime?     @map("responded_at")
+  expiresAt      DateTime?     @map("expires_at")
+
+  senderUser   User @relation("RequestsSent", fields: [senderUserId], references: [id], onDelete: Cascade)
+  receiverUser User @relation("RequestsReceived", fields: [receiverUserId], references: [id], onDelete: Cascade)
+  senderPet    Pet  @relation("PetRequestsSent", fields: [senderPetId], references: [id], onDelete: Cascade)
+  receiverPet  Pet  @relation("PetRequestsReceived", fields: [receiverPetId], references: [id], onDelete: Cascade)
+
+  @@unique([senderPetId, receiverPetId])
+  @@index([receiverUserId, status, createdAt])
+  @@index([senderPetId, receiverPetId])
+  @@index([senderUserId, status])
+  @@index([status, expiresAt])
+  @@index([senderUserId])
+  @@index([receiverUserId])
+  @@map("connection_requests")
+}
+
+model Match {
+  id        String      @id @default(uuid())
+  petAId    String      @map("pet_a_id")
+  petBId    String      @map("pet_b_id")
+  status    MatchStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at")
+  endedAt   DateTime?   @map("ended_at")
+  endedBy   String?     @map("ended_by")
+
+  petA      Pet         @relation("MatchesAsPetA", fields: [petAId], references: [id], onDelete: Cascade)
+  petB      Pet         @relation("MatchesAsPetB", fields: [petBId], references: [id], onDelete: Cascade)
+
+  @@unique([petAId, petBId])
+  @@index([petAId, status])
+  @@index([petBId, status])
+  @@map("matches")
+}
+
+model RoleApplication {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  type        ApplicationType
+  status      ApplicationStatus @default(PENDING)
+  notes       String?
+  reviewedBy  String?           @map("reviewed_by")
+  reviewedAt  DateTime?         @map("reviewed_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  user        User              @relation("UserApplications", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("ReviewedApplications", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+  @@index([userId])
+  @@map("role_applications")
+}
+
+model ActiveSlotEntitlement {
+  id        String            @id @default(uuid())
+  ownerId   String            @map("owner_id")
+  paymentId String?           @map("payment_id")
+  startsAt  DateTime          @default(now()) @map("starts_at")
+  expiresAt DateTime          @map("expires_at")
+  status    EntitlementStatus @default(ACTIVE)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  owner     User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  payment   SlotPayment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, status, expiresAt])
+  @@map("active_slot_entitlements")
+}
+
+model SlotPayment {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  amount        Float
+  quantity      Int
+  gateway       String
+  transactionId String?         @unique @map("transaction_id")
+  status        PaymentStatus   @default(PENDING)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlements  ActiveSlotEntitlement[]
+
+  @@index([userId, status])
+  @@map("slot_payments")
+}
+
+model UserDowngradeMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@map("user_downgrade_messages")
 }
 
 model Store {

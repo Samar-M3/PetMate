@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -32,7 +33,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   void _submitRegistration() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(authStateProvider.notifier).register(
+    final success = await ref
+        .read(authStateProvider.notifier)
+        .register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           phoneNumber: _phoneController.text.trim(),
@@ -86,20 +89,32 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 // Error Banner
                 if (authState.errorMessage != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             authState.errorMessage!,
-                            style: const TextStyle(color: AppColors.error, fontSize: 13),
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -115,13 +130,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   decoration: const InputDecoration(
                     labelText: 'Phone number',
                     hintText: 'e.g. 9812345678',
-                    prefixIcon: Icon(Icons.phone_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.phone_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
                       return 'Please enter your phone number';
                     }
-                    final cleanPhone = val.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                    final cleanPhone = val.replaceAll(
+                      RegExp(r'[\s\-\(\)]'),
+                      '',
+                    );
                     if (cleanPhone.length < 7 || cleanPhone.length > 15) {
                       return 'Please enter a valid phone number';
                     }
@@ -137,7 +158,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   decoration: const InputDecoration(
                     labelText: 'Email address',
                     hintText: 'name@example.com',
-                    prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: AppColors.primary,
+                    ),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
@@ -158,10 +182,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'At least 6 characters',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: AppColors.primary,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         color: AppColors.textSecondary,
                       ),
                       onPressed: () {
@@ -189,10 +218,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(
                     labelText: 'Confirm password',
-                    prefixIcon: const Icon(Icons.lock_reset_outlined, color: AppColors.primary),
+                    prefixIcon: const Icon(
+                      Icons.lock_reset_outlined,
+                      color: AppColors.primary,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         color: AppColors.textSecondary,
                       ),
                       onPressed: () {
@@ -223,7 +257,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text('Create Account & Continue'),
@@ -236,7 +272,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   children: [
                     const Text(
                       'Already have an account? ',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                     GestureDetector(
                       onTap: () => context.go('/login'),

@@ -6,11 +6,11 @@ class Vet {
   final String address;
   final double rating;
   final int fee;
-  final List<String> availableSlots;
-  final bool isOnline;
   final bool isVerified;
+  final bool isAcceptingBookings;
+  final List<String> availableSlots;
 
-  const Vet({
+  Vet({
     required this.id,
     required this.name,
     required this.clinicName,
@@ -18,8 +18,8 @@ class Vet {
     required this.address,
     required this.rating,
     required this.fee,
-    required this.availableSlots,
-    this.isOnline = true,
     this.isVerified = true,
+    this.isAcceptingBookings = true,
+    required this.availableSlots,
   });
 }

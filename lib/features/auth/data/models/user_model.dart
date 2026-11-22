@@ -7,17 +7,29 @@ class ProfileModel extends ProfileEntity {
     required super.userId,
     super.fullName,
     super.profilePictureUrl,
+    super.imageUrl,
+    super.imagePublicId,
     super.location,
     super.area,
     super.bio,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
+    final rawUrl =
+        json['imageUrl'] as String? ??
+        json['image_url'] as String? ??
+        json['profilePictureUrl'] as String? ??
+        json['profile_picture_url'] as String?;
+
     return ProfileModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
       fullName: json['fullName'] as String? ?? json['full_name'] as String?,
-      profilePictureUrl: json['profilePictureUrl'] as String? ?? json['profile_picture_url'] as String?,
+      profilePictureUrl: rawUrl,
+      imageUrl: rawUrl,
+      imagePublicId:
+          json['imagePublicId'] as String? ??
+          json['image_public_id'] as String?,
       location: json['location'] as String?,
       area: json['area'] as String?,
       bio: json['bio'] as String?,
@@ -30,6 +42,8 @@ class ProfileModel extends ProfileEntity {
       'userId': userId,
       'fullName': fullName,
       'profilePictureUrl': profilePictureUrl,
+      'imageUrl': imageUrl,
+      'imagePublicId': imagePublicId,
       'location': location,
       'area': area,
       'bio': bio,
@@ -43,6 +57,8 @@ class PetModel extends PetEntity {
     required super.userId,
     required super.name,
     super.profilePictureUrl,
+    super.imageUrl,
+    super.imagePublicId,
     super.animalType,
     super.breed,
     super.gender,
@@ -52,7 +68,8 @@ class PetModel extends PetEntity {
     super.vaccinationStatus,
     super.allergies,
     super.description,
-    super.isActive = true,
+    super.isActive = false,
+    super.activatedAt,
   });
 
   factory PetModel.fromJson(Map<String, dynamic> json) {
@@ -65,24 +82,45 @@ class PetModel extends PetEntity {
 
     List<String> persList = [];
     if (json['personality'] is List) {
-      persList = (json['personality'] as List).map((e) => e.toString()).toList();
+      persList = (json['personality'] as List)
+          .map((e) => e.toString())
+          .toList();
     }
+
+    final rawUrl =
+        json['imageUrl'] as String? ??
+        json['image_url'] as String? ??
+        json['profilePictureUrl'] as String? ??
+        json['profile_picture_url'] as String?;
 
     return PetModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      profilePictureUrl: json['profilePictureUrl'] as String? ?? json['profile_picture_url'] as String?,
-      animalType: json['animalType'] as String? ?? json['animal_type'] as String?,
+      profilePictureUrl: rawUrl,
+      imageUrl: rawUrl,
+      imagePublicId:
+          json['imagePublicId'] as String? ??
+          json['image_public_id'] as String?,
+      animalType:
+          json['animalType'] as String? ?? json['animal_type'] as String?,
       breed: json['breed'] as String?,
       gender: json['gender'] as String?,
       dateOfBirth: dob,
       color: json['color'] as String?,
       personality: persList,
-      vaccinationStatus: json['vaccinationStatus'] as String? ?? json['vaccination_status'] as String?,
+      vaccinationStatus:
+          json['vaccinationStatus'] as String? ??
+          json['vaccination_status'] as String?,
       allergies: json['allergies'] as String?,
       description: json['description'] as String?,
-      isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
+      isActive:
+          json['isActive'] as bool? ?? json['is_active'] as bool? ?? false,
+      activatedAt: json['activatedAt'] != null
+          ? DateTime.tryParse(json['activatedAt'].toString())
+          : (json['activated_at'] != null
+                ? DateTime.tryParse(json['activated_at'].toString())
+                : null),
     );
   }
 
@@ -92,6 +130,8 @@ class PetModel extends PetEntity {
       'userId': userId,
       'name': name,
       'profilePictureUrl': profilePictureUrl,
+      'imageUrl': imageUrl,
+      'imagePublicId': imagePublicId,
       'animalType': animalType,
       'breed': breed,
       'gender': gender,
@@ -102,6 +142,7 @@ class PetModel extends PetEntity {
       'allergies': allergies,
       'description': description,
       'isActive': isActive,
+      'activatedAt': activatedAt?.toIso8601String(),
     };
   }
 }
@@ -112,8 +153,9 @@ class UserModel extends UserEntity {
     required super.firebaseUid,
     super.email,
     super.phoneNumber,
+    super.role,
+    super.isActive,
     super.onboardingCompleted,
-    super.role = UserRole.petOwner,
     super.profile,
     super.pets,
   });
@@ -134,13 +176,19 @@ class UserModel extends UserEntity {
 
     return UserModel(
       id: json['id'] as String? ?? '',
-      firebaseUid: json['firebaseUid'] as String? ?? json['firebase_uid'] as String? ?? '',
+      firebaseUid:
+          json['firebaseUid'] as String? ??
+          json['firebase_uid'] as String? ??
+          '',
       email: json['email'] as String?,
-      phoneNumber: json['phoneNumber'] as String? ?? json['phone_number'] as String?,
-      onboardingCompleted: json['onboardingCompleted'] as bool? ??
+      phoneNumber:
+          json['phoneNumber'] as String? ?? json['phone_number'] as String?,
+      role: UserRole.fromString(json['role'] as String?),
+      isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
+      onboardingCompleted:
+          json['onboardingCompleted'] as bool? ??
           json['onboarding_completed'] as bool? ??
           false,
-      role: UserRole.fromString(json['role'] as String?),
       profile: prof,
       pets: petsList,
     );
@@ -152,8 +200,9 @@ class UserModel extends UserEntity {
       'firebaseUid': firebaseUid,
       'email': email,
       'phoneNumber': phoneNumber,
-      'onboardingCompleted': onboardingCompleted,
       'role': role.toBackendString(),
+      'isActive': isActive,
+      'onboardingCompleted': onboardingCompleted,
       if (profile != null) 'profile': (profile as ProfileModel).toJson(),
       'pets': pets.map((p) => (p as PetModel).toJson()).toList(),
     };

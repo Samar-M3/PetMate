@@ -1,3 +1,6 @@
+// Holds id, petName, vetId, vetName, date, timeSlot,
+//     type ("In-Clinic" or "Video Consult"), status ("Upcoming", "Completed",
+// "Cancelled"), and vetNotes / nextVaccineDate.
 class Appointment {
   final String id;
   final String petName;
@@ -7,12 +10,11 @@ class Appointment {
   final String date;
   final String timeSlot;
   final String reason;
-  final String status;
-  final String? type;
-  final String? vetNotes;
-  final String? nextVaccineDue;
+  String status; // 'Upcoming', 'Completed', 'Cancelled'
+  String? vetNotes;
+  String? nextVaccineDue;
 
-  const Appointment({
+  Appointment({
     required this.id,
     required this.petName,
     required this.vetId,
@@ -21,8 +23,7 @@ class Appointment {
     required this.date,
     required this.timeSlot,
     required this.reason,
-    required this.status,
-    this.type,
+    this.status = 'Upcoming',
     this.vetNotes,
     this.nextVaccineDue,
   });

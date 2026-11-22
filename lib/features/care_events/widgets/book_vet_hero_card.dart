@@ -1,4 +1,7 @@
+// The large top card from your mockup featuring the clinic photo,
+// "Trusted care" badge, "★ 4.9" pill, "Book a Vet" heading, "from ₹499" text, and the circular terracotta arrow button.
 import 'package:flutter/material.dart';
+
 import '../models/app_theme.dart';
 
 class BookVetHeroCard extends StatelessWidget {
@@ -8,65 +11,131 @@ class BookVetHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: CareTheme.cardBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: CareTheme.border),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Top Clinic Banner
+            Container(
+              height: 145,
+              decoration: const BoxDecoration(
+                color: CareTheme.sageGreen,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.all(14),
+              child: Stack(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: CareTheme.sagePill,
-                      borderRadius: BorderRadius.circular(12),
+                  Center(
+                    child: Icon(
+                      Icons.local_hospital_rounded,
+                      size: 64,
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
-                    child: const Text(
-                      'Trusted care',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: CareTheme.deepOlive,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CareTheme.deepOlive,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Trusted care',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Book a Vet',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.charcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Consultations from ₹499',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: CareTheme.mutedText,
-                    ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CareTheme.cardBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.star, size: 14, color: Colors.amber),
+                            SizedBox(width: 4),
+                            Text(
+                              '4.9',
+                              style: TextStyle(
+                                color: CareTheme.charcoal,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: CareTheme.terracotta,
-                shape: BoxShape.circle,
+            // Bottom Action Row
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Book a Vet',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: CareTheme.charcoal,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'In-clinic checkups from ₹499',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CareTheme.mutedText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: CareTheme.terracotta,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.arrow_forward, color: Colors.white),
             ),
           ],
         ),

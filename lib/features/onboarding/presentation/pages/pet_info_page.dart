@@ -281,6 +281,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
         .addPet(
           name: _nameController.text.trim(),
           profilePictureUrl: photoUrl,
+          imageUrl: photoUrl,
           animalType: _selectedAnimalType,
           breed: finalBreed,
           gender: _selectedGender,

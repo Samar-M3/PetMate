@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'owner_info_chip.dart';
 
 class PetProfileCard extends StatelessWidget {
   final DiscoveryPet pet;
-  final double swipeProgress; // Negative for left (pass), positive for right (like)
+  final double
+  swipeProgress; // Negative for left (pass), positive for right (like)
 
   const PetProfileCard({
     super.key,
@@ -36,34 +39,12 @@ class PetProfileCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Pet Full Cover Photo
-            Image.network(
-              pet.petImageUrl,
+            // 1. Pet Full Cover Photo with Cloudinary Optimization & Caching
+            AppNetworkImage(
+              imageUrl: pet.petImageUrl,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: AppColors.creamDark,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.creamDark,
-                  child: const Center(
-                    child: Icon(
-                      Icons.pets,
-                      size: 64,
-                      color: AppColors.primaryLight,
-                    ),
-                  ),
-                );
-              },
+              fallbackIcon: Icons.pets,
+              transformationWidth: 1080,
             ),
 
             // 2. Subtle Gradient Overlay for Top Contrast
@@ -135,7 +116,10 @@ class PetProfileCard extends StatelessWidget {
                   child: Transform.rotate(
                     angle: 0.25,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.success.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(14),
@@ -178,7 +162,10 @@ class PetProfileCard extends StatelessWidget {
                   child: Transform.rotate(
                     angle: -0.25,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.error.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(14),
@@ -257,12 +244,16 @@ class PetProfileCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       // Gender pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: (pet.petGender.toLowerCase() == 'female'
-                                  ? const Color(0xFFE91E63)
-                                  : const Color(0xFF2196F3))
-                              .withValues(alpha: 0.25),
+                          color:
+                              (pet.petGender.toLowerCase() == 'female'
+                                      ? const Color(0xFFE91E63)
+                                      : const Color(0xFF2196F3))
+                                  .withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
@@ -323,7 +314,10 @@ class PetProfileCard extends StatelessWidget {
                     runSpacing: 6,
                     children: pet.personality.map((trait) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [

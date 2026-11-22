@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'api_client.dart';
 
 final cloudinaryServiceProvider = Provider<CloudinaryService>((ref) {
@@ -14,49 +14,72 @@ class CloudinaryService {
 
   CloudinaryService({required this.apiClient});
 
+  /// Upload an image file via multipart/form-data.
+  /// Field name: "image".
   Future<String?> uploadImage(
     File? file, {
+    String folder = 'uploads',
     Uint8List? bytes,
     String? filename,
-    String folder = 'petmate_uploads',
   }) async {
-    Uint8List? rawBytes = bytes;
-    if (rawBytes == null && file != null) {
-      rawBytes = await file.readAsBytes();
-    }
-    if (rawBytes == null) {
-      return null;
-    }
-    final base64Image = 'data:image/jpeg;base64,${base64Encode(rawBytes)}';
-
-    final response = await apiClient.post(
+    final response = await apiClient.postMultipart(
       '/uploads',
-      body: {
-        'image': base64Image,
-        'folder': folder,
-      },
+      file: file,
+      bytes: bytes,
+      filename: filename,
+      fieldName: 'image',
+      fields: {'folder': folder},
     );
 
     if (response is Map<String, dynamic>) {
-      if (response['url'] != null) {
-        return response['url'] as String;
-      }
-      if (response['secure_url'] != null) {
-        return response['secure_url'] as String;
-      }
-      if (response['data'] is Map<String, dynamic>) {
-        final data = response['data'] as Map<String, dynamic>;
-        return data['url'] as String? ?? data['secure_url'] as String?;
-      }
+      return (response['imageUrl'] ?? response['url']) as String?;
     }
     return null;
   }
 
+  /// Upload user avatar using dedicated /users/me/avatar endpoint.
   Future<String?> uploadUserAvatar(
     File? file, {
     Uint8List? bytes,
     String? filename,
   }) async {
-    return uploadImage(file, bytes: bytes, filename: filename, folder: 'avatars');
+    final response = await apiClient.postMultipart(
+      '/users/me/avatar',
+      file: file,
+      bytes: bytes,
+      filename: filename,
+      fieldName: 'image',
+    );
+
+    if (response is Map<String, dynamic>) {
+      return (response['imageUrl'] ?? response['url']) as String?;
+    }
+    return null;
+  }
+
+  /// Upload pet photo using dedicated /pets/:id/image endpoint.
+  Future<String?> uploadPetImage(
+    String petId,
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  }) async {
+    final response = await apiClient.postMultipart(
+      '/pets/$petId/image',
+      file: file,
+      bytes: bytes,
+      filename: filename,
+      fieldName: 'image',
+    );
+
+    if (response is Map<String, dynamic>) {
+      return (response['imageUrl'] ?? response['url']) as String?;
+    }
+    return null;
+  }
+
+  /// Delete pet photo from Cloudinary and DB.
+  Future<void> deletePetImage(String petId) async {
+    await apiClient.delete('/pets/$petId/image');
   }
 }

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/constants/app_colors.dart';
 
 class PetMateBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
+  final int pendingRequestsCount;
 
   const PetMateBottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    this.pendingRequestsCount = 0,
   });
 
   @override
@@ -33,15 +36,12 @@ class PetMateBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
-              ),
+              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
               _buildNavItem(
                 index: 1,
                 icon: Icons.chat_bubble_rounded,
-                label: 'Chat',
+                label: 'Chats',
+                badgeCount: pendingRequestsCount,
               ),
               _buildNavItem(
                 index: 2,
@@ -69,6 +69,7 @@ class PetMateBottomNavBar extends StatelessWidget {
     required int index,
     required IconData icon,
     required String label,
+    int badgeCount = 0,
   }) {
     final isSelected = selectedIndex == index;
     final color = isSelected ? AppColors.terracotta : AppColors.textMuted;
@@ -90,10 +91,18 @@ class PetMateBottomNavBar extends StatelessWidget {
                     : Colors.transparent,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 22,
-                color: color,
+              child: Badge(
+                isLabelVisible: badgeCount > 0,
+                label: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                backgroundColor: AppColors.terracotta,
+                child: Icon(icon, size: 22, color: color),
               ),
             ),
             const SizedBox(height: 2),

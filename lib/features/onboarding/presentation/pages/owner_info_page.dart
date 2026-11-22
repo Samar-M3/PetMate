@@ -143,6 +143,7 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
         .completeOwnerProfile(
           fullName: _nameController.text.trim(),
           profilePictureUrl: photoUrl,
+          imageUrl: photoUrl,
           location: _locationController.text.trim(),
           area: _areaController.text.trim(),
           bio: _bioController.text.trim(),

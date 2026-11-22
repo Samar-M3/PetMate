@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class HomeHeader extends ConsumerWidget {
   final VoidCallback onProfileTap;
 
-  const HomeHeader({
-    super.key,
-    required this.onProfileTap,
-  });
+  const HomeHeader({super.key, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).user;
     final profile = user?.profile;
-    final avatarUrl = profile?.profilePictureUrl;
+    final avatarUrl = profile?.effectiveImageUrl ?? profile?.profilePictureUrl;
     final initial = (profile?.fullName != null && profile!.fullName!.isNotEmpty)
         ? profile.fullName![0].toUpperCase()
         : (user?.email != null && user!.email!.isNotEmpty)
-            ? user.email![0].toUpperCase()
-            : 'P';
+        ? user.email![0].toUpperCase()
+        : 'P';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -49,11 +48,7 @@ class HomeHeader extends ConsumerWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.pets,
-                  color: Colors.white,
-                  size: 22,
-                ),
+                child: const Icon(Icons.pets, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 10),
               Text.rich(
@@ -80,42 +75,27 @@ class HomeHeader extends ConsumerWidget {
           ),
 
           // User Profile Avatar
-          InkWell(
-            onTap: onProfileTap,
-            borderRadius: BorderRadius.circular(22),
-            child: Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.terracotta.withValues(alpha: 0.6),
-                  width: 2,
+          Container(
+            padding: const EdgeInsets.all(2.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.terracotta.withValues(alpha: 0.6),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.creamDark,
-                backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                    ? NetworkImage(avatarUrl)
-                    : null,
-                child: (avatarUrl == null || avatarUrl.isEmpty)
-                    ? Text(
-                        initial,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
-                        ),
-                      )
-                    : null,
-              ),
+              ],
+            ),
+            child: UserAvatar(
+              imageUrl: avatarUrl,
+              radius: 18,
+              initials: initial,
+              onTap: onProfileTap,
             ),
           ),
         ],
