@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    match /conversations/{conversationId} {
+      // Read: allowed only if caller is in participantUids
+      allow read: if isAuthenticated() &&
+        request.auth.uid in resource.data.participantUids;
+
+      // Create and delete denied for clients (Admin SDK only)
+      allow create, delete: if false;
+
+      // Update: allowed only for participants while status is ACTIVE,
+      // restricted to lastMessage, lastMessageAt, unread, and lastRead fields
+      allow update: if isAuthenticated() &&
+        request.auth.uid in resource.data.participantUids &&
+        resource.data.status == 'ACTIVE' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unread', 'lastRead']) &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.participantUids == resource.data.participantUids &&
+        request.resource.data.matchId == resource.data.matchId;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Read: caller must be a participant of the parent conversation
+        allow read: if isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids;
+
+        // Create: participant of ACTIVE conversation, senderUid is caller,
+        // text is non-empty string <= 1000 chars, createdAt == request.time,
+        // exactly keys ['senderUid', 'text', 'createdAt']
+        allow create: if isAuthenticated() &&
+          get(/databases/$(database)/documents/conversations/$(conversationId)).data.status == 'ACTIVE' &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 1000 &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
+
+        // Update and delete strictly denied
+        allow update, delete: if false;
+      }
+    }
+  }
+}

@@ -3,8 +3,10 @@ import {
   Role,
   ApplicationType,
   ApplicationStatus,
+  MatchStatus,
 } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+import { endConversation } from "../../services/firestore.service.ts";
 
 export interface ListUsersParams {
   page?: number;
@@ -182,6 +184,44 @@ export const updateUserStatus = async (
       },
     }),
   ]);
+
+  // When deactivating, end all active matches involving the suspended user's pets
+  if (!isActive) {
+    try {
+      const userPets = await prisma.pet.findMany({
+        where: { userId: targetId },
+        select: { id: true },
+      });
+      const petIds = userPets.map((p) => p.id);
+
+      if (petIds.length > 0) {
+        const activeMatches = await prisma.match.findMany({
+          where: {
+            status: MatchStatus.ACTIVE,
+            OR: [{ petAId: { in: petIds } }, { petBId: { in: petIds } }],
+          },
+          select: { id: true },
+        });
+
+        if (activeMatches.length > 0) {
+          await prisma.match.updateMany({
+            where: { id: { in: activeMatches.map((m) => m.id) } },
+            data: {
+              status: MatchStatus.ENDED,
+              endedAt: new Date(),
+              endedBy: actorId,
+            },
+          });
+
+          for (const m of activeMatches) {
+            await endConversation(m.id, "ACCOUNT_SUSPENDED");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[AdminService] Failed to end matches on user deactivation:", err);
+    }
+  }
 
   return updatedUser;
 };

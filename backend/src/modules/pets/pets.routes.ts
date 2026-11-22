@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createPet,
   getPets,
+  getPublicPet,
   getSinglePet,
   updatePet,
   activatePet,
@@ -26,6 +27,7 @@ router.use(requireRole(Role.PET_OWNER, Role.ADMIN));
 
 router.post("/", createPet);
 router.get("/", getPets);
+router.get("/:id/public", getPublicPet);
 router.get("/:id", getSinglePet);
 router.put("/:id", updatePet);
 router.delete("/:id", deletePet);

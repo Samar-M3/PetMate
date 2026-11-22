@@ -7,6 +7,8 @@ import {
   acceptRequest,
   rejectRequest,
   getMatches,
+  getMatchChatHandler,
+  unmatchHandler,
 } from "./matching.controller.ts";
 import {
   authenticateFirebase,
@@ -39,5 +41,7 @@ router.post("/requests/:id/decline", matchingAuth, rejectRequest);
 
 // Matches / Conversations endpoints
 router.get("/matches", matchingAuth, getMatches);
+router.get("/matches/:id/chat", matchingAuth, getMatchChatHandler);
+router.post("/matches/:id/unmatch", matchingAuth, unmatchHandler);
 
 export default router;

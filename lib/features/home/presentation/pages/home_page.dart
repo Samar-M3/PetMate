@@ -37,6 +37,7 @@ class _HomePageState extends ConsumerState<HomePage>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(requestsProvider.notifier).loadRequests();
+      ref.read(authStateProvider.notifier).refreshUserProfile();
     });
   }
 
@@ -50,6 +51,7 @@ class _HomePageState extends ConsumerState<HomePage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(requestsProvider.notifier).loadRequests(refresh: true);
+      ref.read(authStateProvider.notifier).refreshUserProfile();
     }
   }
 
@@ -90,6 +92,8 @@ class _HomePageState extends ConsumerState<HomePage>
         ref.read(discoveryProvider.notifier).clearSnackbar();
       }
     });
+
+    final unreadChatsCount = ref.watch(unreadChatsCountProvider);
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -182,7 +186,7 @@ class _HomePageState extends ConsumerState<HomePage>
             // 4. Fixed Bottom Navigation Bar
             PetMateBottomNavBar(
               selectedIndex: _selectedNavIndex,
-              pendingRequestsCount: requestsState.pendingCount,
+              pendingRequestsCount: requestsState.pendingCount + unreadChatsCount,
               onItemSelected: (index) {
                 setState(() {
                   _selectedNavIndex = index;

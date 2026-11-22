@@ -8,8 +8,19 @@ import { AppError } from "../../middleware/errorHandler.ts";
 import matchingConfig from "../../config/matching.config.ts";
 import { expireOldRequests } from "./matching.expiry.ts";
 import { expireSlotsAndDowngrade } from "../slots/slots.expiry.ts";
+import { ensureConversation, endConversation } from "../../services/firestore.service.ts";
 
 export { SwipeAction, RequestStatus, MatchStatus };
+
+export function calculateAgeInMonths(dob?: Date | null): number {
+  if (!dob) return 0;
+  const now = new Date();
+  let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+  if (now.getDate() < dob.getDate()) {
+    months--;
+  }
+  return Math.max(0, months);
+}
 
 export function calculateAgeString(dob?: Date | null): string {
   if (!dob) return "Unknown age";
@@ -241,6 +252,9 @@ export const getDeckFeed = async ({
           id: true,
           profile: {
             select: {
+              fullName: true,
+              profilePictureUrl: true,
+              imageUrl: true,
               area: true,
               location: true,
             },
@@ -296,6 +310,10 @@ export const getDeckFeed = async ({
       photos: allPhotos,
       area: areaString,
       location: areaString,
+      ownerId: p.user.id,
+      ownerName: profile?.fullName || "Pet Parent",
+      ownerAvatarUrl: profile?.profilePictureUrl || profile?.imageUrl || null,
+      ownerLocation: areaString,
       healthBadges: [
         ...(p.vaccinationStatus ? [p.vaccinationStatus] : []),
         ...(p.allergies ? [`Allergies: ${p.allergies}`] : []),
@@ -333,7 +351,12 @@ export const recordSwipe = async ({
   }
 
   // Multi-step write wrapped in prisma.$transaction
-  return await prisma.$transaction(async (tx) => {
+  const result: {
+    status: string;
+    matched: boolean;
+    matchId?: string;
+    swipeId: string;
+  } = await prisma.$transaction(async (tx) => {
     // 1. Verify caller owns swiper pet and swiper is active
     const swiperPet = await tx.pet.findFirst({
       where: { id: petId, userId },
@@ -509,6 +532,28 @@ export const recordSwipe = async ({
       swipeId: newSwipe.id,
     };
   });
+
+  // Ensure Firestore conversation if a match was formed
+  if (result.matched && result.matchId) {
+    try {
+      const matchRecord = await prisma.match.findUnique({
+        where: { id: result.matchId },
+        include: {
+          petA: { include: { user: true } },
+          petB: { include: { user: true } },
+        },
+      });
+      const uidA = matchRecord?.petA?.user?.firebaseUid;
+      const uidB = matchRecord?.petB?.user?.firebaseUid;
+      if (uidA && uidB) {
+        await ensureConversation(result.matchId, [uidA, uidB]);
+      }
+    } catch (err) {
+      console.error("[MatchingService] Post-swipe conversation creation error:", err);
+    }
+  }
+
+  return result;
 };
 
 export interface UndoSwipeParams {
@@ -703,7 +748,11 @@ export const acceptConnectionRequest = async (
   }
 
   // Atomic update and Match creation inside transaction
-  return await prisma.$transaction(async (tx) => {
+  const result: {
+    requestId: string;
+    status: string;
+    matchId: string;
+  } = await prisma.$transaction(async (tx) => {
     const updateResult = await tx.connectionRequest.updateMany({
       where: {
         id: requestId,
@@ -748,6 +797,28 @@ export const acceptConnectionRequest = async (
       matchId: match.id,
     };
   });
+
+  // Ensure Firestore conversation after request accept transaction commits
+  if (result.status === "ACCEPTED" && result.matchId) {
+    try {
+      const matchRecord = await prisma.match.findUnique({
+        where: { id: result.matchId },
+        include: {
+          petA: { include: { user: true } },
+          petB: { include: { user: true } },
+        },
+      });
+      const uidA = matchRecord?.petA?.user?.firebaseUid;
+      const uidB = matchRecord?.petB?.user?.firebaseUid;
+      if (uidA && uidB) {
+        await ensureConversation(result.matchId, [uidA, uidB]);
+      }
+    } catch (err) {
+      console.error("[MatchingService] Post-accept conversation creation error:", err);
+    }
+  }
+
+  return result;
 };
 
 export const rejectConnectionRequest = async (
@@ -835,7 +906,25 @@ export const getUserMatches = async (userId: string) => {
     orderBy: { createdAt: "desc" },
   });
 
-  return matches.map((m) => {
+  // Find blocks involving this user
+  const userBlocks = await prisma.userBlock.findMany({
+    where: {
+      OR: [{ blockerId: userId }, { blockedId: userId }],
+    },
+  });
+  const blockedUserIds = new Set<string>();
+  for (const b of userBlocks) {
+    if (b.blockerId === userId) blockedUserIds.add(b.blockedId);
+    if (b.blockedId === userId) blockedUserIds.add(b.blockerId);
+  }
+
+  const activeMatches = matches.filter((m) => {
+    const isPetAOwner = petIds.includes(m.petAId);
+    const otherOwnerId = isPetAOwner ? m.petB.userId : m.petA.userId;
+    return !blockedUserIds.has(otherOwnerId);
+  });
+
+  return activeMatches.map((m) => {
     const isPetAOwner = petIds.includes(m.petAId);
     const myPet = isPetAOwner ? m.petA : m.petB;
     const otherPet = isPetAOwner ? m.petB : m.petA;
@@ -883,4 +972,99 @@ export const getUserMatches = async (userId: string) => {
       lastMessageTime: m.createdAt,
     };
   });
+};
+
+export const getMatchChat = async (userId: string, matchId: string) => {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: {
+      petA: { include: { user: true } },
+      petB: { include: { user: true } },
+    },
+  });
+
+  if (!match) {
+    throw new AppError("Match not found or chat not accessible", 404);
+  }
+
+  // Caller must own petA or petB
+  const isOwnerA = match.petA.userId === userId;
+  const isOwnerB = match.petB.userId === userId;
+  if (!isOwnerA && !isOwnerB) {
+    throw new AppError("Match not found or chat not accessible", 404);
+  }
+
+  // Match must be active
+  if (match.status !== MatchStatus.ACTIVE) {
+    throw new AppError("Match not found or chat not accessible", 404);
+  }
+
+  // Both pet owners must be active accounts
+  if (!match.petA.user.isActive || !match.petB.user.isActive) {
+    throw new AppError("Match not found or chat not accessible", 404);
+  }
+
+  // Verify no block exists between the owners
+  const otherUserId = isOwnerA ? match.petB.userId : match.petA.userId;
+  const block = await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: otherUserId },
+        { blockerId: otherUserId, blockedId: userId },
+      ],
+    },
+  });
+
+  if (block) {
+    throw new AppError("Match not found or chat not accessible", 404);
+  }
+
+  // Ensure Firestore conversation doc exists
+  const uidA = match.petA.user.firebaseUid;
+  const uidB = match.petB.user.firebaseUid;
+  if (uidA && uidB) {
+    await ensureConversation(match.id, [uidA, uidB]);
+  }
+
+  return {
+    conversationId: match.id,
+    status: match.status,
+  };
+};
+
+export const unmatchMatch = async (userId: string, matchId: string) => {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: {
+      petA: true,
+      petB: true,
+    },
+  });
+
+  if (!match) {
+    throw new AppError("Match not found", 404);
+  }
+
+  const isOwnerA = match.petA.userId === userId;
+  const isOwnerB = match.petB.userId === userId;
+  if (!isOwnerA && !isOwnerB) {
+    throw new AppError("Match not found", 404);
+  }
+
+  if (match.status === MatchStatus.ENDED) {
+    return { success: true, matchId: match.id };
+  }
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      status: MatchStatus.ENDED,
+      endedAt: new Date(),
+      endedBy: userId,
+    },
+  });
+
+  await endConversation(matchId, "UNMATCHED");
+
+  return { success: true, matchId: match.id };
 };

@@ -3,6 +3,8 @@ import { AppError } from "../../middleware/errorHandler.ts";
 import { uploadImage, deleteImage } from "../../services/image.service.ts";
 import matchingConfig from "../../config/matching.config.ts";
 import { RequestStatus, MatchStatus, EntitlementStatus } from "../../generated/prisma/client.ts";
+import { calculateAgeInMonths, calculateAgeString } from "../matching/matching.service.ts";
+import { endConversation } from "../../services/firestore.service.ts";
 
 export interface CreatePetDTO {
   name: string;
@@ -443,7 +445,19 @@ export const deletePetForUser = async (userId: string, petId: string, isAdmin = 
   // Deleting a pet:
   // 1. Deactivates it, cancels its pending requests, ends its matches
   // Wrapped in atomic transaction
+  let activeMatchesToNotify: string[] = [];
+
   await prisma.$transaction(async (tx) => {
+    // Collect active matches to notify Firestore outside tx
+    const matches = await tx.match.findMany({
+      where: {
+        OR: [{ petAId: petId }, { petBId: petId }],
+        status: MatchStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    activeMatchesToNotify = matches.map((m) => m.id);
+
     // Cancel pending connection requests where pet is sender or receiver
     await tx.connectionRequest.updateMany({
       where: {
@@ -474,6 +488,11 @@ export const deletePetForUser = async (userId: string, petId: string, isAdmin = 
       where: { id: petId },
     });
   });
+
+  // End Firestore conversations for all affected active matches
+  for (const matchId of activeMatchesToNotify) {
+    await endConversation(matchId, "PET_DELETED");
+  }
 
   // Clean up any associated Cloudinary assets outside transaction
   if (existingPet.imagePublicId) {
@@ -573,4 +592,215 @@ export const removePetPhoto = async (
   });
 
   return updatedPet;
+};
+
+export const getPublicPetProfile = async (callerUserId: string, petId: string) => {
+  if (!petId || typeof petId !== "string" || petId.trim().length === 0) {
+    throw new AppError("Pet is not available", 404);
+  }
+
+  const trimmedId = petId.trim();
+
+  // 1. Fetch pet with images and owner info
+  const pet = await prisma.pet.findUnique({
+    where: { id: trimmedId },
+    include: {
+      images: { orderBy: { createdAt: "asc" } },
+      user: {
+        include: {
+          profile: true,
+        },
+      },
+    },
+  });
+
+  if (!pet) {
+    throw new AppError("Pet is not available", 404);
+  }
+
+  // 2. Owner active check (Never return if owner account is suspended / deactivated)
+  if (!pet.user.isActive) {
+    throw new AppError("Pet is not available", 404);
+  }
+
+  // 2b. Block check (Never return if caller and pet owner have a block between them)
+  if (callerUserId && callerUserId !== pet.userId) {
+    const block = await prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: callerUserId, blockedId: pet.userId },
+          { blockerId: pet.userId, blockedId: callerUserId },
+        ],
+      },
+    });
+    if (block) {
+      throw new AppError("Pet is not available", 404);
+    }
+  }
+
+  // 3. Completeness check
+  const completenessMissing = checkPetProfileCompleteness({
+    name: pet.name,
+    animalType: pet.animalType,
+    breed: pet.breed,
+    gender: pet.gender,
+    dateOfBirth: pet.dateOfBirth,
+    imageUrl: pet.imageUrl,
+    profilePictureUrl: pet.profilePictureUrl,
+    images: pet.images,
+  });
+  const isComplete = completenessMissing.length === 0;
+
+  // 4. Exception check:
+  // If caller is the pet owner, or is matched with this pet, or has a request (sent or received) with it,
+  // return the profile even if the pet is switched off (isActive === false).
+  const isOwner = pet.userId === callerUserId;
+
+  let hasMatchOrRequest = false;
+  let relationship: "NONE" | "REQUEST_SENT" | "REQUEST_RECEIVED" | "MATCHED" = "NONE";
+
+  if (!isOwner) {
+    // Check match between any of caller's pets and target pet
+    const activeMatch = await prisma.match.findFirst({
+      where: {
+        status: MatchStatus.ACTIVE,
+        OR: [
+          { petAId: pet.id, petB: { userId: callerUserId } },
+          { petBId: pet.id, petA: { userId: callerUserId } },
+        ],
+      },
+    });
+
+    if (activeMatch) {
+      hasMatchOrRequest = true;
+      relationship = "MATCHED";
+    } else {
+      // Check pending request received: targetPet -> caller's pet
+      const requestReceived = await prisma.connectionRequest.findFirst({
+        where: {
+          status: RequestStatus.PENDING,
+          senderPetId: pet.id,
+          receiverUserId: callerUserId,
+        },
+      });
+
+      if (requestReceived) {
+        hasMatchOrRequest = true;
+        relationship = "REQUEST_RECEIVED";
+      } else {
+        // Check pending request sent: caller's pet -> targetPet
+        const requestSent = await prisma.connectionRequest.findFirst({
+          where: {
+            status: RequestStatus.PENDING,
+            senderUserId: callerUserId,
+            receiverPetId: pet.id,
+          },
+        });
+
+        if (requestSent) {
+          hasMatchOrRequest = true;
+          relationship = "REQUEST_SENT";
+        } else {
+          // Check if there was an ended match or historical request that still qualifies as exception
+          const pastConnection = await prisma.connectionRequest.findFirst({
+            where: {
+              OR: [
+                { senderPetId: pet.id, receiverUserId: callerUserId },
+                { receiverPetId: pet.id, senderUserId: callerUserId },
+              ],
+            },
+          });
+          const pastMatch = await prisma.match.findFirst({
+            where: {
+              OR: [
+                { petAId: pet.id, petB: { userId: callerUserId } },
+                { petBId: pet.id, petA: { userId: callerUserId } },
+              ],
+            },
+          });
+          if (pastConnection || pastMatch) {
+            hasMatchOrRequest = true;
+          }
+        }
+      }
+    }
+  }
+
+  // If not owner and not exception: must be active AND complete
+  if (!isOwner && !hasMatchOrRequest) {
+    if (!pet.isActive || !isComplete) {
+      throw new AppError("Pet is not available", 404);
+    }
+  }
+
+  // 5. canSwipe calculation:
+  // true ONLY when relationship is NONE, caller is not owner, and caller has at least one active pet
+  let canSwipe = false;
+  if (!isOwner && relationship === "NONE") {
+    const callerActivePet = await prisma.pet.findFirst({
+      where: {
+        userId: callerUserId,
+        isActive: true,
+      },
+    });
+    canSwipe = Boolean(callerActivePet);
+  }
+
+  // 6. Ordered photo URLs (main photo first, then additional photos)
+  const photos: string[] = [];
+  const primaryPhoto = pet.imageUrl || pet.profilePictureUrl;
+  if (primaryPhoto) {
+    photos.push(primaryPhoto);
+  }
+  for (const img of pet.images) {
+    if (img.imageUrl && !photos.includes(img.imageUrl)) {
+      if (img.isMain) {
+        photos.unshift(img.imageUrl);
+      } else {
+        photos.push(img.imageUrl);
+      }
+    }
+  }
+  const uniquePhotos = Array.from(new Set(photos));
+
+  // Health badges
+  const healthBadges: string[] = [];
+  if (pet.vaccinationStatus && pet.vaccinationStatus.trim()) {
+    healthBadges.push(pet.vaccinationStatus.trim());
+  }
+  if (pet.allergies && pet.allergies.trim()) {
+    healthBadges.push(`Allergies: ${pet.allergies.trim()}`);
+  }
+
+  const ageMonths = calculateAgeInMonths(pet.dateOfBirth);
+  const ageString = calculateAgeString(pet.dateOfBirth);
+
+  const ownerProfile = pet.user.profile;
+  const ownerSummary = {
+    id: pet.user.id,
+    displayName: ownerProfile?.fullName || ownerProfile?.username || "Pet Parent",
+    avatarUrl: ownerProfile?.profilePictureUrl || ownerProfile?.imageUrl || null,
+  };
+
+  const area = ownerProfile?.area || ownerProfile?.location || "Kathmandu, Nepal";
+
+  // Explicit allowlist payload (never spread Prisma object)
+  return {
+    id: pet.id,
+    name: pet.name,
+    species: pet.animalType || "Pet",
+    breed: pet.breed || "Mixed",
+    sex: pet.gender || "Unknown",
+    ageMonths,
+    ageString,
+    weight: null,
+    area,
+    about: pet.description || "",
+    photos: uniquePhotos,
+    healthBadges,
+    personality: pet.personality || [],
+    owner: ownerSummary,
+    relationship,
+    canSwipe,
+  };
 };

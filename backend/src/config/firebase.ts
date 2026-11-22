@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import fs from "node:fs";
 import path from "node:path";
 import env from "./env.ts";
@@ -71,4 +72,5 @@ try {
 }
 
 export const firebaseAuth: Auth = getAuth(firebaseApp);
+export const firestore: Firestore = getFirestore(firebaseApp);
 export default firebaseApp;

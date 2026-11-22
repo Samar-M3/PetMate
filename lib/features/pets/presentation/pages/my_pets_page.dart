@@ -19,6 +19,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(petsActivationProvider.notifier).loadSummary();
+      ref.read(authStateProvider.notifier).refreshUserProfile();
     });
   }
 

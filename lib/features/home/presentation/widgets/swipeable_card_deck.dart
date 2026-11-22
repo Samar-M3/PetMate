@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/discovery_pet.dart';
@@ -171,6 +172,11 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
             // 2. Active Front Card
             GestureDetector(
+              onTap: () {
+                if (!_isAnimatingOut && _dragOffset.distance < 8) {
+                  context.push('/pet/${currentPet.id}');
+                }
+              },
               onPanUpdate: _onPanUpdate,
               onPanEnd: _onPanEnd,
               child: Transform.translate(
@@ -182,6 +188,19 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                   child: PetProfileCard(
                     pet: currentPet,
                     swipeProgress: swipeRatio,
+                    onCardTap: () {
+                      if (!_isAnimatingOut && _dragOffset.distance < 8) {
+                        context.push('/pet/${currentPet.id}');
+                      }
+                    },
+                    onOwnerTap: () {
+                      if (!_isAnimatingOut &&
+                          _dragOffset.distance < 8 &&
+                          currentPet.ownerId != null &&
+                          currentPet.ownerId!.isNotEmpty) {
+                        context.push('/owner/${currentPet.ownerId}');
+                      }
+                    },
                   ),
                 ),
               ),
