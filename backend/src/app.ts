@@ -1,30 +1,77 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
-import authRoutes from "./modules/auth/auth.routes.ts";
+import usersRoutes from "./modules/users/users.routes.ts";
+import petsRoutes from "./modules/pets/pets.routes.ts";
+import uploadsRoutes from "./modules/uploads/uploads.routes.ts";
+import adminRoutes from "./modules/admin/admin.routes.ts";
+import matchingRoutes from "./modules/matching/matching.routes.ts";
+import slotsRoutes from "./modules/slots/slots.routes.ts";
+import eventsRoutes from "./modules/events/events.routes.ts";
+import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
-app.get("/api/v1/health", (req: Request, res: Response) => {
+// Request Logging Middleware for Real-time Diagnostics
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const timestamp = new Date().toISOString().substring(11, 19);
+  console.log(`[Express ${timestamp}] 📥 ${req.method} ${req.originalUrl} (from ${req.ip})`);
+  next();
+});
+
+// Health Check
+const healthHandler = (req: Request, res: Response) => {
   sendSuccess(res, {
-    message: "PetMate API is running healthy",
+    message: "PetMate Backend API is running healthy",
     data: {
       status: "UP",
+      auth: "Firebase Authentication",
+      database: "PostgreSQL",
       timestamp: new Date().toISOString(),
     },
   });
-});
+};
 
-app.use("/api/v1/auth", authRoutes);
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
+app.get("/api/v1/health", healthHandler);
 
+// Feature Routes (support both /api and /api/v1 prefixes)
+app.use("/api/users", usersRoutes);
+app.use("/api/v1/users", usersRoutes);
+
+app.use("/api/pets", petsRoutes);
+app.use("/api/v1/pets", petsRoutes);
+
+app.use("/api/uploads", uploadsRoutes);
+app.use("/api/v1/uploads", uploadsRoutes);
+
+app.use("/api/admin", adminRoutes);
+app.use("/api/v1/admin", adminRoutes);
+
+app.use("/api", matchingRoutes);
+app.use("/api/v1", matchingRoutes);
+
+app.use("/api/active-slots", slotsRoutes);
+app.use("/api/v1/active-slots", slotsRoutes);
+
+app.use("/api/events", eventsRoutes);
+app.use("/api/v1/events", eventsRoutes);
+
+app.use("/api/veterinarians", veterinariansRoutes);
+app.use("/api/v1/veterinarians", veterinariansRoutes);
+
+// Catch-all 404
 app.use((req: Request, res: Response, next: NextFunction) => {
   next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));
 });
 
+// Centralized Error Handler
 app.use(errorHandler);
 
 export default app;
