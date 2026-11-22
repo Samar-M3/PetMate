@@ -1,0 +1,37 @@
+import prisma from "../../config/db.ts";
+
+export const listEvents = async () => {
+  return prisma.event.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+};
+
+export const createEvent = async (data: {
+  title: string;
+  category?: string;
+  dayName?: string;
+  dayNum?: string;
+  fullDate: string;
+  time: string;
+  location: string;
+  description: string;
+  attendeeCount?: number;
+}) => {
+  return prisma.event.create({
+    data: {
+      title: data.title,
+      category: data.category || "MEETUP",
+      dayName: data.dayName,
+      dayNum: data.dayNum,
+      fullDate: data.fullDate,
+      time: data.time,
+      location: data.location,
+      description: data.description,
+      attendeeCount: data.attendeeCount || 0,
+    },
+  });
+};
+
+export const deleteEvent = async (id: string) => {
+  return prisma.event.delete({ where: { id } });
+};

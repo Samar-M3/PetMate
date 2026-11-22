@@ -218,7 +218,7 @@ export const getAuditLogs = async (page = 1, limit = 50) => {
 };
 
 export const getAdminStats = async () => {
-  const [roleCounts, totalPets, pendingApplications, totalUsers] =
+  const [roleCounts, totalPets, pendingApplications, totalUsers, totalEvents, totalVeterinarians] =
     await Promise.all([
       prisma.user.groupBy({
         by: ["role"],
@@ -229,6 +229,8 @@ export const getAdminStats = async () => {
         where: { status: "PENDING" },
       }),
       prisma.user.count(),
+      prisma.event.count(),
+      prisma.veterinarian.count(),
     ]);
 
   const usersByRole: Record<string, number> = {
@@ -248,6 +250,8 @@ export const getAdminStats = async () => {
     totalPets,
     totalOrders: 0,
     pendingApplications,
+    totalEvents,
+    totalVeterinarians,
   };
 };
 

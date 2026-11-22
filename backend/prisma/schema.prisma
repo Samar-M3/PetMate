@@ -314,6 +314,38 @@ model UserDowngradeMessage {
   @@map("user_downgrade_messages")
 }
 
+model Event {
+  id            String   @id @default(uuid())
+  title         String
+  category      String   @default("MEETUP")
+  dayName       String?  @map("day_name")
+  dayNum        String?  @map("day_num")
+  fullDate      String   @map("full_date")
+  time          String
+  location      String
+  description   String
+  attendeeCount Int      @default(0) @map("attendee_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("events")
+}
+
+model Veterinarian {
+  id                  String   @id @default(uuid())
+  name                String
+  clinicName          String   @map("clinic_name")
+  specialty           String
+  address             String
+  rating              Float    @default(5.0)
+  fee                 Int      @default(500)
+  isVerified          Boolean  @default(true) @map("is_verified")
+  isAcceptingBookings Boolean  @default(true) @map("is_accepting_bookings")
+  availableSlots      String[] @default(["10:00 AM", "01:00 PM", "03:30 PM"]) @map("available_slots")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("veterinarians")
 model Store {
   id                 String      @id @default(uuid())
   userId             String      @unique @map("user_id")

@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_theme.dart';
 import '../../models/mock_care_data.dart';
+import '../../providers/care_events_provider.dart';
 import 'manage_schedule_screen.dart';
 import 'vet_profile_form_screen.dart';
 
-class VetAdminDashboard extends StatefulWidget {
+class VetAdminDashboard extends ConsumerStatefulWidget {
   const VetAdminDashboard({super.key});
 
   @override
-  State<VetAdminDashboard> createState() => _VetAdminDashboardState();
+  ConsumerState<VetAdminDashboard> createState() => _VetAdminDashboardState();
 }
 
-class _VetAdminDashboardState extends State<VetAdminDashboard> {
+class _VetAdminDashboardState extends ConsumerState<VetAdminDashboard> {
   @override
   Widget build(BuildContext context) {
-    final vet = MockCareData.vets.first;
+    final vetsAsync = ref.watch(careVetsProvider);
+    final vets = vetsAsync.value ?? [];
+    final vet = vets.isNotEmpty ? vets.first : null;
     final bookings = MockCareData.appointments;
 
     return Scaffold(
@@ -40,146 +44,160 @@ class _VetAdminDashboardState extends State<VetAdminDashboard> {
                 context,
                 MaterialPageRoute(builder: (_) => const VetProfileFormScreen()),
               );
-              setState(() {});
+              ref.read(careVetsProvider.notifier).loadVets();
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Clinic Status Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: CareTheme.cardBg,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    vet.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.charcoal,
-                    ),
-                  ),
-                  Text(
-                    vet.clinicName,
-                    style: const TextStyle(color: CareTheme.mutedText),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: CareTheme.deepOlive,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: const Icon(Icons.edit_calendar_rounded),
-                      label: const Text('Manage Clinic Time Slots'),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ManageScheduleScreen(vet: vet),
+      body: RefreshIndicator(
+        color: CareTheme.deepOlive,
+        onRefresh: () async => ref.read(careVetsProvider.notifier).loadVets(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Clinic Status Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CareTheme.cardBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: vet != null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            vet.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: CareTheme.charcoal,
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Patient Appointment Queue',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: CareTheme.charcoal,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: bookings.length,
-                itemBuilder: (context, index) {
-                  final appt = bookings[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: CareTheme.cardBg,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Pet: ${appt.petName}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          Text(
+                            vet.clinicName,
+                            style: const TextStyle(color: CareTheme.mutedText),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: CareTheme.deepOlive,
+                                foregroundColor: Colors.white,
                               ),
+                              icon: const Icon(Icons.edit_calendar_rounded),
+                              label: const Text('Manage Clinic Time Slots'),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ManageScheduleScreen(vet: vet),
+                                  ),
+                                );
+                              },
                             ),
-                            Text(
-                              appt.status,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: CareTheme.terracotta,
-                              ),
-                            ),
-                          ],
+                          ),
+                        ],
+                      )
+                    : const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'No clinic profile registered yet. Tap "+" above to register.',
+                            style: TextStyle(color: CareTheme.mutedText),
+                          ),
                         ),
-                        Text('${appt.date} • ${appt.timeSlot}'),
-                        Text(
-                          'Reason: ${appt.reason}',
-                          style: const TextStyle(color: CareTheme.mutedText),
-                        ),
-                        if (appt.status == 'Upcoming') ...[
-                          const SizedBox(height: 10),
+                      ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Patient Appointment Queue',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: CareTheme.charcoal,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) {
+                    final appt = bookings[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: CareTheme.cardBg,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: CareTheme.sageGreen,
-                                  foregroundColor: Colors.white,
+                              Text(
+                                'Pet: ${appt.petName}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    appt.status = 'Completed';
-                                    appt.vetNotes = 'In-clinic exam completed. Pet is healthy.';
-                                  });
-                                },
-                                child: const Text('Mark Completed'),
                               ),
-                              const SizedBox(width: 10),
-                              TextButton(
-                                onPressed: () =>
-                                    setState(() => appt.status = 'Cancelled'),
-                                child: const Text(
-                                  'Decline',
-                                  style: TextStyle(color: CareTheme.terracotta),
+                              Text(
+                                appt.status,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: CareTheme.terracotta,
                                 ),
                               ),
                             ],
                           ),
+                          Text('${appt.date} • ${appt.timeSlot}'),
+                          Text(
+                            'Reason: ${appt.reason}',
+                            style: const TextStyle(color: CareTheme.mutedText),
+                          ),
+                          if (appt.status == 'Upcoming') ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: CareTheme.sageGreen,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      appt.status = 'Completed';
+                                      appt.vetNotes = 'In-clinic exam completed. Pet is healthy.';
+                                    });
+                                  },
+                                  child: const Text('Mark Completed'),
+                                ),
+                                const SizedBox(width: 10),
+                                TextButton(
+                                  onPressed: () =>
+                                      setState(() => appt.status = 'Cancelled'),
+                                  child: const Text(
+                                    'Decline',
+                                    style: TextStyle(color: CareTheme.terracotta),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  );
-                },
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

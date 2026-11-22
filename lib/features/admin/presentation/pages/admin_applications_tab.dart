@@ -15,7 +15,7 @@ class AdminApplicationsTab extends ConsumerStatefulWidget {
 
 class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
   final List<String> _statusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
-  final List<String> _typeOptions = ['ALL', 'SELLER', 'VETERINARIAN'];
+  final List<String> _typeOptions = ['ALL', 'SELLER'];
 
   void _onStatusFilterSelected(String status) {
     ref

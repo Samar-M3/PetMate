@@ -4,6 +4,11 @@ class AdminStatsModel {
   final int totalPets;
   final int totalOrders;
   final int pendingApplications;
+  final int? totalEvents;
+  final int? totalVeterinarians;
+
+  int get safeTotalEvents => totalEvents ?? 0;
+  int get safeTotalVeterinarians => totalVeterinarians ?? 0;
 
   AdminStatsModel({
     required this.totalUsers,
@@ -11,21 +16,32 @@ class AdminStatsModel {
     required this.totalPets,
     required this.totalOrders,
     required this.pendingApplications,
+    this.totalEvents = 0,
+    this.totalVeterinarians = 0,
   });
 
   factory AdminStatsModel.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic val) {
+      if (val is int) return val;
+      if (val is num) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    }
+
     final rawRoles = json['usersByRole'] as Map<String, dynamic>? ?? {};
     final rolesMap = <String, int>{};
     rawRoles.forEach((k, v) {
-      rolesMap[k] = (v is num) ? v.toInt() : 0;
+      rolesMap[k] = parseInt(v);
     });
 
     return AdminStatsModel(
-      totalUsers: json['totalUsers'] as int? ?? 0,
+      totalUsers: parseInt(json['totalUsers']),
       usersByRole: rolesMap,
-      totalPets: json['totalPets'] as int? ?? 0,
-      totalOrders: json['totalOrders'] as int? ?? 0,
-      pendingApplications: json['pendingApplications'] as int? ?? 0,
+      totalPets: parseInt(json['totalPets']),
+      totalOrders: parseInt(json['totalOrders']),
+      pendingApplications: parseInt(json['pendingApplications']),
+      totalEvents: parseInt(json['totalEvents']),
+      totalVeterinarians: parseInt(json['totalVeterinarians']),
     );
   }
 }

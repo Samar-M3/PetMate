@@ -8,11 +8,17 @@ import '../widgets/stat_card.dart';
 class AdminDashboardTab extends ConsumerWidget {
   final VoidCallback onNavigateToUsers;
   final VoidCallback onNavigateToApplications;
+  final VoidCallback onNavigateToEvents;
+  final VoidCallback onNavigateToVets;
+  final void Function(String role)? onRoleTap;
 
   const AdminDashboardTab({
     super.key,
     required this.onNavigateToUsers,
     required this.onNavigateToApplications,
+    required this.onNavigateToEvents,
+    required this.onNavigateToVets,
+    this.onRoleTap,
   });
 
   @override
@@ -81,6 +87,14 @@ class AdminDashboardTab extends ConsumerWidget {
                                 );
                               case 2:
                                 return StatCard(
+                                  title: 'Total Events',
+                                  value: stats.safeTotalEvents.toString(),
+                                  icon: Icons.event_available_rounded,
+                                  iconColor: AppColors.info,
+                                  subtitle: 'Community care',
+                                );
+                              default:
+                                return StatCard(
                                   title: 'Pending Apps',
                                   value: stats.pendingApplications.toString(),
                                   icon: Icons.assignment_late_rounded,
@@ -89,14 +103,6 @@ class AdminDashboardTab extends ConsumerWidget {
                                       ? 'Action required'
                                       : 'Up to date',
                                 );
-                              default:
-                                return StatCard(
-                                  title: 'Total Orders',
-                                  value: stats.totalOrders.toString(),
-                                  icon: Icons.shopping_bag_rounded,
-                                  iconColor: AppColors.info,
-                                  subtitle: 'Marketplace',
-                                );
                             }
                           },
                         );
@@ -104,47 +110,52 @@ class AdminDashboardTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Role Breakdown ──
-                    const _SectionTitle('User Base by Role'),
-                    const SizedBox(height: 12),
-                    _RoleBreakdownCard(usersByRole: stats.usersByRole),
-                    const SizedBox(height: 24),
-
                     // ── Quick Actions ──
-                    Row(
+                    const _SectionTitle('Administrative Quick Actions'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: onNavigateToUsers,
-                            icon: const Icon(Icons.manage_accounts_rounded),
-                            label: const Text('Manage Users'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              side: const BorderSide(color: AppColors.primary),
-                              foregroundColor: AppColors.primaryDark,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
+                        _actionBtn(
+                          icon: Icons.event_available_rounded,
+                          label: 'Manage Events',
+                          color: AppColors.terracotta,
+                          onPressed: onNavigateToEvents,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: onNavigateToApplications,
-                            icon: const Icon(Icons.approval_rounded),
-                            label: const Text('Review Apps'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: AppColors.terracotta,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
+                        _actionBtn(
+                          icon: Icons.medical_services_rounded,
+                          label: 'Manage Vets',
+                          color: AppColors.success,
+                          onPressed: onNavigateToVets,
+                        ),
+                        _actionBtn(
+                          icon: Icons.manage_accounts_rounded,
+                          label: 'Manage Users',
+                          color: AppColors.primaryDark,
+                          onPressed: onNavigateToUsers,
+                        ),
+                        _actionBtn(
+                          icon: Icons.approval_rounded,
+                          label: 'Review Applications',
+                          color: AppColors.warning,
+                          onPressed: onNavigateToApplications,
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Role Breakdown ──
+                    const _SectionTitle('User Base by Role'),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tap any role to view and manage users of that role',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    _RoleBreakdownCard(
+                      usersByRole: stats.usersByRole,
+                      onRoleTap: onRoleTap,
                     ),
                     const SizedBox(height: 20),
                   ],
@@ -154,6 +165,25 @@ class AdminDashboardTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _actionBtn({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 }
@@ -228,7 +258,7 @@ class _WelcomeBanner extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Monitor platform metrics, verify seller/vet applications, and manage user accounts securely.',
+            'Monitor platform metrics, publish events, manage veterinarians, verify applications, and manage accounts securely.',
             style: TextStyle(
               fontSize: 13,
               color: Colors.white70,
@@ -244,7 +274,8 @@ class _WelcomeBanner extends StatelessWidget {
 // ── Role Breakdown Card ──
 class _RoleBreakdownCard extends StatelessWidget {
   final Map<String, int> usersByRole;
-  const _RoleBreakdownCard({required this.usersByRole});
+  final void Function(String role)? onRoleTap;
+  const _RoleBreakdownCard({required this.usersByRole, this.onRoleTap});
 
   static const _roles = [
     ('Pet Owners', 'PET_OWNER', Icons.favorite_rounded, AppColors.terracotta),
@@ -256,7 +287,6 @@ class _RoleBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -265,12 +295,25 @@ class _RoleBreakdownCard extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < _roles.length; i++) ...[
-            if (i > 0) const Divider(height: 20),
-            _RoleRow(
-              title: _roles[i].$1,
-              count: usersByRole[_roles[i].$2] ?? 0,
-              icon: _roles[i].$3,
-              color: _roles[i].$4,
+            if (i > 0) const Divider(height: 1, color: AppColors.border),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.vertical(
+                  top: i == 0 ? const Radius.circular(16) : Radius.zero,
+                  bottom: i == _roles.length - 1 ? const Radius.circular(16) : Radius.zero,
+                ),
+                onTap: () => onRoleTap?.call(_roles[i].$2),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: _RoleRow(
+                    title: _roles[i].$1,
+                    count: usersByRole[_roles[i].$2] ?? 0,
+                    icon: _roles[i].$3,
+                    color: _roles[i].$4,
+                  ),
+                ),
+              ),
             ),
           ],
         ],
@@ -332,6 +375,8 @@ class _RoleRow extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(width: 6),
+        const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
       ],
     );
   }
