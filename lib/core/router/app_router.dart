@@ -14,7 +14,14 @@ import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
+import '../../features/seller/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
+import '../../features/seller/presentation/pages/seller_status_page.dart';
+import '../../features/shop/presentation/pages/cart_page.dart';
+import '../../features/shop/presentation/pages/product_details_page.dart';
+import '../../features/shop/presentation/pages/shop_home_page.dart';
+import '../../features/shop/presentation/pages/shop_listing_page.dart';
+import '../../features/shop/presentation/pages/wishlist_page.dart';
 import '../../features/vet/presentation/pages/vet_shell.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -27,17 +34,27 @@ class RouterNotifier extends ChangeNotifier {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = _ref.read(authStateProvider);
     final location = state.matchedLocation;
-    final isAuthPage = location == '/login' || location == '/register';
+    if (location == '/seller/login') {
+      return '/login';
+    }
+
+    final isAuthPage = location == '/login' ||
+        location == '/register' ||
+        location == '/seller/register';
     final isSplashPage = location == '/splash';
+    final isPublicShopPage = location == '/shop' ||
+        location == '/shop/products' ||
+        location.startsWith('/shop/product/');
 
     // 1. Initial unknown state -> show splash screen, do not redirect to /login
     if (authState.isUnknown) {
       return isSplashPage ? null : '/splash';
     }
 
-    // 2. Unauthenticated -> force /login unless already on login or register
+    // 2. Unauthenticated -> allow public shop pages, else force /login
     if (authState.isUnauthenticated) {
-      return isAuthPage ? null : '/login';
+      if (isAuthPage || isPublicShopPage) return null;
+      return '/login';
     }
 
     // 3. Authenticated -> decide first screen from role BEFORE anything else
@@ -94,6 +111,10 @@ class RouterNotifier extends ChangeNotifier {
         }
 
         if (isAuthPage || isSplashPage) {
+          final destination = state.uri.queryParameters['from'];
+          if (destination != null && destination.startsWith('/shop/')) {
+            return destination;
+          }
           return '/';
         }
       }
@@ -133,6 +154,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/admin', builder: (context, state) => const AdminShell()),
       GoRoute(path: '/vet', builder: (context, state) => const VetShell()),
       GoRoute(
+        path: '/seller/register',
+        builder: (context, state) => const SellerRegistrationPage(),
+      ),
+      GoRoute(
+        path: '/seller/status',
+        builder: (context, state) => const SellerStatusPage(),
+      ),
+      GoRoute(
         path: '/seller',
         builder: (context, state) => const SellerShell(),
       ),
@@ -147,6 +176,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/requests',
         builder: (context, state) => const RequestsPage(),
+      ),
+      GoRoute(path: '/shop', builder: (context, state) => const ShopHomePage()),
+      GoRoute(
+        path: '/shop/products',
+        builder: (context, state) => ShopListingPage(
+          categoryId: state.uri.queryParameters['categoryId'],
+          categoryName: state.uri.queryParameters['categoryName'],
+          search: state.uri.queryParameters['search'],
+        ),
+      ),
+      GoRoute(
+        path: '/shop/product/:id',
+        builder: (context, state) => ProductDetailsPage(
+          productId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/shop/cart',
+        builder: (context, state) => const ShopCartPage(),
+      ),
+      GoRoute(
+        path: '/shop/wishlist',
+        builder: (context, state) => const ShopWishlistPage(),
       ),
     ],
   );

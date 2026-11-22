@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../auth/domain/entities/user_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileBottomSheet extends ConsumerWidget {
@@ -273,6 +274,40 @@ class ProfileBottomSheet extends ConsumerWidget {
               'Edit Owner Profile',
               style: TextStyle(
                 color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Seller Hub / Register as Seller
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: AppColors.terracotta),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (user?.role == UserRole.seller) {
+                context.push('/seller');
+              } else {
+                context.push('/seller/status');
+              }
+            },
+            icon: const Icon(
+              Icons.storefront_rounded,
+              color: AppColors.terracotta,
+              size: 18,
+            ),
+            label: Text(
+              user?.role == UserRole.seller
+                  ? 'Seller Portal'
+                  : 'Seller Hub & Application Status',
+              style: const TextStyle(
+                color: AppColors.terracotta,
                 fontWeight: FontWeight.bold,
               ),
             ),

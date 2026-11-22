@@ -330,8 +330,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     try {
       final pet = await _repository.createPet(
         name: name,
-        profilePictureUrl: profilePictureUrl,
-        imageUrl: imageUrl,
+        profilePictureUrl: profilePictureUrl ?? imageUrl,
+        imageUrl: imageUrl ?? profilePictureUrl,
         imagePublicId: imagePublicId,
         animalType: animalType,
         breed: breed,
@@ -374,8 +374,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     try {
       final updatedUser = await _repository.updateOwnerProfile(
         fullName: fullName,
-        profilePictureUrl: profilePictureUrl,
-        imageUrl: imageUrl,
+        profilePictureUrl: profilePictureUrl ?? imageUrl,
+        imageUrl: imageUrl ?? profilePictureUrl,
         imagePublicId: imagePublicId,
         location: location,
         area: area,
@@ -406,7 +406,8 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     if (fbUser == null) return;
     try {
       final userDetails = await _repository.getMe();
-      state = state.copyWith(user: userDetails);
+      final status = await _repository.getOnboardingStatus();
+      state = state.copyWith(user: userDetails, onboardingStatus: status);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[AuthNotifier] refreshUserProfile failed: $e');

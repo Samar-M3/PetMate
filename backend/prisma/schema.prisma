@@ -55,6 +55,20 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  INACTIVE
+}
+
+enum StoreStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
 model User {
   id                  String          @id @default(uuid())
   firebaseUid         String          @unique @map("firebase_uid")
@@ -68,6 +82,9 @@ model User {
 
   profile             Profile?
   pets                Pet[]
+  store               Store?
+  cart                Cart?
+  wishlist            Wishlist?
   actionsPerformed    AdminAuditLog[] @relation("ActorAdminAudit")
   auditLogs           AdminAuditLog[] @relation("TargetUserAudit")
   swipesGiven         PetSwipe[]          @relation("SwipesGiven")
@@ -295,4 +312,177 @@ model UserDowngradeMessage {
 
   @@index([userId, read, createdAt])
   @@map("user_downgrade_messages")
+}
+
+model Store {
+  id                 String      @id @default(uuid())
+  userId             String      @unique @map("user_id")
+  name               String
+  slug               String      @unique
+  description        String?
+  imageUrl           String?     @map("image_url")
+  cloudinaryPublicId String?     @map("cloudinary_public_id")
+  status             StoreStatus @default(PENDING)
+  businessType       String      @default("INDIVIDUAL") @map("business_type")
+  businessAddress    String?     @map("business_address")
+  city               String?
+  province           String?
+  postalCode         String?     @map("postal_code")
+  registrationDocUrl String?     @map("registration_doc_url")
+  identityDocUrl     String?     @map("identity_doc_url")
+  rejectionReason    String?     @map("rejection_reason")
+  submittedAt        DateTime    @default(now()) @map("submitted_at")
+  reviewedAt         DateTime?   @map("reviewed_at")
+  reviewedBy         String?     @map("reviewed_by")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  owner    User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@index([status])
+  @@map("stores")
+}
+
+model Category {
+  id                 String   @id @default(uuid())
+  name               String
+  slug               String   @unique
+  description        String?
+  imageUrl           String?  @map("image_url")
+  cloudinaryPublicId String?  @map("cloudinary_public_id")
+  parentId           String?  @map("parent_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id              String        @id @default(uuid())
+  name            String
+  slug            String        @unique
+  description     String?
+  brand           String?
+  basePrice       Decimal       @map("base_price") @db.Decimal(12, 2)
+  discountedPrice Decimal?      @map("discounted_price") @db.Decimal(12, 2)
+  currency        String        @default("NPR") @db.VarChar(3)
+  /// When variants exist, stock is tracked only on ProductVariant; otherwise this field is authoritative.
+  availableStock  Int           @default(0) @map("available_stock")
+  status          ProductStatus @default(DRAFT)
+  isFeatured      Boolean       @default(false) @map("is_featured")
+  categoryId      String        @map("category_id")
+  storeId         String        @map("store_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  store         Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  images        ProductImage[]
+  variants      ProductVariant[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+
+  @@index([categoryId, status])
+  @@index([storeId, status])
+  @@index([status, createdAt])
+  @@index([isFeatured, status])
+  @@index([brand])
+  @@map("products")
+}
+
+model ProductImage {
+  id                 String   @id @default(uuid())
+  productId          String   @map("product_id")
+  imageUrl           String   @map("image_url")
+  cloudinaryPublicId String   @map("cloudinary_public_id")
+  displayOrder       Int      @default(0) @map("display_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, displayOrder])
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id             String   @id @default(uuid())
+  productId      String   @map("product_id")
+  optionValues   Json     @map("option_values") @db.JsonB
+  optionKey      String   @map("option_key")
+  priceOverride  Decimal? @map("price_override") @db.Decimal(12, 2)
+  availableStock Int      @default(0) @map("available_stock")
+  isAvailable    Boolean  @default(true) @map("is_available")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartItems CartItem[]
+
+  @@unique([productId, optionKey])
+  @@unique([id, productId])
+  @@index([productId, isAvailable])
+  @@map("product_variants")
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String   @map("cart_id")
+  productId String   @map("product_id")
+  variantId String?  @map("variant_id")
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant? @relation(fields: [variantId, productId], references: [id, productId], onDelete: Restrict)
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([variantId])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String   @map("wishlist_id")
+  productId  String   @map("product_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
+  @@map("wishlist_items")
 }

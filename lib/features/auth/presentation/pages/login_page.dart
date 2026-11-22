@@ -32,7 +32,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } else if (nextStep == 'OWNER_INFO') {
       context.go('/onboarding/owner');
     } else {
-      context.go('/');
+      final destination = GoRouterState.of(context).uri.queryParameters['from'];
+      context.go(destination != null && destination.startsWith('/shop') ? destination : '/');
     }
   }
 
@@ -377,6 +378,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/seller/register'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.terracotta),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 11,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.storefront_rounded,
+                        size: 18,
+                        color: AppColors.terracotta,
+                      ),
+                      label: const Text(
+                        'Register as Seller',
+                        style: TextStyle(
+                          color: AppColors.terracotta,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
