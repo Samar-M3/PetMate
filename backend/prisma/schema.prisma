@@ -323,6 +323,17 @@ model Store {
   imageUrl           String?     @map("image_url")
   cloudinaryPublicId String?     @map("cloudinary_public_id")
   status             StoreStatus @default(PENDING)
+  businessType       String      @default("INDIVIDUAL") @map("business_type")
+  businessAddress    String?     @map("business_address")
+  city               String?
+  province           String?
+  postalCode         String?     @map("postal_code")
+  registrationDocUrl String?     @map("registration_doc_url")
+  identityDocUrl     String?     @map("identity_doc_url")
+  rejectionReason    String?     @map("rejection_reason")
+  submittedAt        DateTime    @default(now()) @map("submitted_at")
+  reviewedAt         DateTime?   @map("reviewed_at")
+  reviewedBy         String?     @map("reviewed_by")
   createdAt          DateTime    @default(now()) @map("created_at")
   updatedAt          DateTime    @updatedAt @map("updated_at")
 

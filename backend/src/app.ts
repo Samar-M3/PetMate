@@ -7,6 +7,7 @@ import shopRoutes from "./modules/shop/shop.routes.ts";
 import adminRoutes from "./modules/admin/admin.routes.ts";
 import matchingRoutes from "./modules/matching/matching.routes.ts";
 import slotsRoutes from "./modules/slots/slots.routes.ts";
+import sellersRoutes from "./modules/sellers/sellers.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -63,11 +64,14 @@ app.use("/api/v1/shop", shopRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
-app.use("/api", matchingRoutes);
-app.use("/api/v1", matchingRoutes);
+app.use("/api/sellers", sellersRoutes);
+app.use("/api/v1/sellers", sellersRoutes);
 
 app.use("/api/active-slots", slotsRoutes);
 app.use("/api/v1/active-slots", slotsRoutes);
+
+app.use("/api", matchingRoutes);
+app.use("/api/v1", matchingRoutes);
 
 // Catch-all 404
 app.use((req: Request, res: Response, next: NextFunction) => {

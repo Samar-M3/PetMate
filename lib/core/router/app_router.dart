@@ -14,7 +14,9 @@ import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
+import '../../features/seller/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
+import '../../features/seller/presentation/pages/seller_status_page.dart';
 import '../../features/shop/presentation/pages/cart_page.dart';
 import '../../features/shop/presentation/pages/product_details_page.dart';
 import '../../features/shop/presentation/pages/shop_home_page.dart';
@@ -32,7 +34,13 @@ class RouterNotifier extends ChangeNotifier {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = _ref.read(authStateProvider);
     final location = state.matchedLocation;
-    final isAuthPage = location == '/login' || location == '/register';
+    if (location == '/seller/login') {
+      return '/login';
+    }
+
+    final isAuthPage = location == '/login' ||
+        location == '/register' ||
+        location == '/seller/register';
     final isSplashPage = location == '/splash';
     final isPublicShopPage = location == '/shop' ||
         location == '/shop/products' ||
@@ -145,6 +153,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/admin', builder: (context, state) => const AdminShell()),
       GoRoute(path: '/vet', builder: (context, state) => const VetShell()),
+      GoRoute(
+        path: '/seller/register',
+        builder: (context, state) => const SellerRegistrationPage(),
+      ),
+      GoRoute(
+        path: '/seller/status',
+        builder: (context, state) => const SellerStatusPage(),
+      ),
       GoRoute(
         path: '/seller',
         builder: (context, state) => const SellerShell(),

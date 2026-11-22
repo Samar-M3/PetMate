@@ -37,6 +37,27 @@ class CloudinaryService {
     return null;
   }
 
+  /// Upload seller verification document (PAN, business reg, identity doc)
+  Future<String?> uploadSellerDocument(
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  }) async {
+    final response = await apiClient.postMultipart(
+      '/sellers/upload-document',
+      file: file,
+      bytes: bytes,
+      filename: filename,
+      fieldName: 'image',
+      fields: {'folder': 'seller_documents'},
+    );
+
+    if (response is Map<String, dynamic>) {
+      return (response['imageUrl'] ?? response['url']) as String?;
+    }
+    return null;
+  }
+
   /// Upload user avatar using dedicated /users/me/avatar endpoint.
   Future<String?> uploadUserAvatar(
     File? file, {

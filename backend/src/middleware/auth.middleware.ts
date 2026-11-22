@@ -92,6 +92,50 @@ export const authenticateFirebase = createAuthenticateFirebase({ checkRevoked: f
 export const authenticateAdmin = createAuthenticateFirebase({ checkRevoked: true });
 
 /**
+ * Optional Firebase authentication.
+ * If Bearer token is provided, validates it and populates req.firebaseUser and req.user.
+ * If no token is provided, continues cleanly without throwing a 401 error.
+ */
+export const authenticateOptionalFirebase = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next();
+    }
+
+    const token = authHeader.split(" ")[1];
+    if (!token || token === "null" || token === "undefined") {
+      return next();
+    }
+
+    try {
+      const decodedToken = await firebaseAuth.verifyIdToken(token, false);
+      req.firebaseUid = decodedToken.uid;
+      req.firebaseUser = decodedToken;
+
+      const user = await prisma.user.findUnique({
+        where: { firebaseUid: decodedToken.uid },
+        include: { profile: true },
+      });
+
+      if (user && user.isActive) {
+        req.user = user;
+      }
+    } catch (_) {
+      // Optional authentication ignores invalid tokens
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Rejects requests where the PostgreSQL user record doesn't exist yet
  * (i.e. /users/initialize hasn't been called).
  */
