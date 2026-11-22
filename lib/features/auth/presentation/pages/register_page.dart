@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../../core/constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -14,36 +13,41 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
+  String _selectedRole = 'PET_OWNER';
+
+  final List<Map<String, String>> _roles = [
+    {'value': 'PET_OWNER', 'label': 'Pet Owner'},
+    {'value': 'SELLER', 'label': 'Pet Products Seller'},
+    {'value': 'VETERINARIAN', 'label': 'Veterinarian'},
+  ];
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _submitRegistration() async {
+  void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref
-        .read(authStateProvider.notifier)
-        .register(
+    final success = await ref.read(authStateProvider.notifier).register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          fullName: _fullNameController.text.trim(),
           phoneNumber: _phoneController.text.trim(),
+          role: _selectedRole,
         );
 
     if (success && mounted) {
-      // Direct navigation to Pet Information Screen
-      context.go('/onboarding/pet');
+      context.go('/');
     }
   }
 
@@ -52,17 +56,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final authState = ref.watch(authStateProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/login'),
         ),
         title: const Text('Create Account'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
             key: _formKey,
             child: Column(
@@ -71,127 +74,115 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 const Text(
                   'Join PetMate',
                   style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 const Text(
-                  'Set up your credentials to begin creating your pet profile.',
+                  'Choose your account type and get started',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Error Banner
                 if (authState.errorMessage != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.error.withValues(alpha: 0.3),
-                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: AppColors.error,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            authState.errorMessage!,
-                            style: const TextStyle(
-                              color: AppColors.error,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      authState.errorMessage!,
+                      style: const TextStyle(color: AppColors.error),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                 ],
-
-                // Phone Number Field
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
+                // Role Selection
+                const Text(
+                  'Account Role',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRole,
                   decoration: const InputDecoration(
-                    labelText: 'Phone number',
-                    hintText: 'e.g. 9812345678',
-                    prefixIcon: Icon(
-                      Icons.phone_outlined,
-                      color: AppColors.primary,
-                    ),
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                  items: _roles.map((r) {
+                    return DropdownMenuItem<String>(
+                      value: r['value'],
+                      child: Text(r['label']!),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedRole = val;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _fullNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
-                      return 'Please enter your phone number';
-                    }
-                    final cleanPhone = val.replaceAll(
-                      RegExp(r'[\s\-\(\)]'),
-                      '',
-                    );
-                    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
-                      return 'Please enter a valid phone number';
+                      return 'Please enter your full name';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // Email Address Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    hintText: 'name@example.com',
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                      color: AppColors.primary,
-                    ),
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!val.contains('@') || !val.contains('.')) {
+                    if (!val.contains('@')) {
                       return 'Please enter a valid email';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // Password Field
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number (Optional)',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'At least 6 characters',
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                      color: AppColors.primary,
-                    ),
+                    labelText: 'Password (min. 6 characters)',
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textSecondary,
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -201,90 +192,41 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                   ),
                   validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (val.length < 6) {
+                    if (val == null || val.length < 6) {
                       return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-
-                // Confirm Password Field
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm password',
-                    prefixIcon: const Icon(
-                      Icons.lock_reset_outlined,
-                      color: AppColors.primary,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (val != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 28),
-
-                // Register Submit Button
+                const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: authState.isLoading ? null : _submitRegistration,
+                  onPressed: authState.isLoading ? null : _submit,
                   child: authState.isLoading
                       ? const SizedBox(
-                          width: 22,
-                          height: 22,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('Create Account & Continue'),
+                      : const Text('Create Account'),
                 ),
-                const SizedBox(height: 20),
-
-                // Already have account
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
                       'Already have an account? ',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                     GestureDetector(
                       onTap: () => context.go('/login'),
                       child: const Text(
-                        'Sign in',
+                        'Sign In',
                         style: TextStyle(
-                          color: AppColors.terracotta,
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
                         ),
                       ),
                     ),
