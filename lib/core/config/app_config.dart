@@ -4,20 +4,17 @@ class AppConfig {
   static const String appName = 'PetMate';
   static const String appVersion = '1.0.0';
 
-  // Laptop local LAN IP for physical device testing over Wi-Fi
-  static const String laptopIp = '10.10.9.90';
-
-  // API base URL:
-  // Physical Android device over Wi-Fi: http://10.10.9.90:5000/api
-  // Web / Windows: http://localhost:5000/api
+  // Default API base URL:
+  // For Android emulator: 10.0.2.2
+  // For Web / Windows / iOS simulator: localhost
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:5000/api';
+      return 'http://localhost:5000/api/v1';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://$laptopIp:5000/api';
+      return 'http://10.0.2.2:5000/api/v1';
     }
-    return 'http://localhost:5000/api';
+    return 'http://localhost:5000/api/v1';
   }
 
   static const Duration connectTimeout = Duration(seconds: 15);

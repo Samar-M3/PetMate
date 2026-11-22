@@ -10,76 +10,17 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 export interface EnvironmentConfig {
   PORT: number;
   DATABASE_URL: string;
+  JWT_SECRET: string;
+  JWT_EXPIRES_IN: string;
   NODE_ENV: string;
-  FIREBASE_PROJECT_ID?: string;
-  FIREBASE_CLIENT_EMAIL?: string;
-  FIREBASE_PRIVATE_KEY?: string;
-  FIREBASE_SERVICE_ACCOUNT_PATH?: string;
-  CLOUDINARY_CLOUD_NAME?: string;
-  CLOUDINARY_API_KEY?: string;
-  CLOUDINARY_API_SECRET?: string;
-}
-
-const isProd = process.env.NODE_ENV === "production";
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim() === "") {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-function parsePrivateKey(key?: string): string | undefined {
-  if (!key) return undefined;
-  let cleaned = key.trim();
-  // Strip outer quotes if the user wrapped the string in quotes in .env
-  if (
-    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
-    (cleaned.startsWith("'") && cleaned.endsWith("'"))
-  ) {
-    cleaned = cleaned.slice(1, -1);
-  }
-  // Convert escaped newlines into actual newlines
-  return cleaned.replace(/\\n/g, "\n");
 }
 
 const env: EnvironmentConfig = {
   PORT: Number(process.env.PORT) || 5000,
-  DATABASE_URL: required("DATABASE_URL"),
+  DATABASE_URL: process.env.DATABASE_URL || "",
+  JWT_SECRET: process.env.JWT_SECRET || "petmate_jwt_secret_dev_key_2026",
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   NODE_ENV: process.env.NODE_ENV || "development",
-
-  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || "petmate-d7a43",
-  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
-  FIREBASE_PRIVATE_KEY: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
-  FIREBASE_SERVICE_ACCOUNT_PATH: process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
-
-  // Cloudinary credentials
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 };
-
-// Check if credentials are valid non-placeholder values
-const hasValidInlineCreds = Boolean(
-  env.FIREBASE_PROJECT_ID &&
-  env.FIREBASE_CLIENT_EMAIL &&
-  env.FIREBASE_PRIVATE_KEY &&
-  !env.FIREBASE_PRIVATE_KEY.includes("...") &&
-  !env.FIREBASE_CLIENT_EMAIL.includes("xxxx@")
-);
-
-if (!hasValidInlineCreds && !env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-  if (isProd) {
-    throw new Error(
-      "Firebase credentials missing: in production, set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY."
-    );
-  } else {
-    console.warn(
-      "⚠️ [Config] Firebase Admin credentials in .env are not fully set or contain placeholders. " +
-      "The server will run in public verification mode until actual credentials are provided in .env."
-    );
-  }
-}
 
 export default env;
