@@ -33,9 +33,9 @@ class FirestoreConversation {
       participantUids.firstWhere((u) => u != myUid, orElse: () => '');
 
   factory FirestoreConversation.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot,
+    DocumentSnapshot snapshot,
   ) {
-    final data = snapshot.data() ?? {};
+    final data = (snapshot.data() as Map<String, dynamic>?) ?? {};
     final lastMsg = data['lastMessage'] as Map<String, dynamic>?;
     final rawUnread = data['unread'] as Map<String, dynamic>? ?? {};
     final unread = rawUnread.map(
@@ -88,9 +88,9 @@ class FirestoreMessage {
   });
 
   factory FirestoreMessage.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot doc,
   ) {
-    final data = doc.data() ?? {};
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
     final ts = data['createdAt'];
     DateTime dt = DateTime.now();
     final bool pending = doc.metadata.hasPendingWrites;
