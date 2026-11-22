@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../care_events/providers/care_events_provider.dart';
 import '../providers/admin_provider.dart';
 import 'admin_applications_tab.dart';
 import 'admin_dashboard_tab.dart';
+import 'admin_events_tab.dart';
 import 'admin_users_tab.dart';
+import 'admin_vets_tab.dart';
 
 class AdminShell extends ConsumerStatefulWidget {
   const AdminShell({super.key});
@@ -22,6 +25,8 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     _NavItem(Icons.dashboard_rounded, 'Dashboard'),
     _NavItem(Icons.people_alt_rounded, 'Users'),
     _NavItem(Icons.assignment_turned_in_rounded, 'Applications'),
+    _NavItem(Icons.event_available_rounded, 'Events'),
+    _NavItem(Icons.medical_services_rounded, 'Veterinarians'),
   ];
 
   void _onTabSelected(int index) {
@@ -68,6 +73,8 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     ref.read(adminStatsProvider.notifier).refresh();
     ref.read(adminUsersProvider.notifier).loadUsers();
     ref.read(adminApplicationsProvider.notifier).loadApplications();
+    ref.read(careEventsProvider.notifier).loadEvents();
+    ref.read(careVetsProvider.notifier).loadVets();
   }
 
   @override
@@ -154,9 +161,17 @@ class _AdminShellState extends ConsumerState<AdminShell> {
               onNavigateToUsers: () => setState(() => _currentIndex = 1),
               onNavigateToApplications: () =>
                   setState(() => _currentIndex = 2),
+              onNavigateToEvents: () => setState(() => _currentIndex = 3),
+              onNavigateToVets: () => setState(() => _currentIndex = 4),
+              onRoleTap: (role) {
+                setState(() => _currentIndex = 1);
+                ref.read(adminUsersProvider.notifier).loadUsers(roleFilter: role);
+              },
             ),
             const AdminUsersTab(),
             const AdminApplicationsTab(),
+            const AdminEventsTab(),
+            const AdminVetsTab(),
           ],
         ),
       ),
@@ -218,6 +233,8 @@ class _AdminDrawer extends StatelessWidget {
               'Applications',
               badgeCount: pendingCount,
             ),
+            _buildNavTile(3, Icons.event_available_rounded, 'Events'),
+            _buildNavTile(4, Icons.medical_services_rounded, 'Veterinarians'),
 
             const Spacer(),
             const Divider(height: 1, color: AppColors.border),

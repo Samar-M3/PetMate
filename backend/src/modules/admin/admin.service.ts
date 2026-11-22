@@ -258,7 +258,7 @@ export const getAuditLogs = async (page = 1, limit = 50) => {
 };
 
 export const getAdminStats = async () => {
-  const [roleCounts, totalPets, pendingApplications, totalUsers] =
+  const [roleCounts, totalPets, pendingApplications, totalUsers, totalEvents, totalVeterinarians] =
     await Promise.all([
       prisma.user.groupBy({
         by: ["role"],
@@ -269,6 +269,8 @@ export const getAdminStats = async () => {
         where: { status: "PENDING" },
       }),
       prisma.user.count(),
+      prisma.event.count(),
+      prisma.veterinarian.count(),
     ]);
 
   const usersByRole: Record<string, number> = {
@@ -288,6 +290,8 @@ export const getAdminStats = async () => {
     totalPets,
     totalOrders: 0,
     pendingApplications,
+    totalEvents,
+    totalVeterinarians,
   };
 };
 
@@ -329,6 +333,7 @@ export const listRoleApplications = async ({
                 location: true,
               },
             },
+            store: true,
           },
         },
         reviewer: {
@@ -377,21 +382,34 @@ export const approveRoleApplication = async (
   const targetRole =
     application.type === "SELLER" ? Role.SELLER : Role.VETERINARIAN;
 
-  const [updatedApp, updatedUser] = await prisma.$transaction([
-    prisma.roleApplication.update({
+  const [updatedApp, updatedUser] = await prisma.$transaction(async (tx) => {
+    const app = await tx.roleApplication.update({
       where: { id: applicationId },
       data: {
         status: "APPROVED",
         reviewedBy: actorId,
         reviewedAt: new Date(),
       },
-    }),
-    prisma.user.update({
+    });
+
+    const usr = await tx.user.update({
       where: { id: application.userId },
       data: { role: targetRole },
       include: { profile: true },
-    }),
-    prisma.adminAuditLog.create({
+    });
+
+    if (application.type === "SELLER") {
+      await tx.store.updateMany({
+        where: { userId: application.userId },
+        data: {
+          status: "APPROVED",
+          reviewedAt: new Date(),
+          reviewedBy: actorId,
+        },
+      });
+    }
+
+    await tx.adminAuditLog.create({
       data: {
         actorId,
         targetId: application.userId,
@@ -399,8 +417,10 @@ export const approveRoleApplication = async (
         oldValue: `${application.user.role} (PENDING ${application.type})`,
         newValue: `${targetRole} (APPROVED)`,
       },
-    }),
-  ]);
+    });
+
+    return [app, usr];
+  });
 
   return { application: updatedApp, user: updatedUser };
 };
@@ -425,8 +445,8 @@ export const rejectRoleApplication = async (
     );
   }
 
-  const [updatedApp] = await prisma.$transaction([
-    prisma.roleApplication.update({
+  const updatedApp = await prisma.$transaction(async (tx) => {
+    const app = await tx.roleApplication.update({
       where: { id: applicationId },
       data: {
         status: "REJECTED",
@@ -434,8 +454,21 @@ export const rejectRoleApplication = async (
         reviewedBy: actorId,
         reviewedAt: new Date(),
       },
-    }),
-    prisma.adminAuditLog.create({
+    });
+
+    if (application.type === "SELLER") {
+      await tx.store.updateMany({
+        where: { userId: application.userId },
+        data: {
+          status: "REJECTED",
+          rejectionReason: notes || application.notes,
+          reviewedAt: new Date(),
+          reviewedBy: actorId,
+        },
+      });
+    }
+
+    await tx.adminAuditLog.create({
       data: {
         actorId,
         targetId: application.userId,
@@ -443,8 +476,10 @@ export const rejectRoleApplication = async (
         oldValue: "PENDING",
         newValue: `REJECTED${notes ? `: ${notes}` : ""}`,
       },
-    }),
-  ]);
+    });
+
+    return app;
+  });
 
   return updatedApp;
 };

@@ -1,29 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_theme.dart';
-import '../models/mock_care_data.dart';
+import '../providers/care_events_provider.dart';
 import '../widgets/event_list_card.dart';
 import 'events/event_detail_screen.dart';
 import 'events/my_event_bookings_screen.dart';
 
-class EventsHomeScreen extends StatefulWidget {
+class EventsHomeScreen extends ConsumerStatefulWidget {
   const EventsHomeScreen({super.key});
 
   @override
-  State<EventsHomeScreen> createState() => _EventsHomeScreenState();
+  ConsumerState<EventsHomeScreen> createState() => _EventsHomeScreenState();
 }
 
-class _EventsHomeScreenState extends State<EventsHomeScreen> {
+class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
   String _selectedCategory = 'ALL';
-  final List<String> _categories = ['ALL', 'MEETUP', 'AGILITY', 'WORKSHOP'];
 
   @override
   Widget build(BuildContext context) {
+    final eventsAsync = ref.watch(careEventsProvider);
+    final allEvents = eventsAsync.value ?? [];
+
+    // Base categories: ALL, MEETUP, AGILITY, OTHER + dynamic categories from events
+    final defaultCategories = ['ALL', 'MEETUP', 'AGILITY', 'OTHER'];
+    final dynamicCategories = allEvents
+        .map((e) => e.category.toUpperCase().trim())
+        .where((c) => c.isNotEmpty && !defaultCategories.contains(c))
+        .toSet()
+        .toList();
+    final categories = [...defaultCategories, ...dynamicCategories];
+
     final filteredEvents = _selectedCategory == 'ALL'
-        ? MockCareData.events
-        : MockCareData.events
-              .where((e) => e.category == _selectedCategory)
-              .toList();
+        ? allEvents
+        : allEvents.where((e) => e.category.toUpperCase() == _selectedCategory).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
@@ -78,10 +88,10 @@ class _EventsHomeScreenState extends State<EventsHomeScreen> {
             height: 36,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
+              itemCount: categories.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
-                final cat = _categories[index];
+                final cat = categories[index];
                 final selected = _selectedCategory == cat;
                 return ChoiceChip(
                   label: Text(cat),
@@ -102,33 +112,43 @@ class _EventsHomeScreenState extends State<EventsHomeScreen> {
 
           // Events List
           Expanded(
-            child: filteredEvents.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No events in this category yet.',
-                      style: TextStyle(color: CareTheme.mutedText),
+            child: RefreshIndicator(
+              color: CareTheme.deepOlive,
+              onRefresh: () async =>
+                  ref.read(careEventsProvider.notifier).loadEvents(),
+              child: filteredEvents.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 80),
+                        Center(
+                          child: Text(
+                            'No events found in this category.',
+                            style: TextStyle(color: CareTheme.mutedText),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      itemCount: filteredEvents.length,
+                      itemBuilder: (context, index) {
+                        final ev = filteredEvents[index];
+                        return EventListCard(
+                          event: ev,
+                          onBookmarkTap: () => setState(
+                              () => ev.isBookmarked = !ev.isBookmarked),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EventDetailScreen(event: ev),
+                              ),
+                            );
+                            setState(() {});
+                          },
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredEvents.length,
-                    itemBuilder: (context, index) {
-                      final ev = filteredEvents[index];
-                      return EventListCard(
-                        event: ev,
-                        onBookmarkTap: () =>
-                            setState(() => ev.isBookmarked = !ev.isBookmarked),
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EventDetailScreen(event: ev),
-                            ),
-                          );
-                          setState(() {});
-                        },
-                      );
-                    },
-                  ),
+            ),
           ),
         ],
       ),

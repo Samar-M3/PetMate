@@ -1,25 +1,27 @@
-// Opens when tapping "Book a Vet" or "Video consult".
-// Displays a searchable, filterable list of doctors (with an "Online Now" filter toggle).
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_theme.dart';
-import '../../models/mock_care_data.dart';
 import '../../models/vet_model.dart';
+import '../../providers/care_events_provider.dart';
 import 'book_appointment_screen.dart';
 
-class VetListScreen extends StatefulWidget {
+class VetListScreen extends ConsumerStatefulWidget {
   const VetListScreen({super.key});
 
   @override
-  State<VetListScreen> createState() => _VetListScreenState();
+  ConsumerState<VetListScreen> createState() => _VetListScreenState();
 }
 
-class _VetListScreenState extends State<VetListScreen> {
+class _VetListScreenState extends ConsumerState<VetListScreen> {
   String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    final filteredVets = MockCareData.vets.where((v) {
+    final vetsAsync = ref.watch(careVetsProvider);
+    final allVets = vetsAsync.value ?? [];
+
+    final filteredVets = allVets.where((v) {
       return v.isAcceptingBookings &&
           (v.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               v.specialty.toLowerCase().contains(_searchQuery.toLowerCase()));
@@ -39,35 +41,57 @@ class _VetListScreenState extends State<VetListScreen> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: InputDecoration(
-                hintText: 'Search doctor or specialty...',
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: CareTheme.mutedText,
-                ),
-                filled: true,
-                fillColor: CareTheme.cardBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+      body: RefreshIndicator(
+        color: CareTheme.deepOlive,
+        onRefresh: () async => ref.read(careVetsProvider.notifier).loadVets(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              TextField(
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: 'Search doctor or specialty...',
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: CareTheme.mutedText,
+                  ),
+                  filled: true,
+                  fillColor: CareTheme.cardBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: filteredVets.length,
-                itemBuilder: (context, index) =>
-                    _buildVetTile(filteredVets[index]),
+              const SizedBox(height: 16),
+              Expanded(
+                child: vetsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator(color: CareTheme.deepOlive)),
+                  error: (err, _) => Center(child: Text('Error: $err')),
+                  data: (_) {
+                    if (filteredVets.isEmpty) {
+                      return ListView(
+                        children: const [
+                          SizedBox(height: 80),
+                          Center(
+                            child: Text(
+                              'No veterinarians registered yet.',
+                              style: TextStyle(color: CareTheme.mutedText),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: filteredVets.length,
+                      itemBuilder: (context, index) => _buildVetTile(filteredVets[index]),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

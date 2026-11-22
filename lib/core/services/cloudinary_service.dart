@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_client.dart';
@@ -30,6 +29,27 @@ class CloudinaryService {
       filename: filename,
       fieldName: 'image',
       fields: {'folder': folder},
+    );
+
+    if (response is Map<String, dynamic>) {
+      return (response['imageUrl'] ?? response['url']) as String?;
+    }
+    return null;
+  }
+
+  /// Upload seller verification document (PAN, business reg, identity doc)
+  Future<String?> uploadSellerDocument(
+    File? file, {
+    Uint8List? bytes,
+    String? filename,
+  }) async {
+    final response = await apiClient.postMultipart(
+      '/sellers/upload-document',
+      file: file,
+      bytes: bytes,
+      filename: filename,
+      fieldName: 'image',
+      fields: {'folder': 'seller_documents'},
     );
 
     if (response is Map<String, dynamic>) {

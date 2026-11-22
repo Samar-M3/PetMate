@@ -15,7 +15,7 @@ class AdminApplicationsTab extends ConsumerStatefulWidget {
 
 class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
   final List<String> _statusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
-  final List<String> _typeOptions = ['ALL', 'SELLER', 'VETERINARIAN'];
+  final List<String> _typeOptions = ['ALL', 'SELLER'];
 
   void _onStatusFilterSelected(String status) {
     ref
@@ -156,6 +156,60 @@ class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
         }
       }
     }
+  }
+
+  void _viewDocument(BuildContext context, String title, String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: Text(title, style: const TextStyle(fontSize: 16)),
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.textPrimary,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: InteractiveViewer(
+                  child: Center(
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(
+                        child: Text(
+                          'Unable to load document preview.',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -451,6 +505,153 @@ class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
               ),
             ],
           ),
+          if (app.type == 'SELLER' && app.storeName != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.inputFill,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.storefront_rounded,
+                        size: 16,
+                        color: AppColors.info,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        app.storeName!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Text(
+                          app.businessType == 'REGISTERED_BUSINESS'
+                              ? 'Registered Business'
+                              : 'Individual Seller',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (app.businessAddress != null ||
+                      app.city != null ||
+                      app.province != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            [
+                              if (app.businessAddress != null)
+                                app.businessAddress,
+                              if (app.city != null) app.city,
+                              if (app.province != null) app.province,
+                              if (app.postalCode != null) app.postalCode,
+                            ].join(', '),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if ((app.registrationDocUrl != null &&
+                          app.registrationDocUrl!.isNotEmpty) ||
+                      (app.identityDocUrl != null &&
+                          app.identityDocUrl!.isNotEmpty)) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        if (app.registrationDocUrl != null &&
+                            app.registrationDocUrl!.isNotEmpty)
+                          ActionChip(
+                            avatar: const Icon(
+                              Icons.description_outlined,
+                              size: 14,
+                              color: AppColors.info,
+                            ),
+                            label: const Text(
+                              'View Business Reg Doc',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.info,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.info),
+                            onPressed: () => _viewDocument(
+                              context,
+                              'Business Registration - ${app.storeName}',
+                              app.registrationDocUrl!,
+                            ),
+                          ),
+                        if (app.identityDocUrl != null &&
+                            app.identityDocUrl!.isNotEmpty)
+                          ActionChip(
+                            avatar: const Icon(
+                              Icons.badge_outlined,
+                              size: 14,
+                              color: AppColors.terracotta,
+                            ),
+                            label: const Text(
+                              'View Identity Doc',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.terracotta,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.terracotta),
+                            onPressed: () => _viewDocument(
+                              context,
+                              'Identity Document - ${app.userFullName ?? "Seller"}',
+                              app.identityDocUrl!,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           if (app.notes != null && app.notes!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(

@@ -42,7 +42,7 @@ export const matchingConfig: MatchingConfig = {
   MAX_PETS_PER_OWNER: parseNumber(process.env.MAX_PETS_PER_OWNER, 20),
   SLOT_DURATION_DAYS: parseNumber(process.env.SLOT_DURATION_DAYS, 30),
   MAX_PAID_SLOTS: parseNumber(process.env.MAX_PAID_SLOTS, 5),
-  SLOT_PRICE_NPR: parseRequiredNumber(process.env.SLOT_PRICE_NPR, "SLOT_PRICE_NPR"),
+  SLOT_PRICE_NPR: parseNumber(process.env.SLOT_PRICE_NPR, 500),
 };
 
 export default matchingConfig;

@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_theme.dart';
-import '../../models/mock_care_data.dart';
+import '../../providers/care_events_provider.dart';
 import '../../widgets/event_list_card.dart';
 import 'event_detail_screen.dart';
 import 'my_event_bookings_screen.dart';
 
-class EventsCalendarScreen extends StatefulWidget {
+class EventsCalendarScreen extends ConsumerWidget {
   const EventsCalendarScreen({super.key});
 
   @override
-  State<EventsCalendarScreen> createState() => _EventsCalendarScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final eventsAsync = ref.watch(careEventsProvider);
+    final events = eventsAsync.value ?? [];
 
-class _EventsCalendarScreenState extends State<EventsCalendarScreen> {
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: CareTheme.background,
       appBar: AppBar(
@@ -31,14 +30,13 @@ class _EventsCalendarScreenState extends State<EventsCalendarScreen> {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () async {
-              await Navigator.push(
+            onPressed: () {
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const MyEventBookingsScreen(),
                 ),
               );
-              setState(() {});
             },
             icon: const Icon(
               Icons.confirmation_number_outlined,
@@ -55,24 +53,38 @@ class _EventsCalendarScreenState extends State<EventsCalendarScreen> {
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: MockCareData.events.length,
-        itemBuilder: (context, index) {
-          final ev = MockCareData.events[index];
-          return EventListCard(
-            event: ev,
-            onBookmarkTap: () =>
-                setState(() => ev.isBookmarked = !ev.isBookmarked),
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => EventDetailScreen(event: ev)),
-              );
-              setState(() {});
-            },
-          );
-        },
+      body: RefreshIndicator(
+        color: CareTheme.deepOlive,
+        onRefresh: () async => ref.read(careEventsProvider.notifier).loadEvents(),
+        child: events.isEmpty
+            ? ListView(
+                children: const [
+                  SizedBox(height: 100),
+                  Center(
+                    child: Text(
+                      'No events scheduled yet.',
+                      style: TextStyle(color: CareTheme.mutedText),
+                    ),
+                  ),
+                ],
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final ev = events[index];
+                  return EventListCard(
+                    event: ev,
+                    onBookmarkTap: () => ev.isBookmarked = !ev.isBookmarked,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => EventDetailScreen(event: ev)),
+                      );
+                    },
+                  );
+                },
+              ),
       ),
     );
   }

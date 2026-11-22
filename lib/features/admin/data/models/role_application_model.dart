@@ -10,6 +10,19 @@ class RoleApplicationModel {
   final String? userLocation;
   final DateTime createdAt;
 
+  // Seller store specific fields
+  final String? storeName;
+  final String? storeSlug;
+  final String? businessType;
+  final String? businessAddress;
+  final String? city;
+  final String? province;
+  final String? postalCode;
+  final String? registrationDocUrl;
+  final String? identityDocUrl;
+  final String? storeStatus;
+  final String? rejectionReason;
+
   RoleApplicationModel({
     required this.id,
     required this.userId,
@@ -21,11 +34,23 @@ class RoleApplicationModel {
     this.userImageUrl,
     this.userLocation,
     required this.createdAt,
+    this.storeName,
+    this.storeSlug,
+    this.businessType,
+    this.businessAddress,
+    this.city,
+    this.province,
+    this.postalCode,
+    this.registrationDocUrl,
+    this.identityDocUrl,
+    this.storeStatus,
+    this.rejectionReason,
   });
 
   factory RoleApplicationModel.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
     final profile = user?['profile'] as Map<String, dynamic>?;
+    final store = user?['store'] as Map<String, dynamic>?;
 
     return RoleApplicationModel(
       id: json['id'] as String? ?? '',
@@ -42,6 +67,29 @@ class RoleApplicationModel {
       createdAt:
           DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),
+      storeName: store?['name'] as String?,
+      storeSlug: store?['slug'] as String?,
+      businessType:
+          store?['businessType'] as String? ??
+          store?['business_type'] as String?,
+      businessAddress:
+          store?['businessAddress'] as String? ??
+          store?['business_address'] as String?,
+      city: store?['city'] as String?,
+      province: store?['province'] as String?,
+      postalCode:
+          store?['postalCode'] as String? ??
+          store?['postal_code'] as String?,
+      registrationDocUrl:
+          store?['registrationDocUrl'] as String? ??
+          store?['registration_doc_url'] as String?,
+      identityDocUrl:
+          store?['identityDocUrl'] as String? ??
+          store?['identity_doc_url'] as String?,
+      storeStatus: store?['status'] as String?,
+      rejectionReason:
+          store?['rejectionReason'] as String? ??
+          store?['rejection_reason'] as String?,
     );
   }
 }
