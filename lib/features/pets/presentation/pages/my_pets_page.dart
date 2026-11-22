@@ -274,6 +274,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
             icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
             onPressed: () {
               ref.read(petsActivationProvider.notifier).loadSummary();
+              ref.read(authStateProvider.notifier).refreshUserProfile();
             },
           ),
         ],
@@ -556,85 +557,99 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
       ),
       child: Row(
         children: [
-          // Pet Avatar
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.inputFill,
-            backgroundImage: photo != null && photo.isNotEmpty
-                ? NetworkImage(photo)
-                : null,
-            child: photo == null || photo.isEmpty
-                ? const Icon(
-                    Icons.pets,
-                    color: AppColors.textMuted,
-                    size: 28,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 14),
-
-          // Pet Info
+          // Pet Avatar & Info (tap to view pet profile)
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  pet.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${pet.breed ?? 'Unknown Breed'} • ${pet.animalType ?? 'Pet'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Visible in deck chip
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? AppColors.success.withValues(
-                            alpha: 0.12,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.push('/pet/${pet.id}'),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.inputFill,
+                    backgroundImage: photo != null && photo.isNotEmpty
+                        ? NetworkImage(photo)
+                        : null,
+                    child: photo == null || photo.isEmpty
+                        ? const Icon(
+                            Icons.pets,
+                            color: AppColors.textMuted,
+                            size: 28,
                           )
-                        : AppColors.textMuted.withValues(
-                            alpha: 0.15,
+                        : null,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pet.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
                           ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        active ? Icons.visibility : Icons.visibility_off,
-                        size: 12,
-                        color: active ? AppColors.success : AppColors.textMuted,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        active ? 'Visible in deck' : 'Hidden from deck',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              active ? AppColors.success : AppColors.textMuted,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          '${pet.breed ?? 'Unknown Breed'} • ${pet.animalType ?? 'Pet'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Visible in deck chip
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? AppColors.success.withValues(
+                                    alpha: 0.12,
+                                  )
+                                : AppColors.textMuted.withValues(
+                                    alpha: 0.15,
+                                  ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                active ? Icons.visibility : Icons.visibility_off,
+                                size: 12,
+                                color: active
+                                    ? AppColors.success
+                                    : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                active
+                                    ? 'Visible in deck'
+                                    : 'Hidden from deck',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: active
+                                      ? AppColors.success
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+          const SizedBox(width: 8),
 
           // Toggle Switch
           Switch.adaptive(

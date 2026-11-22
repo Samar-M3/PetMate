@@ -109,13 +109,14 @@ class ChatRepository {
             .toList());
   }
 
-  // 9. Send Message (Single Batched Write)
+  // 9. Send Text Message (with optional reply)
   Future<void> sendMessage(
     String conversationId,
     String text,
     String myUid,
-    String otherUid,
-  ) async {
+    String otherUid, {
+    ReplyToData? replyTo,
+  }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || myUid.isEmpty) return;
     if (trimmed.length > 1000) {
@@ -126,16 +127,24 @@ class ChatRepository {
     final convRef = _firestore.collection('conversations').doc(conversationId);
     final msgRef = convRef.collection('messages').doc();
 
-    batch.set(msgRef, {
+    final msgData = <String, dynamic>{
       'senderUid': myUid,
       'text': trimmed,
+      'type': 'text',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (replyTo != null) {
+      msgData['replyTo'] = replyTo.toMap();
+    }
+
+    batch.set(msgRef, msgData);
 
     final Map<String, dynamic> convUpdate = {
       'lastMessage': {
         'text': trimmed,
         'senderUid': myUid,
+        'type': 'text',
       },
       'lastMessageAt': FieldValue.serverTimestamp(),
     };
@@ -160,6 +169,94 @@ class ChatRepository {
     } catch (_) {
       // Ignored if document is not yet loaded or client is offline
     }
+  }
+
+  // 11. Delete for me (direct Firestore update — rules allow adding own uid)
+  Future<void> deleteForMe(
+    String conversationId,
+    String messageId,
+    String myUid,
+  ) async {
+    if (conversationId.isEmpty || messageId.isEmpty || myUid.isEmpty) return;
+    final msgRef = _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId);
+    await msgRef.update({
+      'deletedFor': FieldValue.arrayUnion([myUid]),
+    });
+  }
+
+  // 12. Delete for everyone (via backend)
+  Future<void> deleteForEveryone(
+    String conversationId,
+    String messageId,
+  ) async {
+    await _apiClient.delete(
+      '/chats/$conversationId/messages/$messageId?scope=everyone',
+    );
+  }
+
+  // 13. Request media upload signature from backend
+  Future<Map<String, dynamic>> requestMediaSignature(
+    String conversationId, {
+    required String kind,
+    required String mimeType,
+    required int sizeBytes,
+  }) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/media/signature',
+      body: {
+        'kind': kind,
+        'mimeType': mimeType,
+        'sizeBytes': sizeBytes,
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to get upload signature');
+  }
+
+  // 14. Create media message via backend
+  Future<Map<String, dynamic>> createMediaMessage(
+    String conversationId, {
+    required String clientMessageId,
+    required List<Map<String, dynamic>> items,
+    String? caption,
+    ReplyToData? replyTo,
+  }) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/messages/media',
+      body: {
+        'clientMessageId': clientMessageId,
+        'items': items,
+        if (caption != null && caption.trim().isNotEmpty)
+          'caption': caption.trim(),
+        if (replyTo != null) 'replyTo': replyTo.toMap(),
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to create media message');
+  }
+
+  // 15. Get signed delivery URLs for media
+  Future<Map<String, String>> getMediaUrls(
+    String conversationId,
+    List<String> publicIds, {
+    List<Map<String, dynamic>>? items,
+  }) async {
+    if (publicIds.isEmpty && (items == null || items.isEmpty)) return {};
+    final response = await _apiClient.post(
+      '/chats/$conversationId/media/urls',
+      body: {
+        'publicIds': publicIds,
+        'items': ?items,
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return response.map((k, v) => MapEntry(k, v.toString()));
+    }
+    throw Exception('Failed to get media URLs');
   }
 }
 

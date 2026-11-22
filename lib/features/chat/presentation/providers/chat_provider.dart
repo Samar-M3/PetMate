@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -11,7 +12,11 @@ import '../../domain/entities/chat_entities.dart';
 
 final currentFirebaseUidProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
-  return authState.user?.firebaseUid ?? '';
+  final directUid = authState.firebaseUser?.uid ??
+      FirebaseAuth.instance.currentUser?.uid ??
+      authState.user?.firebaseUid ??
+      '';
+  return directUid;
 });
 
 // ---------------------------------------------------------------------------
@@ -155,4 +160,115 @@ final messagesStreamProvider =
     final repo = ref.watch(chatRepositoryProvider);
     return repo.watchMessages(arg.matchId, limit: arg.limit);
   },
+);
+
+// ---------------------------------------------------------------------------
+// Media URL Cache Provider
+// ---------------------------------------------------------------------------
+
+class CachedMediaUrl {
+  final String url;
+  final DateTime expiresAt;
+  const CachedMediaUrl({required this.url, required this.expiresAt});
+}
+
+class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
+  @override
+  Map<String, CachedMediaUrl> build() => {};
+
+  Future<String?> getUrl(
+    String conversationId,
+    String publicId, {
+    String? kind,
+    bool isThumbnail = false,
+  }) async {
+    final cached = state[publicId];
+    if (cached != null &&
+        cached.expiresAt
+            .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+      return cached.url;
+    }
+
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final urls = await repo.getMediaUrls(
+        conversationId,
+        [publicId],
+        items: [
+          {
+            'publicId': publicId,
+            'kind': ?kind,
+            'thumbnail': isThumbnail,
+          }
+        ],
+      );
+      final url = urls[publicId];
+      if (url != null) {
+        state = {
+          ...state,
+          publicId: CachedMediaUrl(
+            url: url,
+            expiresAt: DateTime.now().add(const Duration(minutes: 55)),
+          ),
+        };
+      }
+      return url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, String>> getUrls(
+    String conversationId,
+    List<String> publicIds, {
+    List<Map<String, dynamic>>? items,
+  }) async {
+    final needed = <String>[];
+    final result = <String, String>{};
+
+    for (final id in publicIds) {
+      final cached = state[id];
+      if (cached != null &&
+          cached.expiresAt
+              .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+        result[id] = cached.url;
+      } else {
+        needed.add(id);
+      }
+    }
+
+    if (needed.isNotEmpty) {
+      try {
+        final repo = ref.read(chatRepositoryProvider);
+        final neededItems = items
+            ?.where((it) => needed.contains(it['publicId']))
+            .toList();
+        final urls = await repo.getMediaUrls(
+          conversationId,
+          needed,
+          items: neededItems,
+        );
+        final newState = Map<String, CachedMediaUrl>.from(state);
+        for (final entry in urls.entries) {
+          result[entry.key] = entry.value;
+          newState[entry.key] = CachedMediaUrl(
+            url: entry.value,
+            expiresAt: DateTime.now().add(const Duration(minutes: 55)),
+          );
+        }
+        state = newState;
+      } catch (_) {
+        // Return what we have from cache
+      }
+    }
+
+    return result;
+  }
+
+  void clear() => state = {};
+}
+
+final mediaUrlCacheProvider =
+    NotifierProvider<MediaUrlCache, Map<String, CachedMediaUrl>>(
+  MediaUrlCache.new,
 );

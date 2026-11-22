@@ -18,11 +18,8 @@ service cloud.firestore {
       // restricted to lastMessage, lastMessageAt, unread, and lastRead fields
       allow update: if isAuthenticated() &&
         request.auth.uid in resource.data.participantUids &&
-        resource.data.status == 'ACTIVE' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unread', 'lastRead']) &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.participantUids == resource.data.participantUids &&
-        request.resource.data.matchId == resource.data.matchId;
+        (!('status' in resource.data) || resource.data.status == 'ACTIVE') &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unread', 'lastRead']);
 
       // Messages subcollection
       match /messages/{messageId} {
@@ -30,21 +27,51 @@ service cloud.firestore {
         allow read: if isAuthenticated() &&
           request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids;
 
-        // Create: participant of ACTIVE conversation, senderUid is caller,
-        // text is non-empty string <= 1000 chars, createdAt == request.time,
-        // exactly keys ['senderUid', 'text', 'createdAt']
+        // Create:
+        // - Authenticated participant of ACTIVE conversation
+        // - type strictly 'text' (or omitted for legacy messages)
+        // - senderUid matches request.auth.uid
+        // - text is a string <= 1000 characters
+        // - createdAt == request.time
+        // - allowed keys: ['senderUid', 'text', 'createdAt'], ['senderUid', 'text', 'createdAt', 'type'], or with optional 'replyTo'
+        // - if replyTo is present: map with keys ['messageId', 'senderUid', 'type', 'preview'], preview string <= 100 chars
         allow create: if isAuthenticated() &&
-          get(/databases/$(database)/documents/conversations/$(conversationId)).data.status == 'ACTIVE' &&
+          (!('status' in get(/databases/$(database)/documents/conversations/$(conversationId)).data) ||
+           get(/databases/$(database)/documents/conversations/$(conversationId)).data.status == 'ACTIVE') &&
           request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids &&
           request.resource.data.senderUid == request.auth.uid &&
+          (!('type' in request.resource.data) || request.resource.data.type == 'text') &&
           request.resource.data.text is string &&
           request.resource.data.text.size() > 0 &&
           request.resource.data.text.size() <= 1000 &&
           request.resource.data.createdAt == request.time &&
-          request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']);
+          (
+            request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt']) ||
+            request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt', 'type']) ||
+            (
+              request.resource.data.keys().hasOnly(['senderUid', 'text', 'createdAt', 'type', 'replyTo']) &&
+              request.resource.data.replyTo is map &&
+              request.resource.data.replyTo.keys().hasOnly(['messageId', 'senderUid', 'type', 'preview']) &&
+              request.resource.data.replyTo.preview is string &&
+              request.resource.data.replyTo.preview.size() <= 100
+            )
+          );
 
-        // Update and delete strictly denied
-        allow update, delete: if false;
+        // Update: clients may only update deletedFor to append their own UID (Delete for me)
+        allow update: if isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedFor']) &&
+          request.resource.data.deletedFor is list &&
+          request.auth.uid in request.resource.data.deletedFor &&
+          (
+            (!('deletedFor' in resource.data) && request.resource.data.deletedFor.size() == 1) ||
+            ('deletedFor' in resource.data &&
+             request.resource.data.deletedFor.hasAll(resource.data.deletedFor) &&
+             request.resource.data.deletedFor.size() == resource.data.deletedFor.size() + 1)
+          );
+
+        // Delete strictly denied for clients
+        allow delete: if false;
       }
     }
   }
