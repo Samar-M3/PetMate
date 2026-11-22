@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/chat_constants.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/services/chat_media_service.dart';
 import '../../domain/entities/chat_entities.dart';
 import '../providers/chat_provider.dart';
+import '../widgets/chat_media_grid.dart';
+import '../widgets/chat_message_menu.dart';
+import '../widgets/chat_reply_bar.dart';
+import '../widgets/date_separator.dart';
 import '../widgets/matched_pair_avatar.dart';
+import 'media_preview_page.dart';
+import 'media_viewer_page.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
   final MatchConversationModel match;
@@ -26,6 +35,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   int _charCount = 0;
   int _messageLimit = 30;
   bool _isLoadingOlder = false;
+  FirestoreMessage? _replyingTo;
 
   @override
   void initState() {
@@ -84,6 +94,201 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     super.dispose();
   }
 
+  void _scrollToMessage(String targetMessageId, List<FirestoreMessage> messages) {
+    final targetIndex = messages.indexWhere((m) => m.id == targetMessageId);
+    if (targetIndex != -1) {
+      final targetOffset = (targetIndex * 85.0)
+          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      _scrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Future<void> _showMediaPickerSheet() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                title: const Text('Photo & Video Gallery'),
+                subtitle: const Text('Select up to 10 images or videos'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final mediaService = ref.read(chatMediaServiceProvider);
+                    final files = await mediaService.pickMediaFromGallery();
+                    if (files.isNotEmpty && mounted) {
+                      final sent = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaPreviewPage(
+                            initialFiles: files,
+                            conversationId: widget.match.matchId,
+                            replyTo: _replyingTo != null
+                                ? ReplyToData(
+                                    messageId: _replyingTo!.id,
+                                    senderUid: _replyingTo!.senderUid,
+                                    type: _replyingTo!.type,
+                                    preview: _replyingTo!.isMedia
+                                        ? (_replyingTo!.media.isNotEmpty &&
+                                                _replyingTo!.media.first.isVideo
+                                            ? 'Video'
+                                            : 'Photo')
+                                        : _replyingTo!.text
+                                            .characters
+                                            .take(100)
+                                            .toString(),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                      if (sent == true && mounted) {
+                        setState(() => _replyingTo = null);
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                title: const Text('Take Photo'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final mediaService = ref.read(chatMediaServiceProvider);
+                    final file = await mediaService.takePhoto();
+                    if (file != null && mounted) {
+                      final sent = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaPreviewPage(
+                            initialFiles: [file],
+                            conversationId: widget.match.matchId,
+                            replyTo: _replyingTo != null
+                                ? ReplyToData(
+                                    messageId: _replyingTo!.id,
+                                    senderUid: _replyingTo!.senderUid,
+                                    type: _replyingTo!.type,
+                                    preview: _replyingTo!.isMedia
+                                        ? (_replyingTo!.media.isNotEmpty &&
+                                                _replyingTo!.media.first.isVideo
+                                            ? 'Video'
+                                            : 'Photo')
+                                        : _replyingTo!.text
+                                            .characters
+                                            .take(100)
+                                            .toString(),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                      if (sent == true && mounted) {
+                        setState(() => _replyingTo = null);
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.videocam_rounded, color: AppColors.primary),
+                title: const Text('Record Video (max 60s)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final mediaService = ref.read(chatMediaServiceProvider);
+                    final file = await mediaService.recordVideo();
+                    if (file != null && mounted) {
+                      final sent = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaPreviewPage(
+                            initialFiles: [file],
+                            conversationId: widget.match.matchId,
+                            replyTo: _replyingTo != null
+                                ? ReplyToData(
+                                    messageId: _replyingTo!.id,
+                                    senderUid: _replyingTo!.senderUid,
+                                    type: _replyingTo!.type,
+                                    preview: _replyingTo!.isMedia
+                                        ? (_replyingTo!.media.isNotEmpty &&
+                                                _replyingTo!.media.first.isVideo
+                                            ? 'Video'
+                                            : 'Photo')
+                                        : _replyingTo!.text
+                                            .characters
+                                            .take(100)
+                                            .toString(),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                      if (sent == true && mounted) {
+                        setState(() => _replyingTo = null);
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty || _isSending) return;
@@ -96,12 +301,35 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     final conv = convAsync.value;
     final otherUid = conv?.otherUid(myUid) ?? '';
 
-    setState(() => _isSending = true);
+    final replyTo = _replyingTo != null
+        ? ReplyToData(
+            messageId: _replyingTo!.id,
+            senderUid: _replyingTo!.senderUid,
+            type: _replyingTo!.type,
+            preview: _replyingTo!.isMedia
+                ? (_replyingTo!.media.isNotEmpty &&
+                        _replyingTo!.media.first.isVideo
+                    ? 'Video'
+                    : 'Photo')
+                : _replyingTo!.text.characters.take(100).toString(),
+          )
+        : null;
+
+    setState(() {
+      _isSending = true;
+      _replyingTo = null;
+    });
     _textController.clear();
 
     try {
       final repo = ref.read(chatRepositoryProvider);
-      await repo.sendMessage(widget.match.matchId, text, myUid, otherUid);
+      await repo.sendMessage(
+        widget.match.matchId,
+        text,
+        myUid,
+        otherUid,
+        replyTo: replyTo,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -372,7 +600,26 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     itemBuilder: (ctx, index) {
                       final msg = messages[index];
                       final isMine = msg.senderUid == myUid;
-                      return _buildMessageBubble(msg, isMine);
+                      final showDateSeparator = index == messages.length - 1 ||
+                          isDifferentDay(
+                            msg.createdAt,
+                            messages[index + 1].createdAt,
+                          );
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showDateSeparator)
+                            DateSeparatorWidget(date: msg.createdAt),
+                          _buildMessageBubble(
+                            msg,
+                            isMine,
+                            isEnded,
+                            messages,
+                            myUid,
+                          ),
+                        ],
+                      );
                     },
                   );
                 },
@@ -606,86 +853,301 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
   }
 
-  Widget _buildMessageBubble(FirestoreMessage msg, bool isMine) {
+  bool _canDeleteForEveryone(FirestoreMessage msg, bool isMine) {
+    if (!isMine || msg.deletedForEveryone) return false;
+    final ageMinutes = DateTime.now().difference(msg.createdAt).inMinutes;
+    return ageMinutes <= ChatConstants.deleteForEveryoneWindowMinutes;
+  }
+
+  Widget _buildMessageBubble(
+    FirestoreMessage msg,
+    bool isMine,
+    bool isEnded,
+    List<FirestoreMessage> allMessages,
+    String myUid,
+  ) {
+    // If deleted for me, hide completely
+    if (msg.isDeletedFor(myUid)) {
+      return const SizedBox.shrink();
+    }
+
     final timeStr = DateFormat('h:mm a').format(msg.createdAt);
 
-    return GestureDetector(
-      onLongPress: () {
-        if (!isMine) {
-          _showReportDialog(context, messageId: msg.id);
-        }
-      },
-      child: Align(
+    // If deleted for everyone, show muted tombstone
+    if (msg.deletedForEveryone) {
+      return Align(
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: isMine ? const Color(0xFFE7F3EF) : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isMine ? 16 : 4),
-              bottomRight: Radius.circular(isMine ? 4 : 16),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-            border: Border.all(
-              color: isMine
-                  ? AppColors.primary.withValues(alpha: 0.25)
-                  : AppColors.border,
-              width: 0.8,
-            ),
+            color: Colors.grey.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            crossAxisAlignment:
-                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const Icon(Icons.block_rounded, size: 14, color: AppColors.textMuted),
+              const SizedBox(width: 6),
               Text(
-                msg.text,
+                isMine ? 'You deleted this message' : 'This message was deleted',
                 style: const TextStyle(
-                  fontSize: 14.5,
-                  color: AppColors.textPrimary,
-                  height: 1.35,
+                  fontSize: 12.5,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: isMine
-                          ? AppColors.primary.withValues(alpha: 0.8)
-                          : AppColors.textMuted,
-                    ),
-                  ),
-                  if (isMine) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      msg.isPending
-                          ? Icons.access_time_rounded
-                          : Icons.done_rounded,
-                      size: 14,
-                      color: msg.isPending
-                          ? AppColors.textMuted
-                          : AppColors.primary,
-                    ),
-                  ],
-                ],
+              const SizedBox(width: 8),
+              Text(
+                timeStr,
+                style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
               ),
             ],
+          ),
+        ),
+      );
+    }
+
+    // Swipe to reply wrapper
+    return Dismissible(
+      key: Key('msg_${msg.id}'),
+      direction: isEnded ? DismissDirection.none : DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        setState(() => _replyingTo = msg);
+        HapticFeedback.lightImpact();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 16),
+        child: const Icon(
+          Icons.reply_rounded,
+          color: AppColors.primary,
+          size: 24,
+        ),
+      ),
+      child: GestureDetector(
+        onLongPress: () async {
+          final action = await showMessageActionMenu(
+            context,
+            isMine: isMine,
+            isTextMessage: msg.isText,
+            canDeleteForEveryone: _canDeleteForEveryone(msg, isMine),
+            isEnded: isEnded,
+          );
+
+          if (action == null || !mounted) return;
+
+          switch (action) {
+            case ChatMessageAction.reply:
+              setState(() => _replyingTo = msg);
+              break;
+
+            case ChatMessageAction.copy:
+              if (msg.text.isNotEmpty) {
+                Clipboard.setData(ClipboardData(text: msg.text));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message copied to clipboard')),
+                  );
+                }
+              }
+              break;
+
+            case ChatMessageAction.deleteForMe:
+              final confirmed = await showDeleteConfirmationDialog(
+                context,
+                isForEveryone: false,
+              );
+              if (confirmed && mounted) {
+                try {
+                  await ref.read(chatRepositoryProvider).deleteForMe(
+                        widget.match.matchId,
+                        msg.id,
+                        myUid,
+                      );
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              }
+              break;
+
+            case ChatMessageAction.deleteForEveryone:
+              final confirmed = await showDeleteConfirmationDialog(
+                context,
+                isForEveryone: true,
+              );
+              if (confirmed && mounted) {
+                try {
+                  await ref.read(chatRepositoryProvider).deleteForEveryone(
+                        widget.match.matchId,
+                        msg.id,
+                      );
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              }
+              break;
+
+            case ChatMessageAction.report:
+              _showReportDialog(context, messageId: msg.id);
+              break;
+          }
+        },
+        child: Align(
+          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.78,
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: msg.isMedia ? 4 : 14,
+              vertical: msg.isMedia ? 4 : 10,
+            ),
+            decoration: BoxDecoration(
+              color: isMine ? const Color(0xFFE7F3EF) : Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isMine ? 16 : 4),
+                bottomRight: Radius.circular(isMine ? 4 : 16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+              border: Border.all(
+                color: isMine
+                    ? AppColors.primary.withValues(alpha: 0.25)
+                    : AppColors.border,
+                width: 0.8,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Quoted Reply Block (if replying to another message)
+                if (msg.replyTo != null)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      msg.isMedia ? 6 : 0,
+                      msg.isMedia ? 6 : 0,
+                      msg.isMedia ? 6 : 0,
+                      2,
+                    ),
+                    child: QuotedReplyBlock(
+                      senderName: msg.replyTo!.senderUid == myUid
+                          ? 'You'
+                          : widget.match.otherOwner.name,
+                      preview: msg.replyTo!.preview,
+                      isDeleted: msg.replyTo!.preview == 'Message deleted',
+                      onTap: () =>
+                          _scrollToMessage(msg.replyTo!.messageId, allMessages),
+                    ),
+                  ),
+
+                // 2. Media Content or Expired Bubble
+                if (msg.isMedia) ...[
+                  if (msg.mediaExpired)
+                    const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: MediaExpiredBubble(),
+                    )
+                  else
+                    ChatMediaGrid(
+                      items: msg.media,
+                      conversationId: widget.match.matchId,
+                      onTap: (index) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MediaViewerPage(
+                              items: msg.media,
+                              conversationId: widget.match.matchId,
+                              initialIndex: index,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+
+                // 3. Text Message or Media Caption
+                if (msg.text.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      msg.isMedia ? 10 : 0,
+                      msg.isMedia ? 6 : 0,
+                      msg.isMedia ? 10 : 0,
+                      0,
+                    ),
+                    child: Text(
+                      msg.text,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        color: AppColors.textPrimary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 4),
+
+                // 4. Timestamp & Pending indicator
+                Padding(
+                  padding: EdgeInsets.only(
+                    right: msg.isMedia ? 8 : 0,
+                    bottom: msg.isMedia ? 4 : 0,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: isMine
+                              ? AppColors.primary.withValues(alpha: 0.8)
+                              : AppColors.textMuted,
+                        ),
+                      ),
+                      if (isMine) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          msg.isPending
+                              ? Icons.access_time_rounded
+                              : Icons.done_rounded,
+                          size: 14,
+                          color: msg.isPending
+                              ? AppColors.textMuted
+                              : AppColors.primary,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -714,9 +1176,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   Widget _buildMessageInputBar(BuildContext context) {
     final canSend = _charCount > 0 && _charCount <= 1000 && !_isSending;
+    final myUid = ref.read(currentFirebaseUidProvider);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -730,82 +1192,119 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Message Input Field
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.inputFill,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _charCount > 1000
-                          ? AppColors.error
-                          : AppColors.border,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _textController,
-                    textCapitalization: TextCapitalization.sentences,
-                    maxLines: 5,
-                    minLines: 1,
-                    maxLength: 1000,
-                    buildCounter: (_, {required currentLength, maxLength, required isFocused}) =>
-                        null, // custom counter below
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle:
-                          TextStyle(fontSize: 14, color: AppColors.textMuted),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) {
-                      if (canSend) _sendMessage();
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
+          // Reply bar above input
+          if (_replyingTo != null)
+            ChatReplyBar(
+              senderName: _replyingTo!.senderUid == myUid
+                  ? 'You'
+                  : widget.match.otherOwner.name,
+              preview: _replyingTo!.isMedia
+                  ? (_replyingTo!.media.isNotEmpty &&
+                          _replyingTo!.media.first.isVideo
+                      ? 'Video'
+                      : 'Photo')
+                  : _replyingTo!.text,
+              isMediaMessage: _replyingTo!.isMedia,
+              onCancel: () => setState(() => _replyingTo = null),
+            ),
 
-              // Send Button
-              Material(
-                color: canSend ? AppColors.terracotta : AppColors.inputFill,
-                shape: const CircleBorder(),
-                elevation: canSend ? 2 : 0,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: canSend ? _sendMessage : null,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: _isSending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(
-                            Icons.send_rounded,
-                            color: canSend ? Colors.white : AppColors.textMuted,
-                            size: 20,
-                          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Media attachment button (+)
+                Material(
+                  color: Colors.transparent,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.add_circle_outline_rounded,
+                      color: AppColors.primary,
+                      size: 26,
+                    ),
+                    onPressed: _isSending ? null : _showMediaPickerSheet,
+                    tooltip: 'Attach photos or videos',
                   ),
                 ),
-              ),
-            ],
+
+                // Message Input Field
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.inputFill,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _charCount > 1000
+                            ? AppColors.error
+                            : AppColors.border,
+                      ),
+                    ),
+                    child: TextField(
+                      controller: _textController,
+                      textCapitalization: TextCapitalization.sentences,
+                      maxLines: 5,
+                      minLines: 1,
+                      maxLength: 1000,
+                      buildCounter: (_,
+                              {required currentLength,
+                              maxLength,
+                              required isFocused}) =>
+                          null,
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message...',
+                        hintStyle:
+                            TextStyle(fontSize: 14, color: AppColors.textMuted),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) {
+                        if (canSend) _sendMessage();
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Send Button
+                Material(
+                  color: canSend ? AppColors.terracotta : AppColors.inputFill,
+                  shape: const CircleBorder(),
+                  elevation: canSend ? 2 : 0,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: canSend ? _sendMessage : null,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _isSending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              Icons.send_rounded,
+                              color:
+                                  canSend ? Colors.white : AppColors.textMuted,
+                              size: 20,
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           // Character limit feedback when typing near max limit
           if (_charCount > 800)
             Padding(
-              padding: const EdgeInsets.only(top: 4, right: 8),
+              padding: const EdgeInsets.only(top: 2, right: 16, bottom: 4),
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(

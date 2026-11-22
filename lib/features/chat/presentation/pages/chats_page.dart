@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../home/presentation/pages/requests_page.dart';
 import '../../../home/presentation/providers/requests_provider.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../providers/chat_provider.dart';
+import '../widgets/date_separator.dart';
 import '../widgets/matched_pair_avatar.dart';
 import 'chat_detail_page.dart';
 
@@ -301,8 +301,8 @@ class ChatsPage extends ConsumerWidget {
     MatchConversationModel conv,
   ) {
     final timeStr = conv.lastMessageTime != null
-        ? DateFormat('h:mm a').format(conv.lastMessageTime!)
-        : DateFormat('MMM d').format(conv.matchedAt);
+        ? formatChatListTimestamp(conv.lastMessageTime!)
+        : formatChatListTimestamp(conv.matchedAt);
 
     return InkWell(
       onTap: () {
