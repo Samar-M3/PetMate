@@ -124,7 +124,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     await _syncBackendProfile(fbUser);
   }
 
-  Future<void> _syncBackendProfile(User fbUser) async {
+  Future<void> _syncBackendProfile(User fbUser, {int retryCount = 0}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -163,11 +163,32 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       if (kDebugMode) {
         debugPrint('[AuthNotifier] Backend profile sync failed: $e');
       }
+      // Retry up to 3 times with exponential backoff before giving up.
+      // This handles transient DB/network outages without permanently
+      // locking the user into the wrong role (null → petOwner fallback).
+      if (retryCount < 3) {
+        final delay = Duration(seconds: 2 * (retryCount + 1)); // 2s, 4s, 6s
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthNotifier] Retrying backend sync in ${delay.inSeconds}s '
+            '(attempt ${retryCount + 1}/3)...',
+          );
+        }
+        await Future.delayed(delay);
+        // Check the user is still signed in before retrying
+        final stillSignedIn = _authService.currentUser;
+        if (stillSignedIn != null) {
+          return _syncBackendProfile(fbUser, retryCount: retryCount + 1);
+        }
+      }
+      // All retries exhausted — keep isLoading: false but do NOT set user
+      // to null-equivalent petOwner; leave user as-is so if it was previously
+      // set it remains valid. Mark loading done so splash can proceed.
       state = state.copyWith(
         status: AuthStatus.authenticated,
         isLoading: false,
         firebaseUser: fbUser,
-        errorMessage: 'Backend synchronization failed. Please check network.',
+        errorMessage: 'Backend sync failed. Some features may be unavailable.',
       );
     }
   }

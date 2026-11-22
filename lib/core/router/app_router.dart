@@ -14,10 +14,14 @@ import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
+import '../../features/seller/presentation/pages/seller_add_product_page.dart';
 import '../../features/seller/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
 import '../../features/seller/presentation/pages/seller_status_page.dart';
 import '../../features/shop/presentation/pages/cart_page.dart';
+import '../../features/shop/presentation/pages/checkout_page.dart';
+import '../../features/shop/presentation/pages/order_detail_page.dart';
+import '../../features/shop/presentation/pages/order_history_page.dart';
 import '../../features/shop/presentation/pages/product_details_page.dart';
 import '../../features/shop/presentation/pages/shop_home_page.dart';
 import '../../features/shop/presentation/pages/shop_listing_page.dart';
@@ -59,6 +63,14 @@ class RouterNotifier extends ChangeNotifier {
 
     // 3. Authenticated -> decide first screen from role BEFORE anything else
     if (authState.isAuthenticated) {
+      // 3.0. If backend sync is still loading OR user profile not yet fetched,
+      //      stay on splash until we have definitive role info. This prevents
+      //      prematurely routing ADMIN/SELLER to the pet-owner flow when the
+      //      backend response is delayed or temporarily unavailable.
+      if (authState.isLoading || authState.user == null) {
+        return isSplashPage ? null : '/splash';
+      }
+
       final role = authState.user?.role;
 
       // 3.1. ADMIN: Always lands on AdminShell; never shown pet setup
@@ -166,6 +178,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SellerShell(),
       ),
       GoRoute(
+        path: '/seller/products/add',
+        builder: (context, state) => const SellerAddProductPage(),
+      ),
+      GoRoute(
         path: '/my-pets',
         builder: (context, state) => const MyPetsPage(),
       ),
@@ -199,6 +215,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/shop/wishlist',
         builder: (context, state) => const ShopWishlistPage(),
+      ),
+      GoRoute(
+        path: '/shop/checkout',
+        builder: (context, state) => const ShopCheckoutPage(),
+      ),
+      GoRoute(
+        path: '/shop/orders',
+        builder: (context, state) => const ShopOrderHistoryPage(),
+      ),
+      GoRoute(
+        path: '/shop/orders/:id',
+        builder: (context, state) => ShopOrderDetailPage(
+          orderId: state.pathParameters['id']!,
+        ),
       ),
     ],
   );

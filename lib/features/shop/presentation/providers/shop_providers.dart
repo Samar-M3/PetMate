@@ -151,6 +151,9 @@ class ShopCartState {
     this.subtotal = 0,
     this.totalQuantity = 0,
   });
+
+  int get totalCount =>
+      totalQuantity > 0 ? totalQuantity : items.fold(0, (sum, i) => sum + i.quantity);
 }
 
 class ShopCartNotifier extends Notifier<ShopCartState> {
@@ -192,6 +195,8 @@ class ShopCartNotifier extends Notifier<ShopCartState> {
     await ref.read(shopRepositoryProvider).updateCart(id, quantity);
     await load();
   }
+
+  Future<void> updateQuantity(String id, int quantity) => update(id, quantity);
 
   Future<void> remove(String id) async {
     await ref.read(shopRepositoryProvider).removeCart(id);
@@ -257,6 +262,165 @@ final shopWishlistProvider =
     NotifierProvider<ShopWishlistNotifier, ShopWishlistState>(
       ShopWishlistNotifier.new,
     );
+
+// Addresses Provider & Notifier
+class ShopAddressesState {
+  final List<ShopAddress> items;
+  final bool isLoading;
+  final String? error;
+
+  const ShopAddressesState({
+    this.items = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  ShopAddress? get defaultAddress =>
+      items.firstWhere((a) => a.isDefault, orElse: () => items.firstOrNull ?? const ShopAddress(
+        id: '',
+        fullName: '',
+        phoneNumber: '',
+        addressLine1: '',
+        city: '',
+        province: '',
+      ));
+}
+
+class ShopAddressesNotifier extends Notifier<ShopAddressesState> {
+  @override
+  ShopAddressesState build() => const ShopAddressesState();
+
+  Future<void> load() async {
+    state = ShopAddressesState(items: state.items, isLoading: true);
+    try {
+      final items = await ref.read(shopRepositoryProvider).addresses();
+      state = ShopAddressesState(items: items);
+    } catch (e) {
+      state = ShopAddressesState(items: state.items, error: _message(e));
+    }
+  }
+
+  Future<ShopAddress?> add(ShopAddress address) async {
+    try {
+      final created = await ref.read(shopRepositoryProvider).createAddress(address);
+      await load();
+      return created;
+    } catch (e) {
+      state = ShopAddressesState(items: state.items, error: _message(e));
+      return null;
+    }
+  }
+
+  Future<void> update(String id, Map<String, dynamic> patch) async {
+    try {
+      await ref.read(shopRepositoryProvider).updateAddress(id, patch);
+      await load();
+    } catch (e) {
+      state = ShopAddressesState(items: state.items, error: _message(e));
+    }
+  }
+
+  Future<void> delete(String id) async {
+    try {
+      await ref.read(shopRepositoryProvider).deleteAddress(id);
+      await load();
+    } catch (e) {
+      state = ShopAddressesState(items: state.items, error: _message(e));
+    }
+  }
+
+  Future<void> setDefault(String id) async {
+    try {
+      await ref.read(shopRepositoryProvider).setDefaultAddress(id);
+      await load();
+    } catch (e) {
+      state = ShopAddressesState(items: state.items, error: _message(e));
+    }
+  }
+}
+
+final shopAddressesProvider =
+    NotifierProvider<ShopAddressesNotifier, ShopAddressesState>(
+      ShopAddressesNotifier.new,
+    );
+
+// Orders Provider & Notifier
+class ShopOrdersState {
+  final List<ShopOrder> items;
+  final bool isLoading;
+  final bool isPlacingOrder;
+  final String? error;
+
+  const ShopOrdersState({
+    this.items = const [],
+    this.isLoading = false,
+    this.isPlacingOrder = false,
+    this.error,
+  });
+}
+
+class ShopOrdersNotifier extends Notifier<ShopOrdersState> {
+  @override
+  ShopOrdersState build() => const ShopOrdersState();
+
+  Future<void> load() async {
+    state = ShopOrdersState(items: state.items, isLoading: true);
+    try {
+      final items = await ref.read(shopRepositoryProvider).orders();
+      state = ShopOrdersState(items: items);
+    } catch (e) {
+      state = ShopOrdersState(items: state.items, error: _message(e));
+    }
+  }
+
+  Future<ShopOrder?> placeOrder({
+    required String deliveryAddressId,
+    required String paymentMethod,
+    String? customerNotes,
+  }) async {
+    state = ShopOrdersState(items: state.items, isPlacingOrder: true);
+    try {
+      final order = await ref.read(shopRepositoryProvider).createOrder(
+            deliveryAddressId: deliveryAddressId,
+            paymentMethod: paymentMethod,
+            customerNotes: customerNotes,
+          );
+      // Refresh cart and orders list
+      ref.invalidate(shopCartProvider);
+      await load();
+      return order;
+    } catch (e) {
+      state = ShopOrdersState(items: state.items, error: _message(e));
+      return null;
+    }
+  }
+
+  Future<bool> cancelOrder(String orderId, {String? reason}) async {
+    try {
+      await ref.read(shopRepositoryProvider).cancelOrder(orderId, reason: reason);
+      await load();
+      return true;
+    } catch (e) {
+      state = ShopOrdersState(items: state.items, error: _message(e));
+      return false;
+    }
+  }
+}
+
+final shopOrdersProvider =
+    NotifierProvider<ShopOrdersNotifier, ShopOrdersState>(
+      ShopOrdersNotifier.new,
+    );
+
+final shopOrderDetailProvider =
+    FutureProvider.family<ShopOrder, String>((ref, id) {
+  return ref.watch(shopRepositoryProvider).order(id);
+});
+
+final shopProductReviewsProvider =
+    FutureProvider.family<ShopReviewSummary, String>((ref, id) {
+  return ref.watch(shopRepositoryProvider).reviews(id);
+});
 
 double _number(dynamic value) => value == null
     ? 0

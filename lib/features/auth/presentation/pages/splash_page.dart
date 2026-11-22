@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../providers/auth_provider.dart';
 
-class SplashPage extends StatelessWidget {
+class SplashPage extends ConsumerWidget {
   const SplashPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    // Show retry UI only when: authenticated (Firebase OK) but backend sync
+    // failed and we have an error message AND user is still null.
+    final showRetry = authState.isAuthenticated &&
+        authState.user == null &&
+        !authState.isLoading &&
+        authState.errorMessage != null;
+
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Center(
@@ -55,14 +65,48 @@ class SplashPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppColors.primary,
+            if (showRetry) ...[
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 36,
+                color: AppColors.textSecondary,
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                'Could not reach server.\nPlease check your connection.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () {
+                  final fbUser = authState.firebaseUser;
+                  if (fbUser != null) {
+                    ref.read(authStateProvider.notifier).refreshUserProfile();
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Retry'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ] else
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.primary,
+                ),
+              ),
           ],
         ),
       ),
