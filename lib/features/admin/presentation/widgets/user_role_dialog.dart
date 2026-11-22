@@ -56,11 +56,11 @@ class _UserRoleDialogState extends State<UserRoleDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
+      title: const Row(
         children: [
-          const Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
-          const SizedBox(width: 8),
-          const Expanded(
+          Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
+          SizedBox(width: 8),
+          Expanded(
             child: Text(
               'Change User Role',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -112,37 +112,41 @@ class _UserRoleDialogState extends State<UserRoleDialog> {
               ),
               const SizedBox(height: 12),
             ],
-            RadioGroup<String>(
-              groupValue: _selectedRole,
-              onChanged: (val) {
-                if (!widget.isCurrentUser && val != null) {
-                  setState(() => _selectedRole = val);
-                }
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: _roles.map((r) {
-                  final isCurrent = r['role'] == widget.user.role;
-                  return RadioListTile<String>(
-                    contentPadding: EdgeInsets.zero,
-                    value: r['role']!,
-                    title: Text(
-                      r['label']! + (isCurrent ? ' (Current)' : ''),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+            IgnorePointer(
+              ignoring: widget.isCurrentUser,
+              child: RadioGroup<String>(
+                groupValue: _selectedRole,
+                onChanged: (val) {
+                  if (!widget.isCurrentUser && val != null) {
+                    setState(() => _selectedRole = val);
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _roles.map((r) {
+                    final roleVal = r['role']!;
+                    final isCurrent = roleVal == widget.user.role;
+                    return RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      value: roleVal,
+                      title: Text(
+                        r['label']! + (isCurrent ? ' (Current)' : ''),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    subtitle: Text(
-                      r['desc']!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                      subtitle: Text(
+                        r['desc']!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                    activeColor: AppColors.primary,
-                  );
-                }).toList(),
+                      activeColor: AppColors.primary,
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ],

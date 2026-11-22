@@ -1,27 +1,25 @@
-// Holds id, name, clinicName, specialty, rating (e.g., 4.9), fee
-// (e.g., 499), isOnline (boolean for the "3 vets online" dot), isVerified ("Trusted
-// care"), and availableSlots (list of times).
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_theme.dart';
-import '../../models/mock_care_data.dart';
+import '../../providers/care_events_provider.dart';
 import '../../widgets/event_list_card.dart';
 import 'event_detail_screen.dart';
 
-class MyEventBookingsScreen extends StatefulWidget {
+class MyEventBookingsScreen extends ConsumerStatefulWidget {
   const MyEventBookingsScreen({super.key});
 
   @override
-  State<MyEventBookingsScreen> createState() => _MyEventBookingsScreenState();
+  ConsumerState<MyEventBookingsScreen> createState() => _MyEventBookingsScreenState();
 }
 
-class _MyEventBookingsScreenState extends State<MyEventBookingsScreen> {
+class _MyEventBookingsScreenState extends ConsumerState<MyEventBookingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final bookedEvents = MockCareData.events.where((e) => e.isBooked).toList();
-    final savedEvents = MockCareData.events
-        .where((e) => e.isBookmarked)
-        .toList();
+    final eventsAsync = ref.watch(careEventsProvider);
+    final allEvents = eventsAsync.value ?? [];
+    final bookedEvents = allEvents.where((e) => e.isBooked).toList();
+    final savedEvents = allEvents.where((e) => e.isBookmarked).toList();
 
     return DefaultTabController(
       length: 2,

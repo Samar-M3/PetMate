@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_theme.dart';
-import '../../models/mock_care_data.dart';
-import '../../models/vet_model.dart';
+import '../../providers/care_events_provider.dart';
 
-class VetProfileFormScreen extends StatefulWidget {
+class VetProfileFormScreen extends ConsumerStatefulWidget {
   const VetProfileFormScreen({super.key});
 
   @override
-  State<VetProfileFormScreen> createState() => _VetProfileFormScreenState();
+  ConsumerState<VetProfileFormScreen> createState() => _VetProfileFormScreenState();
 }
 
-class _VetProfileFormScreenState extends State<VetProfileFormScreen> {
+class _VetProfileFormScreenState extends ConsumerState<VetProfileFormScreen> {
   final _nameCtrl = TextEditingController();
   final _clinicCtrl = TextEditingController();
   final _specCtrl = TextEditingController();
@@ -21,21 +21,12 @@ class _VetProfileFormScreenState extends State<VetProfileFormScreen> {
   void _saveVet() {
     if (_nameCtrl.text.isEmpty || _clinicCtrl.text.isEmpty) return;
 
-    MockCareData.vets.add(
-      Vet(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameCtrl.text.trim(),
-        clinicName: _clinicCtrl.text.trim(),
-        specialty: _specCtrl.text.trim().isEmpty
-            ? 'General Care'
-            : _specCtrl.text.trim(),
-        address: _addressCtrl.text.trim().isEmpty
-            ? 'Lalitpur'
-            : _addressCtrl.text.trim(),
-        rating: 5.0,
-        fee: int.tryParse(_feeCtrl.text) ?? 500,
-        availableSlots: ['10:00 AM', '02:00 PM', '04:00 PM'],
-      ),
+    ref.read(careVetsProvider.notifier).addVet(
+      name: _nameCtrl.text.trim(),
+      clinicName: _clinicCtrl.text.trim(),
+      specialty: _specCtrl.text.trim().isEmpty ? 'General Care' : _specCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty ? 'Lalitpur' : _addressCtrl.text.trim(),
+      fee: int.tryParse(_feeCtrl.text) ?? 500,
     );
     Navigator.pop(context);
   }

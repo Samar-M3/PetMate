@@ -29,4 +29,36 @@ class PetEvent {
     this.isBookmarked = false,
     this.isBooked = false,
   });
+
+  factory PetEvent.fromJson(Map<String, dynamic> json) {
+    return PetEvent(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      category: json['category'] as String? ?? 'MEETUP',
+      dayName: json['dayName'] as String? ?? json['day_name'] as String? ?? 'DAY',
+      dayNum: json['dayNum'] as String? ?? json['day_num'] as String? ?? '1',
+      fullDate: json['fullDate'] as String? ?? json['full_date'] as String? ?? '',
+      time: json['time'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      attendeeCount: (json['attendeeCount'] ?? json['attendee_count']) as int? ?? 0,
+      isBookmarked: json['isBookmarked'] as bool? ?? false,
+      isBooked: json['isBooked'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'category': category,
+      'dayName': dayName,
+      'dayNum': dayNum,
+      'fullDate': fullDate,
+      'time': time,
+      'location': location,
+      'description': description,
+      'attendeeCount': attendeeCount,
+    };
+  }
 }

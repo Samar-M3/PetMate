@@ -6,6 +6,8 @@ import uploadsRoutes from "./modules/uploads/uploads.routes.ts";
 import adminRoutes from "./modules/admin/admin.routes.ts";
 import matchingRoutes from "./modules/matching/matching.routes.ts";
 import slotsRoutes from "./modules/slots/slots.routes.ts";
+import eventsRoutes from "./modules/events/events.routes.ts";
+import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -57,6 +59,12 @@ app.use("/api/v1", matchingRoutes);
 
 app.use("/api/active-slots", slotsRoutes);
 app.use("/api/v1/active-slots", slotsRoutes);
+
+app.use("/api/events", eventsRoutes);
+app.use("/api/v1/events", eventsRoutes);
+
+app.use("/api/veterinarians", veterinariansRoutes);
+app.use("/api/v1/veterinarians", veterinariansRoutes);
 
 // Catch-all 404
 app.use((req: Request, res: Response, next: NextFunction) => {
