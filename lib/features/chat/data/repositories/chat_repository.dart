@@ -42,12 +42,12 @@ class ChatRepository {
 
   // 3. Unmatch
   Future<void> unmatch(String matchId) async {
-    await _apiClient.post('/matches/$matchId/unmatch', {});
+    await _apiClient.post('/matches/$matchId/unmatch', body: {});
   }
 
   // 4. Block User
   Future<void> blockUser(String userId) async {
-    await _apiClient.post('/users/$userId/block', {});
+    await _apiClient.post('/users/$userId/block', body: {});
   }
 
   // 5. Report Conversation / Message
@@ -56,15 +56,18 @@ class ChatRepository {
     String? messageId,
     required String reason,
   }) async {
-    await _apiClient.post('/chats/$conversationId/report', {
-      if (messageId != null && messageId.isNotEmpty) 'messageId': messageId,
-      'reason': reason,
-    });
+    await _apiClient.post(
+      '/chats/$conversationId/report',
+      body: {
+        if (messageId != null && messageId.isNotEmpty) 'messageId': messageId,
+        'reason': reason,
+      },
+    );
   }
 
   // 6. Firestore Conversations Stream
   Stream<List<FirestoreConversation>> watchConversations(String myUid) {
-    if (myUid.isEmpty) return Stream.value([]);
+    if (myUid.isEmpty) return Stream.value(<FirestoreConversation>[]);
     return _firestore
         .collection('conversations')
         .where('participantUids', arrayContains: myUid)
@@ -77,7 +80,9 @@ class ChatRepository {
 
   // 7. Single Conversation Stream
   Stream<FirestoreConversation?> watchConversation(String conversationId) {
-    if (conversationId.isEmpty) return Stream.value(null);
+    if (conversationId.isEmpty) {
+      return Stream<FirestoreConversation?>.value(null);
+    }
     return _firestore
         .collection('conversations')
         .doc(conversationId)
@@ -91,7 +96,7 @@ class ChatRepository {
     String conversationId, {
     int limit = 30,
   }) {
-    if (conversationId.isEmpty) return Stream.value([]);
+    if (conversationId.isEmpty) return Stream.value(<FirestoreMessage>[]);
     return _firestore
         .collection('conversations')
         .doc(conversationId)
