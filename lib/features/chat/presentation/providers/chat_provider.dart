@@ -1,11 +1,42 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../domain/entities/chat_entities.dart';
 
 // ---------------------------------------------------------------------------
-// Conversations list state & notifier
+// Current Authenticated Firebase UID
+// ---------------------------------------------------------------------------
+
+final currentFirebaseUidProvider = Provider<String>((ref) {
+  final authState = ref.watch(authStateProvider);
+  return authState.user?.firebaseUid ?? '';
+});
+
+// ---------------------------------------------------------------------------
+// Firestore Conversations Stream
+// ---------------------------------------------------------------------------
+
+final firestoreConversationsStreamProvider =
+    StreamProvider<List<FirestoreConversation>>((ref) {
+  final myUid = ref.watch(currentFirebaseUidProvider);
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchConversations(myUid);
+});
+
+// ---------------------------------------------------------------------------
+// Raw PostgreSQL Matches List Provider
+// ---------------------------------------------------------------------------
+
+final postgresMatchesProvider =
+    FutureProvider<List<MatchConversationModel>>((ref) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.getMatches();
+});
+
+// ---------------------------------------------------------------------------
+// Joined Conversations List (Matches + Real-time Firestore State)
 // ---------------------------------------------------------------------------
 
 class ChatConversationsState {
@@ -33,35 +64,56 @@ class ChatConversationsState {
 }
 
 class ChatConversationsNotifier extends Notifier<ChatConversationsState> {
-  ChatRepository get _repository => ref.read(chatRepositoryProvider);
-
   @override
   ChatConversationsState build() {
-    Future.microtask(() => loadConversations());
-    return const ChatConversationsState(isLoading: true);
+    final matchesAsync = ref.watch(postgresMatchesProvider);
+    final firestoreAsync = ref.watch(firestoreConversationsStreamProvider);
+    final myUid = ref.watch(currentFirebaseUidProvider);
+
+    if (matchesAsync.isLoading && !matchesAsync.hasValue) {
+      return const ChatConversationsState(isLoading: true);
+    }
+
+    if (matchesAsync.hasError) {
+      return ChatConversationsState(
+        isLoading: false,
+        errorMessage: matchesAsync.error.toString(),
+      );
+    }
+
+    final matches = matchesAsync.value ?? [];
+    final firestoreConvs = firestoreAsync.value ?? [];
+    final firestoreMap = {for (final c in firestoreConvs) c.matchId: c};
+
+    // Join PostgreSQL match data with real-time Firestore conversation updates
+    final joined = matches.map((match) {
+      final fConv = firestoreMap[match.matchId];
+      if (fConv == null) {
+        return match;
+      }
+
+      return match.copyWith(
+        lastMessage: fConv.lastMessageText ?? match.lastMessage,
+        lastMessageTime: fConv.lastMessageAt ?? match.lastMessageTime,
+        unreadCount: fConv.unreadFor(myUid),
+      );
+    }).toList();
+
+    // Sort descending by latest message / match time
+    joined.sort((a, b) {
+      final timeA = a.lastMessageTime ?? a.matchedAt;
+      final timeB = b.lastMessageTime ?? b.matchedAt;
+      return timeB.compareTo(timeA);
+    });
+
+    return ChatConversationsState(
+      conversations: joined,
+      isLoading: false,
+    );
   }
 
   Future<void> loadConversations() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final list = await _repository.getMatches();
-      state = state.copyWith(conversations: list, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
-    }
-  }
-
-  void updateLastMessage(String matchId, String text) {
-    final updated = state.conversations.map((conv) {
-      if (conv.matchId == matchId) {
-        return conv.copyWith(
-          lastMessage: text,
-          lastMessageTime: DateTime.now(),
-        );
-      }
-      return conv;
-    }).toList();
-    state = state.copyWith(conversations: updated);
+    ref.invalidate(postgresMatchesProvider);
   }
 }
 
@@ -71,92 +123,36 @@ final chatConversationsProvider =
 );
 
 // ---------------------------------------------------------------------------
-// Active 1-on-1 chat room (family provider keyed by match)
+// Total Unread Count Provider (for Badges)
 // ---------------------------------------------------------------------------
 
-class ActiveChatNotifier extends Notifier<List<ChatMessageModel>> {
-  final MatchConversationModel match;
-
-  ActiveChatNotifier(this.match);
-
-  @override
-  List<ChatMessageModel> build() {
-    final now = DateTime.now();
-    return [
-      ChatMessageModel(
-        id: 'msg-1',
-        senderId: match.otherOwner.id,
-        text:
-            'Hello! I saw ${match.myPet.name} on PetMate! Such an adorable pet! 🐾',
-        createdAt: now.subtract(const Duration(hours: 2, minutes: 15)),
-        isMine: false,
-      ),
-      ChatMessageModel(
-        id: 'msg-2',
-        senderId: 'my-user-id',
-        text:
-            'Hi ${match.otherOwner.name}! Thank you! ${match.otherPet.name} is super cute too! How old are they?',
-        createdAt: now.subtract(const Duration(hours: 1, minutes: 45)),
-        isMine: true,
-      ),
-      ChatMessageModel(
-        id: 'msg-3',
-        senderId: match.otherOwner.id,
-        text: match.lastMessage ??
-            'Would love to set up a weekend playdate at the park if you are free!',
-        createdAt:
-            match.lastMessageTime ?? now.subtract(const Duration(minutes: 20)),
-        isMine: false,
-      ),
-    ];
+final unreadChatsCountProvider = Provider<int>((ref) {
+  final convsState = ref.watch(chatConversationsProvider);
+  int count = 0;
+  for (final c in convsState.conversations) {
+    count += c.unreadCount;
   }
+  return count;
+});
 
-  void sendMessage(String text) {
-    if (text.trim().isEmpty) return;
+// ---------------------------------------------------------------------------
+// Single Conversation Document Stream
+// ---------------------------------------------------------------------------
 
-    final newMsg = ChatMessageModel(
-      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
-      senderId: 'my-user-id',
-      text: text.trim(),
-      createdAt: DateTime.now(),
-      isMine: true,
-      isRead: true,
-    );
+final singleConversationProvider =
+    StreamProvider.family<FirestoreConversation?, String>((ref, matchId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchConversation(matchId);
+});
 
-    state = [...state, newMsg];
+// ---------------------------------------------------------------------------
+// Messages Stream Provider (family by matchId and pagination limit)
+// ---------------------------------------------------------------------------
 
-    // Update conversation list preview
-    ref
-        .read(chatConversationsProvider.notifier)
-        .updateLastMessage(match.matchId, text.trim());
-
-    // Friendly auto-reply simulation after 1.4 seconds
-    Timer(const Duration(milliseconds: 1400), () {
-      final replies = [
-        'That sounds like a wonderful plan! ${match.otherPet.name} will be thrilled! 🐕✨',
-        'Awesome! Saturday afternoon around 4 PM works great for us at the park.',
-        'Sounds good! Let\'s coordinate closer to the time. See you soon! 🐾',
-      ];
-      final randomReply = (replies..shuffle()).first;
-
-      final replyMsg = ChatMessageModel(
-        id: 'reply-${DateTime.now().millisecondsSinceEpoch}',
-        senderId: match.otherOwner.id,
-        text: randomReply,
-        createdAt: DateTime.now(),
-        isMine: false,
-      );
-
-      state = [...state, replyMsg];
-
-      ref
-          .read(chatConversationsProvider.notifier)
-          .updateLastMessage(match.matchId, randomReply);
-    });
-  }
-}
-
-final activeChatProvider = NotifierProvider.family<ActiveChatNotifier,
-    List<ChatMessageModel>, MatchConversationModel>(
-  (match) => ActiveChatNotifier(match),
+final messagesStreamProvider =
+    StreamProvider.family<List<FirestoreMessage>, ({String matchId, int limit})>(
+  (ref, arg) {
+    final repo = ref.watch(chatRepositoryProvider);
+    return repo.watchMessages(arg.matchId, limit: arg.limit);
+  },
 );

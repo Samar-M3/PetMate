@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
@@ -275,19 +276,27 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
+              InkWell(
+                onTap: () {
+                  if (request.senderPetId.isNotEmpty) {
+                    context.push('/pet/${request.senderPetId}');
+                  }
+                },
                 borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: AppNetworkImage(
-                    imageUrl: request.senderPetImageUrl,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
                     width: 72,
                     height: 72,
-                    fit: BoxFit.cover,
-                    fallbackIcon: Icons.pets,
-                    transformationWidth: 150,
-                    transformationHeight: 150,
+                    child: AppNetworkImage(
+                      imageUrl: request.senderPetImageUrl,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      fallbackIcon: Icons.pets,
+                      transformationWidth: 150,
+                      transformationHeight: 150,
+                    ),
                   ),
                 ),
               ),
@@ -296,15 +305,22 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      request.senderPetName,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    InkWell(
+                      onTap: () {
+                        if (request.senderPetId.isNotEmpty) {
+                          context.push('/pet/${request.senderPetId}');
+                        }
+                      },
+                      child: Text(
+                        request.senderPetName,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     if (request.senderPetBreed.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -319,27 +335,34 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.person_outline,
-                          size: 13,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Owner: ${request.senderUsername}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                    InkWell(
+                      onTap: () {
+                        if (request.senderUserId.isNotEmpty) {
+                          context.push('/owner/${request.senderUserId}');
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            size: 13,
+                            color: AppColors.primary,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Owner: ${request.senderUsername}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(

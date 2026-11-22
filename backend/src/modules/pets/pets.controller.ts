@@ -5,6 +5,7 @@ import {
   createPetForUser,
   getPetsForUser,
   getPetById,
+  getPublicPetProfile,
   updatePetForUser,
   setPetActivation,
   deletePetForUser,
@@ -55,6 +56,28 @@ export const getPets = async (
       statusCode: 200,
       message: "Pets retrieved successfully",
       data: { pets },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPublicPet = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 401));
+    }
+
+    const pet = await getPublicPetProfile(req.user.id, req.params.id as string);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Public pet profile retrieved successfully",
+      data: { pet },
     });
   } catch (error) {
     next(error);

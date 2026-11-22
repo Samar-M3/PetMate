@@ -13,7 +13,9 @@ import '../../features/home/presentation/pages/requests_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
+import '../../features/pets/presentation/pages/pet_details_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
+import '../../features/profile/presentation/pages/owner_profile_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
 import '../../features/vet/presentation/pages/vet_shell.dart';
 
@@ -147,6 +149,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/requests',
         builder: (context, state) => const RequestsPage(),
+      ),
+      GoRoute(
+        path: '/pet/:petId',
+        builder: (context, state) => PetDetailsPage(
+          petId: state.pathParameters['petId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/owner/:userId',
+        builder: (context, state) => OwnerProfilePage(
+          userId: state.pathParameters['userId'] ?? '',
+        ),
       ),
     ],
   );

@@ -3,10 +3,12 @@ import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import {
   initializeUserRecord,
   getUserDetails,
+  getPublicUserProfile,
   updateOwnerProfile,
   updateUserAvatar,
   getOnboardingStatus,
   submitRoleApplication,
+  blockUser,
 } from "./users.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
@@ -58,6 +60,28 @@ export const getMe = async (
     sendSuccess(res, {
       statusCode: 200,
       message: "User profile fetched successfully",
+      data: { user },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPublicUser = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 401));
+    }
+
+    const user = await getPublicUserProfile(req.user.id, req.params.id as string);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Public user profile fetched successfully",
       data: { user },
     });
   } catch (error) {
@@ -212,6 +236,33 @@ export const applyRole = async (
       statusCode: 201,
       message: "Role application submitted successfully",
       data: { application },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const blockUserController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const { id } = req.params;
+    if (!id || typeof id !== "string") {
+      return next(new AppError("User id is required", 400));
+    }
+
+    const result = await blockUser(req.user.id, id.trim());
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "User blocked successfully",
+      data: result,
     });
   } catch (error) {
     next(error);
