@@ -17,25 +17,27 @@ import {
 
 const router = Router();
 
-router.use(authenticateFirebase);
-router.use(requireInitializedUser);
-router.use(requireRole(Role.PET_OWNER, Role.ADMIN));
+const matchingAuth = [
+  authenticateFirebase,
+  requireInitializedUser,
+  requireRole(Role.PET_OWNER, Role.ADMIN),
+];
 
 // Deck endpoints (support both /deck and legacy /discover)
-router.get("/deck", getDeck);
-router.get("/discover", getDeck);
+router.get("/deck", matchingAuth, getDeck);
+router.get("/discover", matchingAuth, getDeck);
 
 // Swipe endpoints
-router.post("/swipes", postSwipe);
-router.post("/swipes/undo", postUndoSwipe);
+router.post("/swipes", matchingAuth, postSwipe);
+router.post("/swipes/undo", matchingAuth, postUndoSwipe);
 
 // Request endpoints
-router.get("/requests/incoming", getIncoming);
-router.post("/requests/:id/accept", acceptRequest);
-router.post("/requests/:id/reject", rejectRequest);
-router.post("/requests/:id/decline", rejectRequest);
+router.get("/requests/incoming", matchingAuth, getIncoming);
+router.post("/requests/:id/accept", matchingAuth, acceptRequest);
+router.post("/requests/:id/reject", matchingAuth, rejectRequest);
+router.post("/requests/:id/decline", matchingAuth, rejectRequest);
 
 // Matches / Conversations endpoints
-router.get("/matches", getMatches);
+router.get("/matches", matchingAuth, getMatches);
 
 export default router;

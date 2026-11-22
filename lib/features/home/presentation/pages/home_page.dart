@@ -16,6 +16,7 @@ import '../widgets/home_header.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../widgets/swipeable_card_deck.dart';
 import '../widgets/tab_placeholders.dart';
+import '../../../shop/presentation/pages/shop_home_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -97,7 +98,8 @@ class _HomePageState extends ConsumerState<HomePage>
         child: Column(
           children: [
             // 1. Top Header Section (PetMate logo & user avatar)
-            HomeHeader(onProfileTap: () => ProfileBottomSheet.show(context)),
+            if (_selectedNavIndex != 3)
+              HomeHeader(onProfileTap: () => ProfileBottomSheet.show(context)),
 
             // 2. Active Pet Switcher (if user has several pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
@@ -169,12 +171,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   const EventsHomeScreen(),
 
                   // Tab 3: Shop
-                  const TabPlaceholderView(
-                    title: 'Pet Marketplace',
-                    subtitle: 'Browse quality food, toys, health products, and accessories for your pets.',
-                    icon: Icons.shopping_bag_rounded,
-                    iconColor: Color(0xFFE68A00),
-                  ),
+                  const ShopHomePage(),
 
                   // Tab 4: Vet Appointments (Your Vet Appts Screen)
                   const VetApptsHomeScreen(),

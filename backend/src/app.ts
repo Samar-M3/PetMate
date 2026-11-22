@@ -3,17 +3,26 @@ import cors from "cors";
 import usersRoutes from "./modules/users/users.routes.ts";
 import petsRoutes from "./modules/pets/pets.routes.ts";
 import uploadsRoutes from "./modules/uploads/uploads.routes.ts";
+import shopRoutes from "./modules/shop/shop.routes.ts";
 import adminRoutes from "./modules/admin/admin.routes.ts";
 import matchingRoutes from "./modules/matching/matching.routes.ts";
 import slotsRoutes from "./modules/slots/slots.routes.ts";
 import eventsRoutes from "./modules/events/events.routes.ts";
 import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts";
+import sellersRoutes from "./modules/sellers/sellers.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  })
+);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
@@ -51,11 +60,14 @@ app.use("/api/v1/pets", petsRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/v1/uploads", uploadsRoutes);
 
+app.use("/api/shop", shopRoutes);
+app.use("/api/v1/shop", shopRoutes);
+
 app.use("/api/admin", adminRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
-app.use("/api", matchingRoutes);
-app.use("/api/v1", matchingRoutes);
+app.use("/api/sellers", sellersRoutes);
+app.use("/api/v1/sellers", sellersRoutes);
 
 app.use("/api/active-slots", slotsRoutes);
 app.use("/api/v1/active-slots", slotsRoutes);
@@ -65,6 +77,8 @@ app.use("/api/v1/events", eventsRoutes);
 
 app.use("/api/veterinarians", veterinariansRoutes);
 app.use("/api/v1/veterinarians", veterinariansRoutes);
+app.use("/api", matchingRoutes);
+app.use("/api/v1", matchingRoutes);
 
 // Catch-all 404
 app.use((req: Request, res: Response, next: NextFunction) => {
