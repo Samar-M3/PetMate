@@ -313,15 +313,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                   title: 'Add New Product',
                                   subtitle:
                                       'Publish pet food, toys, health or gear',
-                                  onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Product listing creation form coming up next in marketplace phase!',
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  onTap: () => context.go('/seller/products/add'),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildActionTile(

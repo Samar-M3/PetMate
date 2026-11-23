@@ -5,7 +5,10 @@ import type { ProductListQuery } from "./shop.validation.ts";
 
 const publicProductWhere: Prisma.ProductWhereInput = {
   status: "ACTIVE",
-  store: { status: "APPROVED" },
+  store: {
+    status: "APPROVED",
+    owner: { isActive: true },
+  },
 };
 
 const productRelations = {
@@ -56,6 +59,8 @@ const withDiscount = <T extends { basePrice: Prisma.Decimal; discountedPrice: Pr
 });
 
 const sortOrder = (sortBy: ProductListQuery["sortBy"]): Prisma.ProductOrderByWithRelationInput[] => {
+  if (sortBy === "price_asc") return [{ basePrice: "asc" }];
+  if (sortBy === "price_desc") return [{ basePrice: "desc" }];
   return [{ createdAt: "desc" }];
 };
 

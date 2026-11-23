@@ -3,6 +3,23 @@ import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import {
+  cancelOrder,
+  createOrderFromCart,
+  getOrderDetail,
+  getUserOrders,
+} from "./shop.orders.service.ts";
+import {
+  createAddress,
+  deleteAddress,
+  getAddresses,
+  setDefaultAddress,
+  updateAddress,
+} from "./shop.addresses.service.ts";
+import {
+  createOrUpdateProductReview,
+  getProductReviews,
+} from "./shop.reviews.service.ts";
+import {
   addCartItem,
   addWishlistItem,
   clearCart,
@@ -133,3 +150,88 @@ export const wishlistRemove = handle(async (req, res) => {
   await removeWishlistItem(requireUserId(req), req.params.itemId as string);
   sendSuccess(res, { message: "Wishlist item removed", data: {} });
 });
+
+// Orders
+export const ordersCreate = handle(async (req, res) => {
+  const { deliveryAddressId, paymentMethod, customerNotes } = req.body;
+  if (!deliveryAddressId) {
+    throw new AppError("deliveryAddressId is required", 400);
+  }
+  const order = await createOrderFromCart(requireUserId(req), {
+    deliveryAddressId,
+    paymentMethod,
+    customerNotes,
+  });
+  sendSuccess(res, { statusCode: 201, message: "Order placed successfully", data: { order } });
+});
+
+export const ordersList = handle(async (req, res) => {
+  const orders = await getUserOrders(requireUserId(req));
+  sendSuccess(res, { data: { items: orders } });
+});
+
+export const orderGet = handle(async (req, res) => {
+  const order = await getOrderDetail(requireUserId(req), req.params.id as string);
+  sendSuccess(res, { data: { order } });
+});
+
+export const orderCancel = handle(async (req, res) => {
+  const order = await cancelOrder(requireUserId(req), req.params.id as string, req.body?.reason);
+  sendSuccess(res, { message: "Order cancelled successfully", data: { order } });
+});
+
+// Addresses
+export const addressesList = handle(async (req, res) => {
+  const addresses = await getAddresses(requireUserId(req));
+  sendSuccess(res, { data: { items: addresses } });
+});
+
+export const addressCreate = handle(async (req, res) => {
+  const { fullName, phoneNumber, addressLine1, addressLine2, city, province, postalCode, isDefault } = req.body;
+  if (!fullName || !phoneNumber || !addressLine1 || !city || !province) {
+    throw new AppError("fullName, phoneNumber, addressLine1, city, and province are required", 400);
+  }
+  const address = await createAddress(requireUserId(req), {
+    fullName,
+    phoneNumber,
+    addressLine1,
+    addressLine2,
+    city,
+    province,
+    postalCode,
+    isDefault,
+  });
+  sendSuccess(res, { statusCode: 201, message: "Delivery address created", data: { address } });
+});
+
+export const addressUpdate = handle(async (req, res) => {
+  const address = await updateAddress(requireUserId(req), req.params.id as string, req.body);
+  sendSuccess(res, { message: "Address updated", data: { address } });
+});
+
+export const addressDelete = handle(async (req, res) => {
+  await deleteAddress(requireUserId(req), req.params.id as string);
+  sendSuccess(res, { message: "Address deleted", data: {} });
+});
+
+export const addressSetDefault = handle(async (req, res) => {
+  const address = await setDefaultAddress(requireUserId(req), req.params.id as string);
+  sendSuccess(res, { message: "Default address set", data: { address } });
+});
+
+// Reviews
+export const reviewsGet = handle(async (req, res) => {
+  const data = await getProductReviews(req.params.id as string);
+  sendSuccess(res, { data });
+});
+
+export const reviewCreate = handle(async (req, res) => {
+  const { rating, title, comment } = req.body;
+  const review = await createOrUpdateProductReview(requireUserId(req), req.params.id as string, {
+    rating: Number(rating),
+    title,
+    comment,
+  });
+  sendSuccess(res, { statusCode: 201, message: "Review submitted successfully", data: { review } });
+});
+
