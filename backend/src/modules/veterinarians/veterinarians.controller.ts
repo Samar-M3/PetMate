@@ -1,7 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
+import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import {
   listVeterinarians,
+  findVetByUser,
   createVeterinarian,
+  updateVeterinarianRecord,
+  updateVetSlotsRecord,
   deleteVeterinarian,
 } from "./veterinarians.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
@@ -18,6 +22,28 @@ export const getVeterinarians = async (
       statusCode: 200,
       message: "Veterinarians retrieved successfully",
       data: { veterinarians },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyVetProfile = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const email = req.firebaseUser?.email;
+    const veterinarian = await findVetByUser(userId, email);
+    if (!veterinarian) {
+      return next(new AppError("Veterinarian profile not found", 404));
+    }
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Veterinarian profile retrieved successfully",
+      data: { veterinarian },
     });
   } catch (error) {
     next(error);
@@ -44,6 +70,43 @@ export const addVeterinarian = async (
     sendSuccess(res, {
       statusCode: 201,
       message: "Veterinarian registered successfully",
+      data: { veterinarian },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateVeterinarian = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const veterinarian = await updateVeterinarianRecord(id as string, req.body);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Veterinarian updated successfully",
+      data: { veterinarian },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateVetSlots = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { availableSlots } = req.body;
+    const veterinarian = await updateVetSlotsRecord(id as string, availableSlots || []);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Veterinarian slots updated successfully",
       data: { veterinarian },
     });
   } catch (error) {

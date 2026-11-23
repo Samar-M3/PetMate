@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart' show careEventsProvider, careVetsProvider;
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../care_events/providers/care_events_provider.dart';
 import '../providers/admin_provider.dart';
 import 'admin_applications_tab.dart';
 import 'admin_dashboard_tab.dart';

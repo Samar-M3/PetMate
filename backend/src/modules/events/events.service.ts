@@ -6,6 +6,26 @@ export const listEvents = async () => {
   });
 };
 
+export const updateEventBookmark = async (id: string, _isBookmarked: boolean) => {
+  const event = await prisma.event.findUnique({ where: { id } });
+  if (!event) {
+    throw new Error("Event not found");
+  }
+  return event;
+};
+
+export const updateEventRsvp = async (id: string, isBooked: boolean) => {
+  const event = await prisma.event.findUnique({ where: { id } });
+  if (!event) {
+    throw new Error("Event not found");
+  }
+  const attendeeCount = Math.max(0, event.attendeeCount + (isBooked ? 1 : -1));
+  return prisma.event.update({
+    where: { id },
+    data: { attendeeCount },
+  });
+};
+
 export const createEvent = async (data: {
   title: string;
   category?: string;

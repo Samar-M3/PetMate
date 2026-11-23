@@ -6,6 +6,18 @@ export const listVeterinarians = async () => {
   });
 };
 
+export const findVetByUser = async (userId?: string, email?: string) => {
+  if (userId) {
+    const vet = await prisma.veterinarian.findUnique({ where: { userId } });
+    if (vet) return vet;
+  }
+  if (email) {
+    const vet = await prisma.veterinarian.findUnique({ where: { email } });
+    if (vet) return vet;
+  }
+  return null;
+};
+
 export const createVeterinarian = async (data: {
   name: string;
   clinicName: string;
@@ -33,6 +45,30 @@ export const createVeterinarian = async (data: {
       isVerified: data.isVerified ?? true,
       isAcceptingBookings: data.isAcceptingBookings ?? true,
     },
+  });
+};
+
+export const updateVeterinarianRecord = async (
+  id: string,
+  data: {
+    name?: string;
+    clinicName?: string;
+    specialty?: string;
+    address?: string;
+    fee?: number;
+    isAcceptingBookings?: boolean;
+  }
+) => {
+  return prisma.veterinarian.update({
+    where: { id },
+    data,
+  });
+};
+
+export const updateVetSlotsRecord = async (id: string, availableSlots: string[]) => {
+  return prisma.veterinarian.update({
+    where: { id },
+    data: { availableSlots },
   });
 };
 

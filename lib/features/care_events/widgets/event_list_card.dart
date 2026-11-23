@@ -1,5 +1,3 @@
-// The event row card with the colored square date badge (SUN 18),
-// category tag, title, location pin, overlapping attendee avatars, and bookmark icon.
 import 'package:flutter/material.dart';
 
 import '../models/app_theme.dart';
@@ -145,6 +143,7 @@ class EventListCard extends StatelessWidget {
               ),
             ),
             IconButton(
+              tooltip: event.isBookmarked ? 'Remove bookmark' : 'Bookmark event',
               onPressed: onBookmarkTap,
               icon: Icon(
                 event.isBookmarked

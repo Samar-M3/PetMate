@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../care_events/providers/care_events_provider.dart';
 
 class AdminEventsTab extends ConsumerWidget {
 const AdminEventsTab({super.key});

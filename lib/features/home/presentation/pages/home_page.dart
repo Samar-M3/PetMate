@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:petmatee/features/care_events/screens/events_home_screen.dart';
+import 'package:petmatee/features/care_events/screens/vet_appts_home_screen.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../care_events/screens/events_home_screen.dart';
-import '../../../care_events/screens/vet_appts_home_screen.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/discovery_provider.dart';
