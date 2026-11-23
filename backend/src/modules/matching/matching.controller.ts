@@ -8,6 +8,8 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   getUserMatches,
+  getMatchChat,
+  unmatchMatch,
   SwipeAction,
 } from "./matching.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
@@ -236,6 +238,60 @@ export const getMatches = async (
       statusCode: 200,
       message: "Matches retrieved successfully",
       data: { matches },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMatchChatHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const { id } = req.params;
+    if (!id || typeof id !== "string") {
+      return next(new AppError("Match id is required", 400));
+    }
+
+    const chat = await getMatchChat(req.user.id, id.trim());
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Chat session retrieved successfully",
+      data: chat,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const unmatchHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const { id } = req.params;
+    if (!id || typeof id !== "string") {
+      return next(new AppError("Match id is required", 400));
+    }
+
+    const result = await unmatchMatch(req.user.id, id.trim());
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Match ended successfully",
+      data: result,
     });
   } catch (error) {
     next(error);

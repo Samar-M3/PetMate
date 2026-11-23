@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 import '../../providers/care_events_provider.dart';
@@ -18,14 +17,7 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final vetsAsync = ref.watch(careVetsProvider);
-    final allVets = vetsAsync.value ?? [];
-
-    final filteredVets = allVets.where((v) {
-      return v.isAcceptingBookings &&
-          (v.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              v.specialty.toLowerCase().contains(_searchQuery.toLowerCase()));
-    }).toList();
+    final vetsAsync = ref.watch(veterinariansProvider);
 
     return Scaffold(
       backgroundColor: CareTheme.background,
@@ -35,63 +27,64 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
         title: const Text(
           'Book a Vet Clinic',
-          style: TextStyle(
-            color: CareTheme.charcoal,
-            fontWeight: FontWeight.bold,
-          ),
+          style:
+          TextStyle(color: CareTheme.charcoal, fontWeight: FontWeight.bold),
         ),
       ),
-      body: RefreshIndicator(
-        color: CareTheme.deepOlive,
-        onRefresh: () async => ref.read(careVetsProvider.notifier).loadVets(),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextField(
-                onChanged: (val) => setState(() => _searchQuery = val),
-                decoration: InputDecoration(
-                  hintText: 'Search doctor or specialty...',
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: CareTheme.mutedText,
-                  ),
-                  filled: true,
-                  fillColor: CareTheme.cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              onChanged: (val) => setState(() => _searchQuery = val),
+              decoration: InputDecoration(
+                hintText: 'Search doctor or specialty...',
+                prefixIcon:
+                const Icon(Icons.search, color: CareTheme.mutedText),
+                filled: true,
+                fillColor: CareTheme.cardBg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: vetsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: CareTheme.deepOlive)),
-                  error: (err, _) => Center(child: Text('Error: $err')),
-                  data: (_) {
-                    if (filteredVets.isEmpty) {
-                      return ListView(
-                        children: const [
-                          SizedBox(height: 80),
-                          Center(
-                            child: Text(
-                              'No veterinarians registered yet.',
-                              style: TextStyle(color: CareTheme.mutedText),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                    return ListView.builder(
-                      itemCount: filteredVets.length,
-                      itemBuilder: (context, index) => _buildVetTile(filteredVets[index]),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: vetsAsync.when(
+                loading: () => const Center(
+                    child:
+                    CircularProgressIndicator(color: CareTheme.terracotta)),
+                error: (err, _) => Center(child: Text('Error: $err')),
+                data: (vets) {
+                  final filteredVets = vets.where((v) {
+                    return v.isAcceptingBookings &&
+                        (v.name
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                            v.specialty
+                                .toLowerCase()
+                                .contains(_searchQuery.toLowerCase()));
+                  }).toList();
+
+                  if (filteredVets.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No verified veterinarians added by admin yet.',
+                        style: TextStyle(color: CareTheme.mutedText),
+                      ),
                     );
-                  },
-                ),
+                  }
+
+                  return ListView.builder(
+                    itemCount: filteredVets.length,
+                    itemBuilder: (context, index) =>
+                        _buildVetTile(filteredVets[index]),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -113,10 +106,8 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
               const CircleAvatar(
                 radius: 26,
                 backgroundColor: CareTheme.sageGreen,
-                child: Icon(
-                  Icons.medical_services_rounded,
-                  color: Colors.white,
-                ),
+                child:
+                Icon(Icons.medical_services_rounded, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -134,16 +125,12 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                     Text(
                       vet.specialty,
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: CareTheme.mutedText,
-                      ),
+                          fontSize: 13, color: CareTheme.mutedText),
                     ),
                     Text(
                       '${vet.clinicName} • ${vet.address}',
                       style: const TextStyle(
-                        fontSize: 12,
-                        color: CareTheme.deepOlive,
-                      ),
+                          fontSize: 12, color: CareTheme.deepOlive),
                     ),
                   ],
                 ),
@@ -151,10 +138,8 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '★ ${vet.rating}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  Text('★ ${vet.rating}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
                     '₹${vet.fee}',
@@ -175,15 +160,13 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 backgroundColor: CareTheme.terracotta,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                    borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => BookAppointmentScreen(vet: vet),
-                  ),
+                      builder: (_) => BookAppointmentScreen(vet: vet)),
                 );
               },
               child: const Text('Select Clinic Slot'),

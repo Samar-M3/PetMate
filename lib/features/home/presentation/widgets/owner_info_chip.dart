@@ -9,6 +9,7 @@ class OwnerInfoChip extends StatelessWidget {
   final String? ownerAge;
   final String ownerLocation;
   final String? ownerAvatarUrl;
+  final VoidCallback? onAvatarTap;
 
   const OwnerInfoChip({
     super.key,
@@ -16,6 +17,7 @@ class OwnerInfoChip extends StatelessWidget {
     this.ownerAge,
     required this.ownerLocation,
     this.ownerAvatarUrl,
+    this.onAvatarTap,
   });
 
   @override
@@ -24,9 +26,12 @@ class OwnerInfoChip extends StatelessWidget {
         ? '$ownerName, $ownerAge'
         : ownerName;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onAvatarTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -96,6 +101,7 @@ class OwnerInfoChip extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

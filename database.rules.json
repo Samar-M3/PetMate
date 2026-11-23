@@ -1,0 +1,41 @@
+{
+  "rules": {
+    "status": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('contacts').child(auth.uid).child($uid).val() === true)",
+        ".write": "auth != null && auth.uid === $uid",
+        "connections": {
+          "$connId": {
+            ".validate": "newData.val() === true"
+          }
+        },
+        "lastOnline": {
+          ".validate": "newData.isNumber()"
+        },
+        "visible": {
+          ".validate": "newData.isBoolean()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "typing": {
+      "$conversationId": {
+        ".read": "auth != null && root.child('conversationMembers').child($conversationId).child(auth.uid).val() === true",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('conversationMembers').child($conversationId).child(auth.uid).val() === true",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "contacts": {
+      ".read": false,
+      ".write": false
+    },
+    "conversationMembers": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

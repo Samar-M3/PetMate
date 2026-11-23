@@ -9,11 +9,15 @@ class PetProfileCard extends StatelessWidget {
   final DiscoveryPet pet;
   final double
   swipeProgress; // Negative for left (pass), positive for right (like)
+  final VoidCallback? onCardTap;
+  final VoidCallback? onOwnerTap;
 
   const PetProfileCard({
     super.key,
     required this.pet,
     this.swipeProgress = 0.0,
+    this.onCardTap,
+    this.onOwnerTap,
   });
 
   @override
@@ -40,11 +44,14 @@ class PetProfileCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // 1. Pet Full Cover Photo with Cloudinary Optimization & Caching
-            AppNetworkImage(
-              imageUrl: pet.petImageUrl,
-              fit: BoxFit.cover,
-              fallbackIcon: Icons.pets,
-              transformationWidth: 1080,
+            Hero(
+              tag: 'pet-photo-${pet.id}',
+              child: AppNetworkImage(
+                imageUrl: pet.petImageUrl,
+                fit: BoxFit.cover,
+                fallbackIcon: Icons.pets,
+                transformationWidth: 1080,
+              ),
             ),
 
             // 2. Subtle Gradient Overlay for Top Contrast
@@ -90,19 +97,63 @@ class PetProfileCard extends StatelessWidget {
               ),
             ),
 
-            // 4. Owner Info Section (Top Left)
+            // 4. Owner Info Section (Top Left) & Details Pill (Top Right)
             Positioned(
               top: 16,
               left: 16,
               right: 16,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: OwnerInfoChip(
-                  ownerName: pet.ownerName,
-                  ownerAge: pet.ownerAge,
-                  ownerLocation: pet.ownerLocation,
-                  ownerAvatarUrl: pet.ownerAvatarUrl,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: OwnerInfoChip(
+                      ownerName: pet.ownerName,
+                      ownerAge: pet.ownerAge,
+                      ownerLocation: pet.ownerLocation,
+                      ownerAvatarUrl: pet.ownerAvatarUrl,
+                      onAvatarTap: onOwnerTap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: onCardTap,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: Colors.white,
+                            size: 15,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Details',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 

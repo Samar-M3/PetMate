@@ -15,7 +15,6 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../widgets/swipeable_card_deck.dart';
-import '../widgets/tab_placeholders.dart';
 import '../../../shop/presentation/pages/shop_home_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -37,6 +36,7 @@ class _HomePageState extends ConsumerState<HomePage>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(requestsProvider.notifier).loadRequests();
+      ref.read(authStateProvider.notifier).refreshUserProfile();
     });
   }
 
@@ -50,17 +50,28 @@ class _HomePageState extends ConsumerState<HomePage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(requestsProvider.notifier).loadRequests(refresh: true);
+      ref.read(authStateProvider.notifier).refreshUserProfile();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).user;
+    final authState = ref.watch(authStateProvider);
+    final user = authState.user;
     final allUserPets = user?.pets ?? [];
     final userPets = allUserPets.where((p) => p.isActive).toList();
     final discoveryState = ref.watch(discoveryProvider);
     final discoveryNotifier = ref.read(discoveryProvider.notifier);
     final requestsState = ref.watch(requestsProvider);
+
+    // If onboarding status says user has pets but user.pets in state is empty, auto-refresh
+    if ((authState.onboardingStatus?.hasPets ?? false) &&
+        allUserPets.isEmpty &&
+        !authState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(authStateProvider.notifier).refreshUserProfile();
+      });
+    }
 
     // Auto-initialize feed for user's primary active pet
     if (userPets.isNotEmpty &&
@@ -90,6 +101,8 @@ class _HomePageState extends ConsumerState<HomePage>
         ref.read(discoveryProvider.notifier).clearSnackbar();
       }
     });
+
+    final unreadChatsCount = ref.watch(unreadChatsCountProvider);
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -182,7 +195,7 @@ class _HomePageState extends ConsumerState<HomePage>
             // 4. Fixed Bottom Navigation Bar
             PetMateBottomNavBar(
               selectedIndex: _selectedNavIndex,
-              pendingRequestsCount: requestsState.pendingCount,
+              pendingRequestsCount: requestsState.pendingCount + unreadChatsCount,
               onItemSelected: (index) {
                 setState(() {
                   _selectedNavIndex = index;

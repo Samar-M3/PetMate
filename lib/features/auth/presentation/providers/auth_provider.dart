@@ -393,7 +393,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final updatedUser = await _repository.updateOwnerProfile(
+      await _repository.updateOwnerProfile(
         fullName: fullName,
         profilePictureUrl: profilePictureUrl ?? imageUrl,
         imageUrl: imageUrl ?? profilePictureUrl,
@@ -406,10 +406,11 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       );
 
       final status = await _repository.getOnboardingStatus();
+      final freshUser = await _repository.getMe();
 
       state = state.copyWith(
         isLoading: false,
-        user: updatedUser,
+        user: freshUser,
         onboardingStatus: status,
       );
 

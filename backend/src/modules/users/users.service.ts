@@ -1,6 +1,10 @@
 import prisma from "../../config/db.ts";
+import { MatchStatus } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import { uploadImage, deleteImage } from "../../services/image.service.ts";
+import { checkPetProfileCompleteness } from "../pets/pets.service.ts";
+import { calculateAgeInMonths, calculateAgeString } from "../matching/matching.service.ts";
+import { endConversation } from "../../services/firestore.service.ts";
 
 export const initializeUserRecord = async (
   firebaseUid: string,
@@ -65,9 +69,9 @@ export const updateOwnerProfile = async (
 ) => {
   const resolvedImageUrl = data.imageUrl || data.profilePictureUrl;
 
-  return await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     // 1. Update phone number or onboarding status on User
-    const updatedUser = await tx.user.update({
+    await tx.user.update({
       where: { id: userId },
       data: {
         phoneNumber: data.phoneNumber || undefined,
@@ -79,7 +83,7 @@ export const updateOwnerProfile = async (
     });
 
     // 2. Upsert Profile
-    const profile = await tx.profile.upsert({
+    await tx.profile.upsert({
       where: { userId },
       update: {
         fullName: data.fullName ?? undefined,
@@ -101,12 +105,9 @@ export const updateOwnerProfile = async (
         bio: data.bio ?? null,
       },
     });
-
-    return {
-      ...updatedUser,
-      profile,
-    };
   });
+
+  return await getUserDetails(userId);
 };
 
 /**
@@ -236,4 +237,169 @@ export const submitRoleApplication = async (
       notes,
     },
   });
+};
+
+export const getPublicUserProfile = async (_callerUserId: string, targetUserId: string) => {
+  if (!targetUserId || typeof targetUserId !== "string" || targetUserId.trim().length === 0) {
+    throw new AppError("User is not available", 404);
+  }
+
+  const trimmedId = targetUserId.trim();
+
+  // If caller and target have a block between them, return 404
+  if (_callerUserId && _callerUserId !== trimmedId) {
+    const block = await prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: _callerUserId, blockedId: trimmedId },
+          { blockerId: trimmedId, blockedId: _callerUserId },
+        ],
+      },
+    });
+    if (block) {
+      throw new AppError("User is not available", 404);
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: trimmedId },
+    include: {
+      profile: true,
+      pets: {
+        where: { isActive: true },
+        include: { images: { orderBy: { createdAt: "asc" } } },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!user || !user.isActive) {
+    throw new AppError("User is not available", 404);
+  }
+
+  // Filter only complete active pets
+  const activeAndCompletePets = user.pets.filter((p) => {
+    const missing = checkPetProfileCompleteness({
+      name: p.name,
+      animalType: p.animalType,
+      breed: p.breed,
+      gender: p.gender,
+      dateOfBirth: p.dateOfBirth,
+      imageUrl: p.imageUrl,
+      profilePictureUrl: p.profilePictureUrl,
+      images: p.images,
+    });
+    return missing.length === 0;
+  });
+
+  const profile = user.profile;
+  const displayName = profile?.fullName || profile?.username || "Pet Parent";
+  const avatarUrl = profile?.profilePictureUrl || profile?.imageUrl || null;
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const memberSince = `${monthNames[user.createdAt.getMonth()]} ${user.createdAt.getFullYear()}`;
+
+  const petCards = activeAndCompletePets.map((p) => {
+    const photoUrl = p.imageUrl || p.profilePictureUrl || p.images[0]?.imageUrl || "";
+    return {
+      id: p.id,
+      name: p.name,
+      species: p.animalType || "Pet",
+      breed: p.breed || "Mixed",
+      ageMonths: calculateAgeInMonths(p.dateOfBirth),
+      ageString: calculateAgeString(p.dateOfBirth),
+      photoUrl,
+    };
+  });
+
+  // Explicit allowlist payload (never return private fields)
+  return {
+    id: user.id,
+    displayName,
+    avatarUrl,
+    memberSince,
+    area: profile?.area || profile?.location || null,
+    bio: profile?.bio || null,
+    pets: petCards,
+  };
+};
+
+export const blockUser = async (blockerId: string, blockedId: string) => {
+  if (blockerId === blockedId) {
+    throw new AppError("You cannot block yourself", 400);
+  }
+
+  const blockedUser = await prisma.user.findUnique({
+    where: { id: blockedId },
+  });
+  if (!blockedUser) {
+    throw new AppError("User not found", 404);
+  }
+
+  await prisma.userBlock.upsert({
+    where: {
+      blockerId_blockedId: { blockerId, blockedId },
+    },
+    update: {},
+    create: {
+      blockerId,
+      blockedId,
+    },
+  });
+
+  // End all active matches between blocker's pets and blocked user's pets
+  const blockerPets = await prisma.pet.findMany({
+    where: { userId: blockerId },
+    select: { id: true },
+  });
+  const blockedPets = await prisma.pet.findMany({
+    where: { userId: blockedId },
+    select: { id: true },
+  });
+
+  const blockerPetIds = blockerPets.map((p) => p.id);
+  const blockedPetIds = blockedPets.map((p) => p.id);
+
+  if (blockerPetIds.length > 0 && blockedPetIds.length > 0) {
+    const activeMatches = await prisma.match.findMany({
+      where: {
+        status: MatchStatus.ACTIVE,
+        OR: [
+          { petAId: { in: blockerPetIds }, petBId: { in: blockedPetIds } },
+          { petAId: { in: blockedPetIds }, petBId: { in: blockerPetIds } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (activeMatches.length > 0) {
+      await prisma.match.updateMany({
+        where: { id: { in: activeMatches.map((m) => m.id) } },
+        data: {
+          status: MatchStatus.ENDED,
+          endedAt: new Date(),
+          endedBy: blockerId,
+        },
+      });
+
+      for (const m of activeMatches) {
+        await endConversation(m.id, "BLOCKED");
+      }
+    }
+  }
+
+  return { success: true, blockedUserId: blockedId };
 };

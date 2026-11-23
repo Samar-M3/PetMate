@@ -99,6 +99,9 @@ model User {
   slotEntitlements    ActiveSlotEntitlement[]
   payments            SlotPayment[]
   downgradeMessages   UserDowngradeMessage[]
+  blocksGiven         UserBlock[]             @relation("BlocksGiven")
+  blocksReceived      UserBlock[]             @relation("BlocksReceived")
+  chatReports         ChatReport[]
 
   @@map("users")
 }
@@ -244,6 +247,7 @@ model Match {
 
   petA      Pet         @relation("MatchesAsPetA", fields: [petAId], references: [id], onDelete: Cascade)
   petB      Pet         @relation("MatchesAsPetB", fields: [petBId], references: [id], onDelete: Cascade)
+  reports   ChatReport[]
 
   @@unique([petAId, petBId])
   @@index([petAId, status])
@@ -315,6 +319,40 @@ model UserDowngradeMessage {
 
   @@index([userId, read, createdAt])
   @@map("user_downgrade_messages")
+}
+
+model UserBlock {
+  id         String   @id @default(uuid())
+  blockerId  String   @map("blocker_id")
+  blockedId  String   @map("blocked_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  blocker    User     @relation("BlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model ChatReport {
+  id             String   @id @default(uuid())
+  reporterId     String   @map("reporter_id")
+  conversationId String   @map("conversation_id")
+  messageId      String?  @map("message_id")
+  reason         String
+  snapshot       Json?
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  reporter       User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  match          Match    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([reporterId])
+  @@index([status, createdAt])
+  @@map("chat_reports")
 }
 
 model Event {

@@ -1,126 +1,329 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/api_client.dart';
+import '../../domain/entities/chat_entities.dart';
 import '../models/match_conversation_model.dart';
+
+final firestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return FirebaseFirestore.instance;
+});
 
 class ChatRepository {
   final ApiClient _apiClient;
+  final FirebaseFirestore _firestore;
 
-  ChatRepository(this._apiClient);
+  ChatRepository(this._apiClient, this._firestore);
 
+  // 1. PostgreSQL Matches List
   Future<List<MatchConversationModel>> getMatches() async {
     try {
       final response = await _apiClient.get('/matches');
       if (response is Map<String, dynamic> && response['matches'] is List) {
-        final list = (response['matches'] as List)
+        return (response['matches'] as List)
             .whereType<Map<String, dynamic>>()
             .map((m) => MatchConversationModel.fromJson(m))
             .toList();
-
-        if (list.isNotEmpty) {
-          return list;
-        }
       }
     } catch (_) {
-      // Gracefully fall back to demo matches if network is offline or table is empty
+      // Return empty list on failure; no mock demo data
     }
-
-    // Return rich default matches so user can test the WhatsApp UI immediately
-    return _getDemoMatches();
+    return [];
   }
 
-  List<MatchConversationModel> _getDemoMatches() {
-    final now = DateTime.now();
-    return [
-      MatchConversationModel(
-        matchId: 'demo-match-1',
-        myPet: const MatchPetInfo(
-          id: 'my-pet-1',
-          name: 'My Pet',
-          breed: 'Golden Retriever',
-        ),
-        otherPet: const MatchPetInfo(
-          id: 'demo-pet-1',
-          name: 'Bella',
-          breed: 'Labrador Retriever',
-          species: 'Dog',
-          imageUrl:
-              'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=500&q=80',
-        ),
-        otherOwner: const MatchOwnerInfo(
-          id: 'demo-owner-1',
-          name: 'Sarah Jenkins',
-          imageUrl:
-              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
-          location: 'Jhamsikhel, Lalitpur',
-        ),
-        matchedAt: now.subtract(const Duration(hours: 2)),
-        lastMessage: 'Hey! Loved your pet profile! When are you free for a walk? 🐾',
-        lastMessageTime: now.subtract(const Duration(minutes: 14)),
-        unreadCount: 1,
-        isOnline: true,
-      ),
-      MatchConversationModel(
-        matchId: 'demo-match-2',
-        myPet: const MatchPetInfo(
-          id: 'my-pet-1',
-          name: 'My Pet',
-          breed: 'Golden Retriever',
-        ),
-        otherPet: const MatchPetInfo(
-          id: 'demo-pet-2',
-          name: 'Rocky',
-          breed: 'German Shepherd',
-          species: 'Dog',
-          imageUrl:
-              'https://images.unsplash.com/photo-1589941013453-ec89f33b5455?auto=format&fit=crop&w=500&q=80',
-        ),
-        otherOwner: const MatchOwnerInfo(
-          id: 'demo-owner-2',
-          name: 'Aarav Sharma',
-          imageUrl:
-              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-          location: 'Sanepa, Lalitpur',
-        ),
-        matchedAt: now.subtract(const Duration(days: 1)),
-        lastMessage: 'Sounds great! See you at Central Dog Park on Saturday! 🐶',
-        lastMessageTime: now.subtract(const Duration(hours: 3)),
-        unreadCount: 0,
-        isOnline: false,
-      ),
-      MatchConversationModel(
-        matchId: 'demo-match-3',
-        myPet: const MatchPetInfo(
-          id: 'my-pet-1',
-          name: 'My Pet',
-          breed: 'Golden Retriever',
-        ),
-        otherPet: const MatchPetInfo(
-          id: 'demo-pet-3',
-          name: 'Luna',
-          breed: 'Persian Cat',
-          species: 'Cat',
-          imageUrl:
-              'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=500&q=80',
-        ),
-        otherOwner: const MatchOwnerInfo(
-          id: 'demo-owner-3',
-          name: 'Priya Shrestha',
-          imageUrl:
-              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-          location: 'Baluwatar, Kathmandu',
-        ),
-        matchedAt: now.subtract(const Duration(days: 2)),
-        lastMessage: '🐾 It\'s a match! Tap to start chatting...',
-        lastMessageTime: now.subtract(const Duration(days: 1)),
-        unreadCount: 0,
-        isOnline: true,
-      ),
-    ];
+  // 2. Chat Access & Verification (PostgreSQL + Firestore repair)
+  Future<Map<String, dynamic>> getMatchChat(String matchId) async {
+    final response = await _apiClient.get('/matches/$matchId/chat');
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    throw Exception('Failed to get match chat');
+  }
+
+  // 3. Unmatch
+  Future<void> unmatch(String matchId) async {
+    await _apiClient.post('/matches/$matchId/unmatch', body: {});
+  }
+
+  // 4. Block User
+  Future<void> blockUser(String userId) async {
+    await _apiClient.post('/users/$userId/block', body: {});
+  }
+
+  // 5. Report Conversation / Message
+  Future<void> reportChat(
+    String conversationId, {
+    String? messageId,
+    required String reason,
+  }) async {
+    await _apiClient.post(
+      '/chats/$conversationId/report',
+      body: {
+        if (messageId != null && messageId.isNotEmpty) 'messageId': messageId,
+        'reason': reason,
+      },
+    );
+  }
+
+  // 6. Firestore Conversations Stream
+  Stream<List<FirestoreConversation>> watchConversations(String myUid) {
+    if (myUid.isEmpty) return Stream.value(<FirestoreConversation>[]);
+    return _firestore
+        .collection('conversations')
+        .where('participantUids', arrayContains: myUid)
+        .orderBy('lastMessageAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => FirestoreConversation.fromFirestore(d))
+            .toList());
+  }
+
+  // 7. Single Conversation Stream
+  Stream<FirestoreConversation?> watchConversation(String conversationId) {
+    if (conversationId.isEmpty) {
+      return Stream<FirestoreConversation?>.value(null);
+    }
+    return _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .snapshots()
+        .map((doc) =>
+            doc.exists ? FirestoreConversation.fromFirestore(doc) : null);
+  }
+
+  // 8. Messages Stream (Newest first, with limit)
+  Stream<List<FirestoreMessage>> watchMessages(
+    String conversationId, {
+    int limit = 30,
+  }) {
+    if (conversationId.isEmpty) return Stream.value(<FirestoreMessage>[]);
+    return _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => FirestoreMessage.fromFirestore(d))
+            .toList());
+  }
+
+  // 9. Send Text Message (with optional reply)
+  Future<void> sendMessage(
+    String conversationId,
+    String text,
+    String myUid,
+    String otherUid, {
+    ReplyToData? replyTo,
+  }) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || myUid.isEmpty) return;
+    if (trimmed.length > 1000) {
+      throw Exception('Message cannot exceed 1000 characters');
+    }
+
+    final batch = _firestore.batch();
+    final convRef = _firestore.collection('conversations').doc(conversationId);
+    final msgRef = convRef.collection('messages').doc();
+
+    final msgData = <String, dynamic>{
+      'senderUid': myUid,
+      'text': trimmed,
+      'type': 'text',
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    if (replyTo != null) {
+      msgData['replyTo'] = replyTo.toMap();
+    }
+
+    batch.set(msgRef, msgData);
+
+    final Map<String, dynamic> convUpdate = {
+      'lastMessage': {
+        'text': trimmed,
+        'senderUid': myUid,
+        'type': 'text',
+      },
+      'lastMessageAt': FieldValue.serverTimestamp(),
+    };
+
+    if (otherUid.isNotEmpty) {
+      convUpdate['unread.$otherUid'] = FieldValue.increment(1);
+    }
+
+    batch.update(convRef, convUpdate);
+    await batch.commit();
+  }
+
+  // 10. Mark Read
+  Future<void> markRead(String conversationId, String myUid) async {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    try {
+      final convRef = _firestore.collection('conversations').doc(conversationId);
+      await convRef.update({
+        'unread.$myUid': 0,
+        'lastRead.$myUid': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Ignored if document is not yet loaded or client is offline
+    }
+  }
+
+  // 10b. Mark Delivered (delivery watermark)
+  Future<void> markDelivered(String conversationId, String myUid) async {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    try {
+      await _firestore.collection('conversations').doc(conversationId).update({
+        'deliveredAt.$myUid': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  // 10c. Mark Seen and Read (read receipt + zero unread counter)
+  Future<void> markSeenAndRead(String conversationId, String myUid, {bool includeSeenReceipt = true}) async {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    try {
+      final updates = <String, dynamic>{
+        'unread.$myUid': 0,
+        'lastRead.$myUid': FieldValue.serverTimestamp(),
+      };
+      if (includeSeenReceipt) {
+        updates['seenAt.$myUid'] = FieldValue.serverTimestamp();
+      }
+      await _firestore.collection('conversations').doc(conversationId).update(updates);
+    } catch (_) {}
+  }
+
+  // 11. Delete for me (direct Firestore update — rules allow adding own uid)
+  Future<void> deleteForMe(
+    String conversationId,
+    String messageId,
+    String myUid,
+  ) async {
+    if (conversationId.isEmpty || messageId.isEmpty || myUid.isEmpty) return;
+    final msgRef = _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId);
+    await msgRef.update({
+      'deletedFor': FieldValue.arrayUnion([myUid]),
+    });
+  }
+
+  // 12. Delete for everyone (via backend)
+  Future<void> deleteForEveryone(
+    String conversationId,
+    String messageId,
+  ) async {
+    await _apiClient.delete(
+      '/chats/$conversationId/messages/$messageId?scope=everyone',
+    );
+  }
+
+  // 16. Batch delete for me (direct Firestore updates)
+  Future<void> batchDeleteForMe(
+    String conversationId,
+    List<String> messageIds,
+    String myUid,
+  ) async {
+    if (conversationId.isEmpty || messageIds.isEmpty || myUid.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final id in messageIds) {
+      final ref = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(id);
+      batch.update(ref, {
+        'deletedFor': FieldValue.arrayUnion([myUid]),
+      });
+    }
+    await batch.commit();
+  }
+
+  // 17. Batch delete for everyone (via backend)
+  Future<Map<String, dynamic>> batchDeleteForEveryone(
+    String conversationId,
+    List<String> messageIds,
+  ) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/messages/delete',
+      body: {
+        'messageIds': messageIds,
+        'scope': 'everyone',
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to batch delete messages');
+  }
+
+  // 13. Request media upload signature from backend
+  Future<Map<String, dynamic>> requestMediaSignature(
+    String conversationId, {
+    required String kind,
+    required String mimeType,
+    required int sizeBytes,
+  }) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/media/signature',
+      body: {
+        'kind': kind,
+        'mimeType': mimeType,
+        'sizeBytes': sizeBytes,
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to get upload signature');
+  }
+
+  // 14. Create media message via backend
+  Future<Map<String, dynamic>> createMediaMessage(
+    String conversationId, {
+    required String clientMessageId,
+    required List<Map<String, dynamic>> items,
+    String? caption,
+    ReplyToData? replyTo,
+  }) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/messages/media',
+      body: {
+        'clientMessageId': clientMessageId,
+        'items': items,
+        if (caption != null && caption.trim().isNotEmpty)
+          'caption': caption.trim(),
+        if (replyTo != null) 'replyTo': replyTo.toMap(),
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to create media message');
+  }
+
+  // 15. Get signed delivery URLs for media
+  Future<Map<String, String>> getMediaUrls(
+    String conversationId,
+    List<String> publicIds, {
+    List<Map<String, dynamic>>? items,
+  }) async {
+    if (publicIds.isEmpty && (items == null || items.isEmpty)) return {};
+    final response = await _apiClient.post(
+      '/chats/$conversationId/media/urls',
+      body: {
+        'publicIds': publicIds,
+        'items': ?items,
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return response.map((k, v) => MapEntry(k, v.toString()));
+    }
+    throw Exception('Failed to get media URLs');
   }
 }
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  return ChatRepository(apiClient);
+  final firestore = ref.watch(firestoreProvider);
+  return ChatRepository(apiClient, firestore);
 });

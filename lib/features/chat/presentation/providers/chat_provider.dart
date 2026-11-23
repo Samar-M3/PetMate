@@ -1,11 +1,47 @@
-import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../domain/entities/chat_entities.dart';
 
 // ---------------------------------------------------------------------------
-// Conversations list state & notifier
+// Current Authenticated Firebase UID
+// ---------------------------------------------------------------------------
+
+final currentFirebaseUidProvider = Provider<String>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final directUid = authState.firebaseUser?.uid ??
+      FirebaseAuth.instance.currentUser?.uid ??
+      authState.user?.firebaseUid ??
+      '';
+  return directUid;
+});
+
+// ---------------------------------------------------------------------------
+// Firestore Conversations Stream
+// ---------------------------------------------------------------------------
+
+final firestoreConversationsStreamProvider =
+    StreamProvider<List<FirestoreConversation>>((ref) {
+  final myUid = ref.watch(currentFirebaseUidProvider);
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchConversations(myUid);
+});
+
+// ---------------------------------------------------------------------------
+// Raw PostgreSQL Matches List Provider
+// ---------------------------------------------------------------------------
+
+final postgresMatchesProvider =
+    FutureProvider<List<MatchConversationModel>>((ref) async {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.getMatches();
+});
+
+// ---------------------------------------------------------------------------
+// Joined Conversations List (Matches + Real-time Firestore State)
 // ---------------------------------------------------------------------------
 
 class ChatConversationsState {
@@ -33,35 +69,62 @@ class ChatConversationsState {
 }
 
 class ChatConversationsNotifier extends Notifier<ChatConversationsState> {
-  ChatRepository get _repository => ref.read(chatRepositoryProvider);
-
   @override
   ChatConversationsState build() {
-    Future.microtask(() => loadConversations());
-    return const ChatConversationsState(isLoading: true);
+    final matchesAsync = ref.watch(postgresMatchesProvider);
+    final firestoreAsync = ref.watch(firestoreConversationsStreamProvider);
+    final myUid = ref.watch(currentFirebaseUidProvider);
+
+    if (matchesAsync.isLoading && !matchesAsync.hasValue) {
+      return const ChatConversationsState(isLoading: true);
+    }
+
+    if (matchesAsync.hasError) {
+      return ChatConversationsState(
+        isLoading: false,
+        errorMessage: matchesAsync.error.toString(),
+      );
+    }
+
+    final matches = matchesAsync.value ?? [];
+    final firestoreConvs = firestoreAsync.value ?? [];
+    final firestoreMap = {for (final c in firestoreConvs) c.matchId: c};
+
+    // Join PostgreSQL match data with real-time Firestore conversation updates
+    final joined = matches.map((match) {
+      final fConv = firestoreMap[match.matchId];
+      if (fConv == null) {
+        return match;
+      }
+
+      final otherUid = fConv.participantUids.firstWhere(
+        (uid) => uid != myUid,
+        orElse: () => '',
+      );
+
+      return match.copyWith(
+        lastMessage: fConv.lastMessageText ?? match.lastMessage,
+        lastMessageTime: fConv.lastMessageAt ?? match.lastMessageTime,
+        unreadCount: fConv.unreadFor(myUid),
+        otherFirebaseUid: otherUid.isNotEmpty ? otherUid : null,
+      );
+    }).toList();
+
+    // Sort descending by latest message / match time
+    joined.sort((a, b) {
+      final timeA = a.lastMessageTime ?? a.matchedAt;
+      final timeB = b.lastMessageTime ?? b.matchedAt;
+      return timeB.compareTo(timeA);
+    });
+
+    return ChatConversationsState(
+      conversations: joined,
+      isLoading: false,
+    );
   }
 
   Future<void> loadConversations() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final list = await _repository.getMatches();
-      state = state.copyWith(conversations: list, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
-    }
-  }
-
-  void updateLastMessage(String matchId, String text) {
-    final updated = state.conversations.map((conv) {
-      if (conv.matchId == matchId) {
-        return conv.copyWith(
-          lastMessage: text,
-          lastMessageTime: DateTime.now(),
-        );
-      }
-      return conv;
-    }).toList();
-    state = state.copyWith(conversations: updated);
+    ref.invalidate(postgresMatchesProvider);
   }
 }
 
@@ -71,92 +134,147 @@ final chatConversationsProvider =
 );
 
 // ---------------------------------------------------------------------------
-// Active 1-on-1 chat room (family provider keyed by match)
+// Total Unread Count Provider (for Badges)
 // ---------------------------------------------------------------------------
 
-class ActiveChatNotifier extends Notifier<List<ChatMessageModel>> {
-  final MatchConversationModel match;
-
-  ActiveChatNotifier(this.match);
-
-  @override
-  List<ChatMessageModel> build() {
-    final now = DateTime.now();
-    return [
-      ChatMessageModel(
-        id: 'msg-1',
-        senderId: match.otherOwner.id,
-        text:
-            'Hello! I saw ${match.myPet.name} on PetMate! Such an adorable pet! 🐾',
-        createdAt: now.subtract(const Duration(hours: 2, minutes: 15)),
-        isMine: false,
-      ),
-      ChatMessageModel(
-        id: 'msg-2',
-        senderId: 'my-user-id',
-        text:
-            'Hi ${match.otherOwner.name}! Thank you! ${match.otherPet.name} is super cute too! How old are they?',
-        createdAt: now.subtract(const Duration(hours: 1, minutes: 45)),
-        isMine: true,
-      ),
-      ChatMessageModel(
-        id: 'msg-3',
-        senderId: match.otherOwner.id,
-        text: match.lastMessage ??
-            'Would love to set up a weekend playdate at the park if you are free!',
-        createdAt:
-            match.lastMessageTime ?? now.subtract(const Duration(minutes: 20)),
-        isMine: false,
-      ),
-    ];
+final unreadChatsCountProvider = Provider<int>((ref) {
+  final convsState = ref.watch(chatConversationsProvider);
+  int count = 0;
+  for (final c in convsState.conversations) {
+    count += c.unreadCount;
   }
+  return count;
+});
 
-  void sendMessage(String text) {
-    if (text.trim().isEmpty) return;
+// ---------------------------------------------------------------------------
+// Single Conversation Document Stream
+// ---------------------------------------------------------------------------
 
-    final newMsg = ChatMessageModel(
-      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
-      senderId: 'my-user-id',
-      text: text.trim(),
-      createdAt: DateTime.now(),
-      isMine: true,
-      isRead: true,
-    );
+final singleConversationProvider =
+    StreamProvider.family<FirestoreConversation?, String>((ref, matchId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchConversation(matchId);
+});
 
-    state = [...state, newMsg];
+// ---------------------------------------------------------------------------
+// Messages Stream Provider (family by matchId and pagination limit)
+// ---------------------------------------------------------------------------
 
-    // Update conversation list preview
-    ref
-        .read(chatConversationsProvider.notifier)
-        .updateLastMessage(match.matchId, text.trim());
+final messagesStreamProvider =
+    StreamProvider.family<List<FirestoreMessage>, ({String matchId, int limit})>(
+  (ref, arg) {
+    final repo = ref.watch(chatRepositoryProvider);
+    return repo.watchMessages(arg.matchId, limit: arg.limit);
+  },
+);
 
-    // Friendly auto-reply simulation after 1.4 seconds
-    Timer(const Duration(milliseconds: 1400), () {
-      final replies = [
-        'That sounds like a wonderful plan! ${match.otherPet.name} will be thrilled! 🐕✨',
-        'Awesome! Saturday afternoon around 4 PM works great for us at the park.',
-        'Sounds good! Let\'s coordinate closer to the time. See you soon! 🐾',
-      ];
-      final randomReply = (replies..shuffle()).first;
+// ---------------------------------------------------------------------------
+// Media URL Cache Provider
+// ---------------------------------------------------------------------------
 
-      final replyMsg = ChatMessageModel(
-        id: 'reply-${DateTime.now().millisecondsSinceEpoch}',
-        senderId: match.otherOwner.id,
-        text: randomReply,
-        createdAt: DateTime.now(),
-        isMine: false,
-      );
-
-      state = [...state, replyMsg];
-
-      ref
-          .read(chatConversationsProvider.notifier)
-          .updateLastMessage(match.matchId, randomReply);
-    });
-  }
+class CachedMediaUrl {
+  final String url;
+  final DateTime expiresAt;
+  const CachedMediaUrl({required this.url, required this.expiresAt});
 }
 
-final activeChatProvider = NotifierProvider.family<ActiveChatNotifier,
-    List<ChatMessageModel>, MatchConversationModel>(
-  (match) => ActiveChatNotifier(match),
+class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
+  @override
+  Map<String, CachedMediaUrl> build() => {};
+
+  Future<String?> getUrl(
+    String conversationId,
+    String publicId, {
+    String? kind,
+    bool isThumbnail = false,
+  }) async {
+    final cached = state[publicId];
+    if (cached != null &&
+        cached.expiresAt
+            .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+      return cached.url;
+    }
+
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final urls = await repo.getMediaUrls(
+        conversationId,
+        [publicId],
+        items: [
+          {
+            'publicId': publicId,
+            'kind': ?kind,
+            'thumbnail': isThumbnail,
+          }
+        ],
+      );
+      final url = urls[publicId];
+      if (url != null) {
+        state = {
+          ...state,
+          publicId: CachedMediaUrl(
+            url: url,
+            expiresAt: DateTime.now().add(const Duration(minutes: 55)),
+          ),
+        };
+      }
+      return url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, String>> getUrls(
+    String conversationId,
+    List<String> publicIds, {
+    List<Map<String, dynamic>>? items,
+  }) async {
+    final needed = <String>[];
+    final result = <String, String>{};
+
+    for (final id in publicIds) {
+      final cached = state[id];
+      if (cached != null &&
+          cached.expiresAt
+              .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+        result[id] = cached.url;
+      } else {
+        needed.add(id);
+      }
+    }
+
+    if (needed.isNotEmpty) {
+      try {
+        final repo = ref.read(chatRepositoryProvider);
+        final neededItems = items
+            ?.where((it) => needed.contains(it['publicId']))
+            .toList();
+        final urls = await repo.getMediaUrls(
+          conversationId,
+          needed,
+          items: neededItems,
+        );
+        final newState = Map<String, CachedMediaUrl>.from(state);
+        for (final entry in urls.entries) {
+          result[entry.key] = entry.value;
+          newState[entry.key] = CachedMediaUrl(
+            url: entry.value,
+            expiresAt: DateTime.now().add(const Duration(minutes: 55)),
+          );
+        }
+        state = newState;
+      } catch (_) {
+        // Return what we have from cache
+      }
+    }
+
+    return result;
+  }
+
+  void clear() => state = {};
+}
+
+final mediaUrlCacheProvider =
+    NotifierProvider<MediaUrlCache, Map<String, CachedMediaUrl>>(
+  MediaUrlCache.new,
 );
