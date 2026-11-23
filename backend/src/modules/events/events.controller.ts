@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { listEvents, createEvent, deleteEvent } from "./events.service.ts";
+import { listEvents, createEvent, deleteEvent, updateEventBookmark, updateEventRsvp } from "./events.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
@@ -14,6 +14,44 @@ export const getEvents = async (
       statusCode: 200,
       message: "Events retrieved successfully",
       data: { events },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bookmarkEvent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { isBookmarked } = req.body;
+    const event = await updateEventBookmark(id as string, !!isBookmarked);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Event bookmark updated successfully",
+      data: { event },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rsvpEvent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { isBooked } = req.body;
+    const event = await updateEventRsvp(id as string, !!isBooked);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Event RSVP updated successfully",
+      data: { event },
     });
   } catch (error) {
     next(error);

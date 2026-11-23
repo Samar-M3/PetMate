@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../providers/admin_provider.dart';
@@ -24,6 +25,11 @@ class AdminDashboardTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(adminStatsProvider);
+    // Prefer the live vet list; fall back to what /admin/stats reports.
+    final vetListCount = ref.watch(careVetsProvider).maybeWhen(
+      data: (vets) => vets.length,
+      orElse: () => null,
+    );
 
     return statsAsync.when(
       loading: () => const Center(
@@ -59,12 +65,12 @@ class AdminDashboardTab extends ConsumerWidget {
                       builder: (context, constraints) {
                         final isWide = constraints.maxWidth >= 850;
                         return GridView.builder(
-                          itemCount: 4,
+                          itemCount: 5,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: isWide ? 4 : 2,
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isWide ? 5 : 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                             mainAxisExtent: 105,
@@ -92,6 +98,19 @@ class AdminDashboardTab extends ConsumerWidget {
                                   icon: Icons.event_available_rounded,
                                   iconColor: AppColors.info,
                                   subtitle: 'Community care',
+                                );
+                              case 3:
+                                final vets = vetListCount ??
+                                    (stats.safeTotalVeterinarians > 0
+                                        ? stats.safeTotalVeterinarians
+                                        : (stats.usersByRole['VETERINARIAN'] ??
+                                        0));
+                                return StatCard(
+                                  title: 'Veterinarians',
+                                  value: vets.toString(),
+                                  icon: Icons.medical_services_rounded,
+                                  iconColor: AppColors.success,
+                                  subtitle: 'Trusted doctors',
                                 );
                               default:
                                 return StatCard(

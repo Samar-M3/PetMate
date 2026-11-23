@@ -1,16 +1,19 @@
+import '../utils/care_format.dart';
+
 class Vet {
   final String id;
   final String name;
   final String clinicName;
   final String specialty;
   final String address;
-  final double rating;
+  final double rating; // 0 means "no ratings yet"
   final int fee;
   final bool isVerified;
   final bool isAcceptingBookings;
   final List<String> availableSlots;
+  final String? email;
 
-  Vet({
+  const Vet({
     required this.id,
     required this.name,
     required this.clinicName,
@@ -21,40 +24,55 @@ class Vet {
     this.isVerified = true,
     this.isAcceptingBookings = true,
     required this.availableSlots,
+    this.email,
   });
 
-  factory Vet.fromJson(Map<String, dynamic> json) {
-    final rawSlots = json['availableSlots'] ?? json['available_slots'];
-    final slotsList = rawSlots is List
-        ? rawSlots.map((s) => s.toString()).toList()
-        : <String>['10:00 AM', '01:00 PM', '03:30 PM'];
+  factory Vet.fromJson(Map<String, dynamic> j) {
+    final rawSlots = j['availableSlots'] ?? j['available_slots'];
+    final slots = rawSlots is List
+        ? sortedSlots(rawSlots.map((s) => s.toString()))
+        : <String>[];
 
     return Vet(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      clinicName: json['clinicName'] as String? ?? json['clinic_name'] as String? ?? '',
-      specialty: json['specialty'] as String? ?? '',
-      address: json['address'] as String? ?? '',
-      rating: (json['rating'] is num) ? (json['rating'] as num).toDouble() : 5.0,
-      fee: (json['fee'] is num) ? (json['fee'] as num).toInt() : 500,
-      isVerified: json['isVerified'] as bool? ?? json['is_verified'] as bool? ?? true,
-      isAcceptingBookings: json['isAcceptingBookings'] as bool? ?? json['is_accepting_bookings'] as bool? ?? true,
-      availableSlots: slotsList,
+      id: j['id'].toString(),
+      name: (j['name'] ??
+              j['fullName'] ??
+              j['user']?['profile']?['fullName'] ??
+              'Veterinarian')
+          .toString(),
+      clinicName: (j['clinicName'] ?? 'Partner Clinic').toString(),
+      specialty: (j['specialty'] ?? 'General Veterinary Care').toString(),
+      address: (j['address'] ?? '').toString(),
+      rating: (j['rating'] as num?)?.toDouble() ?? 0,
+      fee: (j['fee'] as num?)?.toInt() ?? 0,
+      isVerified: j['isVerified'] != false,
+      isAcceptingBookings: j['isAcceptingBookings'] != false,
+      availableSlots: slots,
+      email: (j['email'] ?? j['user']?['email'])?.toString(),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'clinicName': clinicName,
-      'specialty': specialty,
-      'address': address,
-      'rating': rating,
-      'fee': fee,
-      'isVerified': isVerified,
-      'isAcceptingBookings': isAcceptingBookings,
-      'availableSlots': availableSlots,
-    };
+  Vet copyWith({
+    String? name,
+    String? clinicName,
+    String? specialty,
+    String? address,
+    int? fee,
+    bool? isAcceptingBookings,
+    List<String>? availableSlots,
+  }) {
+    return Vet(
+      id: id,
+      name: name ?? this.name,
+      clinicName: clinicName ?? this.clinicName,
+      specialty: specialty ?? this.specialty,
+      address: address ?? this.address,
+      rating: rating,
+      fee: fee ?? this.fee,
+      isVerified: isVerified,
+      isAcceptingBookings: isAcceptingBookings ?? this.isAcceptingBookings,
+      availableSlots: availableSlots ?? this.availableSlots,
+      email: email,
+    );
   }
 }

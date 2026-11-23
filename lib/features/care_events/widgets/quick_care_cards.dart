@@ -1,19 +1,17 @@
-// The two side-by-side cards under "Care for Toto"
-// (Video consult with the green online indicator dot, and Health records with the upcoming vaccine date).
 import 'package:flutter/material.dart';
 
 import '../models/app_theme.dart';
 
 class QuickCareCards extends StatelessWidget {
   final int upcomingCount;
-  final String nextVaccineDate;
+  final String? nextVaccineDate;
   final VoidCallback onMyAppointmentsTap;
   final VoidCallback onHealthRecordsTap;
 
   const QuickCareCards({
     super.key,
     required this.upcomingCount,
-    required this.nextVaccineDate,
+    this.nextVaccineDate,
     required this.onMyAppointmentsTap,
     required this.onHealthRecordsTap,
   });
@@ -39,7 +37,9 @@ class QuickCareCards extends StatelessWidget {
             icon: Icons.verified_user_rounded,
             iconColor: CareTheme.deepOlive,
             title: 'Health records',
-            subtitle: 'Due: $nextVaccineDate',
+            subtitle: nextVaccineDate == null
+                ? 'No vaccines due'
+                : 'Due: $nextVaccineDate',
             onTap: onHealthRecordsTap,
           ),
         ),

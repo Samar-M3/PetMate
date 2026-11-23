@@ -1,16 +1,29 @@
-// The large top card from your mockup featuring the clinic photo,
-// "Trusted care" badge, "★ 4.9" pill, "Book a Vet" heading, "from ₹499" text, and the circular terracotta arrow button.
 import 'package:flutter/material.dart';
 
 import '../models/app_theme.dart';
+import '../utils/care_format.dart';
 
 class BookVetHeroCard extends StatelessWidget {
   final VoidCallback onTap;
 
-  const BookVetHeroCard({super.key, required this.onTap});
+  /// Lowest consultation fee across listed vets; hidden when unknown.
+  final int? startingFee;
+
+  /// Average vet rating; the pill is hidden when there are no ratings yet.
+  final double? rating;
+
+  const BookVetHeroCard({
+    super.key,
+    required this.onTap,
+    this.startingFee,
+    this.rating,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final hasFee = startingFee != null && startingFee! > 0;
+    final hasRating = rating != null && rating! > 0;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -28,7 +41,6 @@ class BookVetHeroCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Clinic Banner
             Container(
               height: 145,
               decoration: const BoxDecoration(
@@ -48,15 +60,8 @@ class BookVetHeroCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CareTheme.deepOlive,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                      _pill(
+                        color: CareTheme.deepOlive,
                         child: const Text(
                           'Trusted care',
                           style: TextStyle(
@@ -66,61 +71,59 @@ class BookVetHeroCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
+                      if (hasRating)
+                        _pill(
                           color: CareTheme.cardBg,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.star, size: 14, color: Colors.amber),
-                            SizedBox(width: 4),
-                            Text(
-                              '4.9',
-                              style: TextStyle(
-                                color: CareTheme.charcoal,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.star,
+                                  size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text(
+                                rating!.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  color: CareTheme.charcoal,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            // Bottom Action Row
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Book a Vet',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: CareTheme.charcoal,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Book a Vet',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: CareTheme.charcoal,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'In-clinic checkups from ₹499',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: CareTheme.mutedText,
+                        const SizedBox(height: 4),
+                        Text(
+                          hasFee
+                              ? 'In-clinic checkups from ${formatFee(startingFee!)}'
+                              : 'In-clinic checkups with trusted vets',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: CareTheme.mutedText,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Container(
                     width: 44,
@@ -140,6 +143,17 @@ class BookVetHeroCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  static Widget _pill({required Color color, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: child,
     );
   }
 }

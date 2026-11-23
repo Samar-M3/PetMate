@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 import '../../providers/care_events_provider.dart';
+import '../../utils/care_format.dart';
+import '../../widgets/care_ui.dart';
 import 'book_appointment_screen.dart';
 
 class VetListScreen extends ConsumerStatefulWidget {
@@ -15,22 +18,21 @@ class VetListScreen extends ConsumerStatefulWidget {
 class _VetListScreenState extends ConsumerState<VetListScreen> {
   String _searchQuery = '';
 
+  bool _matches(Vet v) {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return v.name.toLowerCase().contains(q) ||
+        v.specialty.toLowerCase().contains(q) ||
+        v.clinicName.toLowerCase().contains(q);
+  }
+
   @override
   Widget build(BuildContext context) {
     final vetsAsync = ref.watch(veterinariansProvider);
 
     return Scaffold(
       backgroundColor: CareTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareTheme.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text(
-          'Book a Vet Clinic',
-          style:
-          TextStyle(color: CareTheme.charcoal, fontWeight: FontWeight.bold),
-        ),
-      ),
+      appBar: careAppBar('Book a Vet Clinic'),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -38,9 +40,9 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
             TextField(
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
-                hintText: 'Search doctor or specialty...',
+                hintText: 'Search doctor, clinic or specialty...',
                 prefixIcon:
-                const Icon(Icons.search, color: CareTheme.mutedText),
+                    const Icon(Icons.search, color: CareTheme.mutedText),
                 filled: true,
                 fillColor: CareTheme.cardBg,
                 border: OutlineInputBorder(
@@ -52,34 +54,35 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: vetsAsync.when(
-                loading: () => const Center(
-                    child:
-                    CircularProgressIndicator(color: CareTheme.terracotta)),
-                error: (err, _) => Center(child: Text('Error: $err')),
+                loading: () => const CareLoading(),
+                error: (err, _) => CareErrorRetry(
+                  error: err,
+                  onRetry: () => ref.invalidate(veterinariansProvider),
+                ),
                 data: (vets) {
-                  final filteredVets = vets.where((v) {
-                    return v.isAcceptingBookings &&
-                        (v.name
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                            v.specialty
-                                .toLowerCase()
-                                .contains(_searchQuery.toLowerCase()));
-                  }).toList();
+                  final filtered = vets
+                      .where((v) =>
+                          v.isVerified && v.isAcceptingBookings && _matches(v))
+                      .toList();
 
-                  if (filteredVets.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No verified veterinarians added by admin yet.',
-                        style: TextStyle(color: CareTheme.mutedText),
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: filteredVets.length,
-                    itemBuilder: (context, index) =>
-                        _buildVetTile(filteredVets[index]),
+                  return RefreshIndicator(
+                    onRefresh: () =>
+                        ref.read(careVetsProvider.notifier).refresh(),
+                    child: filtered.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(height: 80),
+                              CareMessage(
+                                  'No veterinarians are available right now.'),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) =>
+                                _buildVetTile(filtered[index]),
+                          ),
                   );
                 },
               ),
@@ -91,6 +94,8 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
   }
 
   Widget _buildVetTile(Vet vet) {
+    final hasSlots = vet.availableSlots.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -107,7 +112,7 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 radius: 26,
                 backgroundColor: CareTheme.sageGreen,
                 child:
-                Icon(Icons.medical_services_rounded, color: Colors.white),
+                    Icon(Icons.medical_services_rounded, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -128,7 +133,9 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                           fontSize: 13, color: CareTheme.mutedText),
                     ),
                     Text(
-                      '${vet.clinicName} • ${vet.address}',
+                      vet.address.isEmpty
+                          ? vet.clinicName
+                          : '${vet.clinicName} • ${vet.address}',
                       style: const TextStyle(
                           fontSize: 12, color: CareTheme.deepOlive),
                     ),
@@ -138,16 +145,20 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('★ ${vet.rating}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
                   Text(
-                    '₹${vet.fee}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.terracotta,
-                    ),
+                    vet.rating > 0 ? '★ ${vet.rating.toStringAsFixed(1)}' : 'New',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  if (vet.fee > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      formatFee(vet.fee),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: CareTheme.terracotta,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -162,14 +173,14 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => BookAppointmentScreen(vet: vet)),
-                );
-              },
-              child: const Text('Select Clinic Slot'),
+              onPressed: hasSlots
+                  ? () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => BookAppointmentScreen(vet: vet)),
+                      )
+                  : null,
+              child: Text(hasSlots ? 'Select Clinic Slot' : 'No slots available'),
             ),
           ),
         ],
