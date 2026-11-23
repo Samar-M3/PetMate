@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/config/app_config.dart';
 import '../models/appointment_model.dart';
 import '../models/event_model.dart';
 import '../models/vet_model.dart';
 
-const String _apiBase = 'http://localhost:5000/api';
+final String _apiBase = AppConfig.baseUrl;
 
 Future<Map<String, String>> _getHeaders() async {
   final token = await FirebaseAuth.instance.currentUser?.getIdToken();

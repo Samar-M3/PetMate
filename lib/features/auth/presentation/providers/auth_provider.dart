@@ -102,7 +102,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       await _authService.reloadUser();
       final currentFbUser = _authService.currentUser;
       if (currentFbUser != null) {
-        await _syncBackendProfile(currentFbUser);
+        await _syncBackendProfile(currentFbUser, isBackground: true);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -124,8 +124,14 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     await _syncBackendProfile(fbUser);
   }
 
-  Future<void> _syncBackendProfile(User fbUser, {int retryCount = 0}) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+  Future<void> _syncBackendProfile(
+    User fbUser, {
+    int retryCount = 0,
+    bool isBackground = false,
+  }) async {
+    if (!isBackground) {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+    }
 
     try {
       final status = await _repository.getOnboardingStatus();

@@ -108,9 +108,10 @@ class ChatMediaService {
   ChatMediaService(this._chatRepository, {ImagePicker? picker})
       : _picker = picker ?? ImagePicker();
 
-  /// Picks multiple images and videos from the gallery.
+  /// Picks multiple images from the device gallery (not file explorer).
+  /// Uses pickMultiImage which opens the native gallery picker directly.
   Future<List<LocalMediaFile>> pickMediaFromGallery() async {
-    final pickedList = await _picker.pickMultipleMedia(
+    final pickedList = await _picker.pickMultiImage(
       maxWidth: 1600,
       maxHeight: 1600,
       imageQuality: 80,

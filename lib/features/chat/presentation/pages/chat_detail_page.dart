@@ -37,7 +37,6 @@ class ChatDetailPage extends ConsumerStatefulWidget {
 class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isSending = false;
   int _charCount = 0;
   int _messageLimit = 30;
   bool _isLoadingOlder = false;
@@ -45,6 +44,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   TypingService? _typingService;
   final Set<String> _selectedMessageIds = {};
   String? _hoveredMessageId;
+
+  DateTime? _lastMarkedDeliveredAt;
+  String? _lastMarkedReadMessageId;
 
   @override
   void initState() {
@@ -85,8 +87,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
 
     if (myUid.isNotEmpty) {
-      final readReceipts = ref.read(readReceiptsSettingProvider);
-      repo.markSeenAndRead(widget.match.matchId, myUid, includeSeenReceipt: readReceipts);
+      final conv = ref.read(singleConversationProvider(widget.match.matchId)).value;
+      if (conv == null || conv.participantUids.contains(myUid)) {
+        final readReceipts = ref.read(readReceiptsSettingProvider);
+        repo.markSeenAndRead(widget.match.matchId, myUid, includeSeenReceipt: readReceipts);
+      }
     }
   }
 
@@ -312,7 +317,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
-    if (text.isEmpty || _isSending) return;
+    if (text.isEmpty) return;
     _typingService?.stopTyping();
 
     final myUid = ref.read(currentFirebaseUidProvider);
@@ -337,22 +342,21 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           )
         : null;
 
+    // Clear input immediately so user can type the next message right away
     setState(() {
-      _isSending = true;
       _replyingTo = null;
     });
     _textController.clear();
 
-    try {
-      final repo = ref.read(chatRepositoryProvider);
-      await repo.sendMessage(
-        widget.match.matchId,
-        text,
-        myUid,
-        otherUid,
-        replyTo: replyTo,
-      );
-    } catch (e) {
+    // Fire-and-forget: send in background, don't block the UI
+    final repo = ref.read(chatRepositoryProvider);
+    repo.sendMessage(
+      widget.match.matchId,
+      text,
+      myUid,
+      otherUid,
+      replyTo: replyTo,
+    ).catchError((e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -361,11 +365,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
-    }
+    });
   }
 
   void _showUnmatchDialog(BuildContext context) {
@@ -609,9 +609,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         (matchId: match.matchId, limit: _messageLimit),
       ),
       (_, next) {
-        if (myUid.isNotEmpty && (next.value?.isNotEmpty ?? false)) {
-          final readReceipts = ref.read(readReceiptsSettingProvider);
-          ref.read(chatRepositoryProvider).markSeenAndRead(match.matchId, myUid, includeSeenReceipt: readReceipts);
+        final msgs = next.value;
+        if (myUid.isNotEmpty && (msgs?.isNotEmpty ?? false)) {
+          final conv = convAsync.value;
+          // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
+          if (conv != null && !conv.participantUids.contains(myUid)) return;
+
+          final latestMsgId = msgs!.first.id;
+          if (_lastMarkedReadMessageId != latestMsgId) {
+            _lastMarkedReadMessageId = latestMsgId;
+            final readReceipts = ref.read(readReceiptsSettingProvider);
+            ref.read(chatRepositoryProvider).markSeenAndRead(match.matchId, myUid, includeSeenReceipt: readReceipts);
+          }
         }
       },
     );
@@ -622,9 +631,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       (_, next) {
         final conv = next.value;
         if (conv != null && myUid.isNotEmpty) {
+          // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
+          if (!conv.participantUids.contains(myUid)) return;
+
           final lastMsgAt = conv.lastMessageAt;
           final myDelivered = conv.deliveredAtFor(myUid);
-          if (lastMsgAt != null && (myDelivered == null || lastMsgAt.isAfter(myDelivered))) {
+          if (lastMsgAt != null &&
+              (myDelivered == null || lastMsgAt.isAfter(myDelivered)) &&
+              _lastMarkedDeliveredAt != lastMsgAt) {
+            _lastMarkedDeliveredAt = lastMsgAt;
             ref.read(chatRepositoryProvider).markDelivered(match.matchId, myUid);
           }
         }
@@ -1607,7 +1622,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   }
 
   Widget _buildMessageInputBar(BuildContext context) {
-    final canSend = _charCount > 0 && _charCount <= 1000 && !_isSending;
+    final canSend = _charCount > 0 && _charCount <= 1000;
     final myUid = ref.read(currentFirebaseUidProvider);
 
     return Container(
@@ -1654,8 +1669,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       color: AppColors.primary,
                       size: 26,
                     ),
-                    onPressed: _isSending ? null : _showMediaPickerSheet,
-                    tooltip: 'Attach photos or videos',
+                    onPressed: _showMediaPickerSheet,
+                    tooltip: 'Attach photos',
                   ),
                 ),
 
@@ -1711,16 +1726,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     onTap: canSend ? _sendMessage : null,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: _isSending
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(
+                      child: Icon(
                               Icons.send_rounded,
                               color:
                                   canSend ? Colors.white : AppColors.textMuted,

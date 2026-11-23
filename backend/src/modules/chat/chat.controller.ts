@@ -14,9 +14,6 @@ import {
   runMediaRetention,
 } from "./chat.service.ts";
 
-// ---------------------------------------------------------------------------
-// Report (existing – kept verbatim)
-// ---------------------------------------------------------------------------
 
 export const reportChatController = async (
   req: AuthenticatedRequest,
@@ -86,9 +83,7 @@ export const reportChatController = async (
   }
 };
 
-// ---------------------------------------------------------------------------
-// POST /:conversationId/media/signature
-// ---------------------------------------------------------------------------
+
 
 export const signatureController = async (
   req: AuthenticatedRequest,
