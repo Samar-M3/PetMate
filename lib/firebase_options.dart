@@ -55,6 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '376139253985',
     projectId: 'petmate-d7a43',
     authDomain: 'petmate-d7a43.firebaseapp.com',
+    databaseURL: 'https://petmate-d7a43-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'petmate-d7a43.firebasestorage.app',
     measurementId: 'G-X69N17F529',
   );
@@ -64,6 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:376139253985:android:db0dcc1394efb676bf8fa0',
     messagingSenderId: '376139253985',
     projectId: 'petmate-d7a43',
+    databaseURL: 'https://petmate-d7a43-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'petmate-d7a43.firebasestorage.app',
   );
 }

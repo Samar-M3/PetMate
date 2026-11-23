@@ -9,14 +9,20 @@ import '../../../../core/constants/chat_constants.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/services/chat_media_service.dart';
+import '../../data/services/typing_service.dart';
 import '../../domain/entities/chat_entities.dart';
 import '../providers/chat_provider.dart';
+import '../providers/presence_provider.dart';
+import '../providers/typing_provider.dart';
 import '../widgets/chat_media_grid.dart';
 import '../widgets/chat_message_menu.dart';
+import '../widgets/chat_privacy_settings_sheet.dart';
 import '../widgets/chat_reply_bar.dart';
 import '../widgets/date_separator.dart';
 import '../widgets/matched_pair_avatar.dart';
+import '../widgets/typing_indicator_bubble.dart';
 import 'media_preview_page.dart';
+import '../widgets/message_status_widget.dart';
 import 'media_viewer_page.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
@@ -36,23 +42,36 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   int _messageLimit = 30;
   bool _isLoadingOlder = false;
   FirestoreMessage? _replyingTo;
+  TypingService? _typingService;
+  final Set<String> _selectedMessageIds = {};
+  String? _hoveredMessageId;
 
   @override
   void initState() {
     super.initState();
-    _textController.addListener(() {
-      final len = _textController.text.length;
-      if (len != _charCount) {
-        setState(() => _charCount = len);
-      }
-    });
-
+    _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
 
     // Ensure conversation exists in backend and mark as read
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initChat();
     });
+  }
+
+  void _onTextChanged() {
+    final len = _textController.text.length;
+    if (len != _charCount) {
+      setState(() => _charCount = len);
+    }
+    final canSendTyping = ref.read(showActivityStatusProvider);
+    _typingService?.onTextChanged(_textController.text, canSendTyping: canSendTyping);
+  }
+
+  void _initTypingService(String myUid) {
+    _typingService ??= TypingService(
+      conversationId: widget.match.matchId,
+      myUid: myUid,
+    );
   }
 
   Future<void> _initChat() async {
@@ -66,7 +85,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
 
     if (myUid.isNotEmpty) {
-      repo.markRead(widget.match.matchId, myUid);
+      final readReceipts = ref.read(readReceiptsSettingProvider);
+      repo.markSeenAndRead(widget.match.matchId, myUid, includeSeenReceipt: readReceipts);
     }
   }
 
@@ -89,6 +109,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   @override
   void dispose() {
+    _typingService?.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -292,6 +313,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty || _isSending) return;
+    _typingService?.stopTyping();
 
     final myUid = ref.read(currentFirebaseUidProvider);
     if (myUid.isEmpty) return;
@@ -540,6 +562,37 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Widget build(BuildContext context) {
     final match = widget.match;
     final myUid = ref.watch(currentFirebaseUidProvider);
+    if (myUid.isNotEmpty) {
+      _initTypingService(myUid);
+    }
+
+    final otherUid = match.otherFirebaseUid ?? '';
+    final isOtherTyping = otherUid.isNotEmpty
+        ? ref.watch(otherUserTypingProvider((
+            conversationId: match.matchId,
+            otherUid: otherUid,
+          ))).value == true
+        : false;
+
+    // Auto-scroll when other user starts typing if near bottom
+    ref.listen(
+      otherUserTypingProvider((
+        conversationId: match.matchId,
+        otherUid: otherUid,
+      )),
+      (prev, next) {
+        if (next.value == true && _scrollController.hasClients) {
+          if (_scrollController.offset <= 80) {
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+      },
+    );
+
     final convAsync = ref.watch(singleConversationProvider(match.matchId));
     final messagesAsync = ref.watch(
       messagesStreamProvider(
@@ -557,15 +610,44 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       ),
       (_, next) {
         if (myUid.isNotEmpty && (next.value?.isNotEmpty ?? false)) {
-          ref.read(chatRepositoryProvider).markRead(match.matchId, myUid);
+          final readReceipts = ref.read(readReceiptsSettingProvider);
+          ref.read(chatRepositoryProvider).markSeenAndRead(match.matchId, myUid, includeSeenReceipt: readReceipts);
         }
       },
     );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F5F0),
-      appBar: _buildAppBar(context, match),
-      body: SafeArea(
+    // Mark delivery watermark when viewing conversation
+    ref.listen(
+      singleConversationProvider(match.matchId),
+      (_, next) {
+        final conv = next.value;
+        if (conv != null && myUid.isNotEmpty) {
+          final lastMsgAt = conv.lastMessageAt;
+          final myDelivered = conv.deliveredAtFor(myUid);
+          if (lastMsgAt != null && (myDelivered == null || lastMsgAt.isAfter(myDelivered))) {
+            ref.read(chatRepositoryProvider).markDelivered(match.matchId, myUid);
+          }
+        }
+      },
+    );
+
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape &&
+            _selectedMessageIds.isNotEmpty) {
+          setState(() => _selectedMessageIds.clear());
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F5F0),
+        appBar: _selectedMessageIds.isNotEmpty
+            ? _buildSelectionAppBar(context, messagesAsync.value ?? [])
+            : _buildAppBar(context, match),
+        body: SafeArea(
         child: Column(
           children: [
             // 1. Ended Banner if conversation was ended
@@ -589,6 +671,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                   }
 
                   // Messages arrive newest first (index 0 is newest)
+                  final totalCount = messages.length + (isOtherTyping ? 1 : 0);
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
@@ -596,14 +679,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       horizontal: 14,
                       vertical: 12,
                     ),
-                    itemCount: messages.length,
+                    itemCount: totalCount,
                     itemBuilder: (ctx, index) {
-                      final msg = messages[index];
+                      if (isOtherTyping && index == 0) {
+                        return const TypingIndicatorBubble();
+                      }
+                      final msgIndex = isOtherTyping ? index - 1 : index;
+                      final msg = messages[msgIndex];
                       final isMine = msg.senderUid == myUid;
-                      final showDateSeparator = index == messages.length - 1 ||
+                      final showDateSeparator = msgIndex == messages.length - 1 ||
                           isDifferentDay(
                             msg.createdAt,
-                            messages[index + 1].createdAt,
+                            messages[msgIndex + 1].createdAt,
                           );
 
                       return Column(
@@ -634,8 +721,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEndedBanner(String? reason) {
     String message = 'This conversation has ended.';
@@ -671,10 +759,201 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
   }
 
+  PreferredSizeWidget _buildSelectionAppBar(
+    BuildContext context,
+    List<FirestoreMessage> allMessages,
+  ) {
+    final count = _selectedMessageIds.length;
+    final selectedMsgs = allMessages
+        .where((m) => _selectedMessageIds.contains(m.id))
+        .toList();
+    final canCopy = selectedMsgs.isNotEmpty &&
+        selectedMsgs.every((m) => m.isText && !m.deletedForEveryone && m.text.isNotEmpty);
+    final canReply = selectedMsgs.length == 1 && !selectedMsgs.first.deletedForEveryone;
+
+    return AppBar(
+      backgroundColor: AppColors.primary,
+      elevation: 2,
+      leading: IconButton(
+        icon: const Icon(Icons.close, color: Colors.white),
+        onPressed: () {
+          setState(() => _selectedMessageIds.clear());
+        },
+      ),
+      title: Text(
+        '$count selected',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        if (canReply)
+          IconButton(
+            icon: const Icon(Icons.reply_rounded, color: Colors.white),
+            tooltip: 'Reply',
+            onPressed: () {
+              final msg = selectedMsgs.first;
+              setState(() {
+                _replyingTo = msg;
+                _selectedMessageIds.clear();
+              });
+            },
+          ),
+        if (canCopy)
+          IconButton(
+            icon: const Icon(Icons.copy_rounded, color: Colors.white),
+            tooltip: 'Copy',
+            onPressed: () {
+              final combined = selectedMsgs.map((m) => m.text).join('\n\n');
+              Clipboard.setData(ClipboardData(text: combined));
+              setState(() => _selectedMessageIds.clear());
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${selectedMsgs.length} message(s) copied')),
+              );
+            },
+          ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+          tooltip: 'Delete',
+          onPressed: () => _showBatchDeleteSheet(selectedMsgs),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showBatchDeleteSheet(
+    List<FirestoreMessage> selectedMsgs,
+  ) async {
+    final myUid = ref.read(currentFirebaseUidProvider);
+    final convAsync = ref.read(singleConversationProvider(widget.match.matchId));
+    final isEnded = convAsync.value?.status == 'ENDED';
+
+    final eligibleForEveryone = !isEnded &&
+        selectedMsgs.isNotEmpty &&
+        selectedMsgs.every((m) => _canDeleteForEveryone(m, m.senderUid == myUid));
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Delete ${selectedMsgs.length} message${selectedMsgs.length > 1 ? 's' : ''}?',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                title: const Text(
+                  'Delete for me',
+                  style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Remove from your chat view only'),
+                onTap: () => Navigator.pop(ctx, 'for_me'),
+              ),
+              if (eligibleForEveryone)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+                  title: const Text(
+                    'Delete for everyone',
+                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text('Remove for everyone in the conversation'),
+                  onTap: () => Navigator.pop(ctx, 'for_everyone'),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (action == null || !mounted) return;
+
+    final messageIds = selectedMsgs.map((m) => m.id).toList();
+    setState(() => _selectedMessageIds.clear());
+
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      if (action == 'for_me') {
+        await repo.batchDeleteForMe(widget.match.matchId, messageIds, myUid);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${messageIds.length} message(s) deleted for you')),
+          );
+        }
+      } else if (action == 'for_everyone') {
+        final result = await repo.batchDeleteForEveryone(widget.match.matchId, messageIds);
+        final deletedList = (result['data']?['deleted'] as List?) ?? [];
+        final rejectedList = (result['data']?['rejected'] as List?) ?? [];
+        if (mounted) {
+          if (rejectedList.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '${deletedList.length} deleted, ${rejectedList.length} could not be deleted',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${deletedList.length} message(s) deleted for everyone')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete messages: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(
     BuildContext context,
     MatchConversationModel match,
   ) {
+    final otherUid = match.otherFirebaseUid ?? '';
+    final presence = otherUid.isNotEmpty
+        ? ref.watch(presenceStreamProvider(otherUid)).value
+        : null;
+    final activityText = otherUid.isNotEmpty
+        ? ref.watch(relativeActivityTextProvider(otherUid)).value
+        : null;
+    final isOnline = presence?.isOnline == true && presence?.visible == true;
+    final isNow = activityText == 'Active now' || activityText == 'अहिले सक्रिय';
+
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 1,
@@ -697,6 +976,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                 ownerImageUrl: match.otherOwner.imageUrl,
                 ownerName: match.otherOwner.name,
                 size: 42,
+                showOnlineIndicator: true,
+                isOnline: isOnline,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -715,10 +996,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      match.otherPet.breed ?? 'Playdate match',
-                      style: const TextStyle(
+                      activityText ?? (match.otherPet.breed ?? 'Playdate match'),
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: isNow ? const Color(0xFF2E7D32) : AppColors.textSecondary,
+                        fontWeight: isNow ? FontWeight.w600 : FontWeight.normal,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -743,9 +1025,22 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               _showBlockDialog(context);
             } else if (val == 'report') {
               _showReportDialog(context);
+            } else if (val == 'privacy') {
+              showChatPrivacySettingsSheet(context);
             }
           },
           itemBuilder: (ctx) => [
+            const PopupMenuItem(
+              value: 'privacy',
+              child: Row(
+                children: [
+                  Icon(Icons.shield_outlined, size: 18),
+                  SizedBox(width: 10),
+                  Text('Chat Privacy'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
             const PopupMenuItem(
               value: 'pet_info',
               child: Row(
@@ -859,6 +1154,102 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     return ageMinutes <= ChatConstants.deleteForEveryoneWindowMinutes;
   }
 
+  void _toggleSelection(String msgId) {
+    setState(() {
+      if (_selectedMessageIds.contains(msgId)) {
+        _selectedMessageIds.remove(msgId);
+      } else {
+        if (_selectedMessageIds.length >= 50) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Maximum 50 messages can be selected')),
+          );
+        } else {
+          _selectedMessageIds.add(msgId);
+        }
+      }
+    });
+  }
+
+  Future<void> _handleMessageAction(
+    ChatMessageAction action,
+    FirestoreMessage msg,
+    String myUid,
+  ) async {
+    switch (action) {
+      case ChatMessageAction.reply:
+        setState(() => _replyingTo = msg);
+        break;
+
+      case ChatMessageAction.copy:
+        if (msg.text.isNotEmpty) {
+          Clipboard.setData(ClipboardData(text: msg.text));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Message copied to clipboard')),
+            );
+          }
+        }
+        break;
+
+      case ChatMessageAction.selectMessages:
+        setState(() => _selectedMessageIds.add(msg.id));
+        break;
+
+      case ChatMessageAction.deleteForMe:
+        final confirmed = await showDeleteConfirmationDialog(
+          context,
+          isForEveryone: false,
+        );
+        if (confirmed && mounted) {
+          try {
+            await ref.read(chatRepositoryProvider).deleteForMe(
+                  widget.match.matchId,
+                  msg.id,
+                  myUid,
+                );
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to delete: $e'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        }
+        break;
+
+      case ChatMessageAction.deleteForEveryone:
+        final confirmed = await showDeleteConfirmationDialog(
+          context,
+          isForEveryone: true,
+        );
+        if (confirmed && mounted) {
+          try {
+            await ref.read(chatRepositoryProvider).deleteForEveryone(
+                  widget.match.matchId,
+                  msg.id,
+                );
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to delete: $e'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        }
+        break;
+
+      case ChatMessageAction.report:
+        _showReportDialog(context, messageId: msg.id);
+        break;
+    }
+  }
+
   Widget _buildMessageBubble(
     FirestoreMessage msg,
     bool isMine,
@@ -908,10 +1299,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       );
     }
 
+    final isSelected = _selectedMessageIds.contains(msg.id);
+    final isSelectionMode = _selectedMessageIds.isNotEmpty;
+    final isHovered = _hoveredMessageId == msg.id;
+
     // Swipe to reply wrapper
     return Dismissible(
       key: Key('msg_${msg.id}'),
-      direction: isEnded ? DismissDirection.none : DismissDirection.startToEnd,
+      direction: (isEnded || isSelectionMode) ? DismissDirection.none : DismissDirection.startToEnd,
       confirmDismiss: (direction) async {
         setState(() => _replyingTo = msg);
         HapticFeedback.lightImpact();
@@ -926,226 +1321,263 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           size: 24,
         ),
       ),
-      child: GestureDetector(
-        onLongPress: () async {
-          final action = await showMessageActionMenu(
-            context,
-            isMine: isMine,
-            isTextMessage: msg.isText,
-            canDeleteForEveryone: _canDeleteForEveryone(msg, isMine),
-            isEnded: isEnded,
-          );
-
-          if (action == null || !mounted) return;
-
-          switch (action) {
-            case ChatMessageAction.reply:
-              setState(() => _replyingTo = msg);
-              break;
-
-            case ChatMessageAction.copy:
-              if (msg.text.isNotEmpty) {
-                Clipboard.setData(ClipboardData(text: msg.text));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Message copied to clipboard')),
-                  );
-                }
-              }
-              break;
-
-            case ChatMessageAction.deleteForMe:
-              final confirmed = await showDeleteConfirmationDialog(
-                context,
-                isForEveryone: false,
-              );
-              if (confirmed && mounted) {
-                try {
-                  await ref.read(chatRepositoryProvider).deleteForMe(
-                        widget.match.matchId,
-                        msg.id,
-                        myUid,
-                      );
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete: $e'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                }
-              }
-              break;
-
-            case ChatMessageAction.deleteForEveryone:
-              final confirmed = await showDeleteConfirmationDialog(
-                context,
-                isForEveryone: true,
-              );
-              if (confirmed && mounted) {
-                try {
-                  await ref.read(chatRepositoryProvider).deleteForEveryone(
-                        widget.match.matchId,
-                        msg.id,
-                      );
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete: $e'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                }
-              }
-              break;
-
-            case ChatMessageAction.report:
-              _showReportDialog(context, messageId: msg.id);
-              break;
-          }
-        },
-        child: Align(
-          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredMessageId = msg.id),
+        onExit: (_) => setState(() {
+          if (_hoveredMessageId == msg.id) _hoveredMessageId = null;
+        }),
+        child: GestureDetector(
+          onTap: () {
+            if (isSelectionMode) {
+              _toggleSelection(msg.id);
+            }
+          },
+          onSecondaryTapDown: (details) async {
+            if (isSelectionMode) return;
+            final action = await showDesktopMessageMenu(
+              context,
+              details.globalPosition,
+              isMine: isMine,
+              isTextMessage: msg.isText,
+              canDeleteForEveryone: _canDeleteForEveryone(msg, isMine),
+              isEnded: isEnded,
+            );
+            if (action != null && mounted) {
+              _handleMessageAction(action, msg, myUid);
+            }
+          },
+          onLongPress: () async {
+            if (isSelectionMode) {
+              _toggleSelection(msg.id);
+            } else {
+              // Long press selects message and enters selection mode on mobile
+              HapticFeedback.mediumImpact();
+              setState(() => _selectedMessageIds.add(msg.id));
+            }
+          },
           child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: msg.isMedia ? 4 : 14,
-              vertical: msg.isMedia ? 4 : 10,
-            ),
-            decoration: BoxDecoration(
-              color: isMine ? const Color(0xFFE7F3EF) : Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isMine ? 16 : 4),
-                bottomRight: Radius.circular(isMine ? 4 : 16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-              border: Border.all(
-                color: isMine
-                    ? AppColors.primary.withValues(alpha: 0.25)
-                    : AppColors.border,
-                width: 0.8,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+            child: Row(
+              mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
-                // 1. Quoted Reply Block (if replying to another message)
-                if (msg.replyTo != null)
+                if (isSelectionMode && !isMine) ...[
                   Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      msg.isMedia ? 6 : 0,
-                      msg.isMedia ? 6 : 0,
-                      msg.isMedia ? 6 : 0,
-                      2,
-                    ),
-                    child: QuotedReplyBlock(
-                      senderName: msg.replyTo!.senderUid == myUid
-                          ? 'You'
-                          : widget.match.otherOwner.name,
-                      preview: msg.replyTo!.preview,
-                      isDeleted: msg.replyTo!.preview == 'Message deleted',
-                      onTap: () =>
-                          _scrollToMessage(msg.replyTo!.messageId, allMessages),
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
+                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      size: 20,
                     ),
                   ),
+                ],
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.76,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: msg.isMedia ? 4 : 14,
+                        vertical: msg.isMedia ? 4 : 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isMine ? const Color(0xFFD4EAE2) : const Color(0xFFE8ECEF))
+                            : (isMine ? const Color(0xFFE7F3EF) : Colors.white),
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(16),
+                          topRight: const Radius.circular(16),
+                          bottomLeft: Radius.circular(isMine ? 16 : 4),
+                          bottomRight: Radius.circular(isMine ? 4 : 16),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isMine
+                                  ? AppColors.primary.withValues(alpha: 0.25)
+                                  : AppColors.border),
+                          width: isSelected ? 1.5 : 0.8,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment:
+                            isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 1. Quoted Reply Block (if replying to another message)
+                          if (msg.replyTo != null)
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                msg.isMedia ? 6 : 0,
+                                msg.isMedia ? 6 : 0,
+                                msg.isMedia ? 6 : 0,
+                                2,
+                              ),
+                              child: QuotedReplyBlock(
+                                senderName: msg.replyTo!.senderUid == myUid
+                                    ? 'You'
+                                    : widget.match.otherOwner.name,
+                                preview: msg.replyTo!.preview,
+                                isDeleted: msg.replyTo!.preview == 'Message deleted',
+                                onTap: () =>
+                                    _scrollToMessage(msg.replyTo!.messageId, allMessages),
+                              ),
+                            ),
 
-                // 2. Media Content or Expired Bubble
-                if (msg.isMedia) ...[
-                  if (msg.mediaExpired)
-                    const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: MediaExpiredBubble(),
-                    )
-                  else
-                    ChatMediaGrid(
-                      items: msg.media,
-                      conversationId: widget.match.matchId,
-                      onTap: (index) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MediaViewerPage(
-                              items: msg.media,
-                              conversationId: widget.match.matchId,
-                              initialIndex: index,
+                          // 2. Media Content or Expired Bubble
+                          if (msg.isMedia) ...[
+                            if (msg.mediaExpired)
+                              const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: MediaExpiredBubble(),
+                              )
+                            else
+                              ChatMediaGrid(
+                                items: msg.media,
+                                conversationId: widget.match.matchId,
+                                onTap: (index) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MediaViewerPage(
+                                        items: msg.media,
+                                        conversationId: widget.match.matchId,
+                                        initialIndex: index,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+
+                          // 3. Text Message or Media Caption
+                          if (msg.text.isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                msg.isMedia ? 10 : 0,
+                                msg.isMedia ? 6 : 0,
+                                msg.isMedia ? 10 : 0,
+                                0,
+                              ),
+                              child: Text(
+                                msg.text,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  color: AppColors.textPrimary,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(height: 4),
+
+                          // 4. Timestamp & Pending indicator
+                          Padding(
+                            padding: EdgeInsets.only(
+                              right: msg.isMedia ? 8 : 0,
+                              bottom: msg.isMedia ? 4 : 0,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  timeStr,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: isMine
+                                        ? AppColors.primary.withValues(alpha: 0.8)
+                                        : AppColors.textMuted,
+                                  ),
+                                ),
+                                if (isMine) ...[
+                                  const SizedBox(width: 4),
+                                  Builder(
+                                    builder: (context) {
+                                      final convAsync = ref.watch(singleConversationProvider(widget.match.matchId));
+                                      final conv = convAsync.value;
+                                      final otherUid = conv?.otherUid(myUid) ?? '';
+                                      final readReceipts = ref.watch(readReceiptsSettingProvider);
+                                      final status = computeMessageStatus(
+                                        message: msg,
+                                        conversation: conv,
+                                        myUid: myUid,
+                                        otherUid: otherUid,
+                                        readReceiptsEnabled: readReceipts,
+                                      );
+                                      return MessageStatusWidget(status: status, size: 14);
+                                    },
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                ],
-
-                // 3. Text Message or Media Caption
-                if (msg.text.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      msg.isMedia ? 10 : 0,
-                      msg.isMedia ? 6 : 0,
-                      msg.isMedia ? 10 : 0,
-                      0,
-                    ),
-                    child: Text(
-                      msg.text,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        color: AppColors.textPrimary,
-                        height: 1.35,
+                        ],
                       ),
                     ),
-                  ),
 
-                const SizedBox(height: 4),
-
-                // 4. Timestamp & Pending indicator
-                Padding(
-                  padding: EdgeInsets.only(
-                    right: msg.isMedia ? 8 : 0,
-                    bottom: msg.isMedia ? 4 : 0,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: isMine
-                              ? AppColors.primary.withValues(alpha: 0.8)
-                              : AppColors.textMuted,
+                    // 5. Desktop hover chevron button (WhatsApp Web style)
+                    if (isHovered && !isSelectionMode)
+                      Positioned(
+                        top: 2,
+                        right: isMine ? 4 : null,
+                        left: !isMine ? 4 : null,
+                        child: GestureDetector(
+                          onTapDown: (details) async {
+                            final action = await showDesktopMessageMenu(
+                              context,
+                              details.globalPosition,
+                              isMine: isMine,
+                              isTextMessage: msg.isText,
+                              canDeleteForEveryone: _canDeleteForEveryone(msg, isMine),
+                              isEnded: isEnded,
+                            );
+                            if (action != null && mounted) {
+                              _handleMessageAction(action, msg, myUid);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: (isMine ? const Color(0xFFE7F3EF) : Colors.white)
+                                  .withValues(alpha: 0.95),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
-                      if (isMine) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          msg.isPending
-                              ? Icons.access_time_rounded
-                              : Icons.done_rounded,
-                          size: 14,
-                          color: msg.isPending
-                              ? AppColors.textMuted
-                              : AppColors.primary,
-                        ),
-                      ],
-                    ],
-                  ),
+                  ],
                 ),
+                if (isSelectionMode && isMine) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(
+                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,7 +1,7 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import prisma from "../../config/db.ts";
-import { getMessageSnapshot, createMediaMessage, deleteMessageForEveryone } from "../../services/firestore.service.ts";
+import { getMessageSnapshot, createMediaMessage, deleteMessageForEveryone, batchDeleteMessagesForEveryone } from "../../services/firestore.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import chatConfig from "../../config/chat.config.ts";
@@ -267,6 +267,49 @@ export const deleteForEveryoneController = async (
       chatConfig.CHAT_DELETE_FOR_EVERYONE_WINDOW_MINUTES,
     );
     sendSuccess(res, { message: result.message });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// POST /:conversationId/messages/delete  (batch delete for everyone)
+// ---------------------------------------------------------------------------
+
+export const batchDeleteController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user || !req.firebaseUid)
+      return next(new AppError("User not authenticated", 401));
+
+    const conversationId = req.params.conversationId;
+    if (!conversationId || typeof conversationId !== "string")
+      return next(new AppError("Conversation ID is required", 400));
+
+    const { messageIds, scope } = req.body ?? {};
+    if (!Array.isArray(messageIds) || messageIds.length === 0)
+      return next(new AppError("messageIds array is required", 400));
+    if (messageIds.length > 50)
+      return next(new AppError("Maximum 50 messages per batch delete", 400));
+    if (scope !== "everyone")
+      return next(new AppError("Only scope=everyone is supported", 400));
+
+    const { callerFirebaseUid } = await verifyParticipant(
+      conversationId,
+      req.user.id,
+    );
+    await verifyActiveConversation(conversationId);
+
+    const result = await batchDeleteMessagesForEveryone(
+      conversationId,
+      messageIds,
+      callerFirebaseUid,
+      chatConfig.CHAT_DELETE_FOR_EVERYONE_WINDOW_MINUTES,
+    );
+    sendSuccess(res, { data: result });
   } catch (error) {
     next(error);
   }

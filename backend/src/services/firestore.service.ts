@@ -2,6 +2,10 @@ import { FieldValue } from "firebase-admin/firestore";
 import { firestore } from "../config/firebase.ts";
 import cloudinary from "../config/cloudinary.ts";
 import { AppError } from "../middleware/errorHandler.ts";
+import {
+  syncConversationMembersAndContacts,
+  removeConversationMembersAndContacts,
+} from "./rtdb.service.ts";
 
 export interface ConversationDocument {
   matchId: string;
@@ -17,6 +21,8 @@ export interface ConversationDocument {
   lastMessageAt: any;
   unread: Record<string, number>;
   lastRead: Record<string, any>;
+  deliveredAt?: Record<string, any>;
+  seenAt?: Record<string, any>;
 }
 
 export interface MediaItemInput {
@@ -58,6 +64,8 @@ export const ensureConversation = async (
         lastMessageAt: FieldValue.serverTimestamp(),
         unread: initialUnread,
         lastRead: {},
+        deliveredAt: {},
+        seenAt: {},
       });
     } else {
       const data = existing.data();
@@ -70,6 +78,9 @@ export const ensureConversation = async (
       }
       await docRef.set(patch, { merge: true });
     }
+
+    // Mirror to RTDB
+    await syncConversationMembersAndContacts(matchId, participantUids);
   } catch (error) {
     console.error(`[FirestoreService] Failed to ensure conversation for match ${matchId}:`, error);
   }
@@ -81,6 +92,11 @@ export const endConversation = async (
 ): Promise<void> => {
   try {
     const docRef = firestore.collection("conversations").doc(matchId);
+    const existing = await docRef.get();
+    const participantUids = existing.exists
+      ? (existing.data()?.participantUids as string[] | undefined)
+      : undefined;
+
     await docRef.set(
       {
         status: "ENDED",
@@ -89,6 +105,9 @@ export const endConversation = async (
       },
       { merge: true }
     );
+
+    // Remove from RTDB
+    await removeConversationMembersAndContacts(matchId, participantUids);
   } catch (error) {
     console.error(`[FirestoreService] Failed to end conversation for match ${matchId}:`, error);
   }
@@ -377,6 +396,127 @@ export const cleanupExpiredChatMedia = async (retentionDays: number): Promise<nu
   }
 
   return cleanedCount;
+};
+
+export const batchDeleteMessagesForEveryone = async (
+  conversationId: string,
+  messageIds: string[],
+  callerFirebaseUid: string,
+  windowMinutes: number,
+): Promise<{ deleted: string[]; rejected: Array<{ id: string; reason: string }> }> => {
+  const convRef = firestore.collection("conversations").doc(conversationId);
+  const messagesRef = convRef.collection("messages");
+  const deleted: string[] = [];
+  const rejected: Array<{ id: string; reason: string }> = [];
+  const now = Date.now();
+
+  // Fetch all messages in one go
+  const docs = await Promise.all(
+    messageIds.map((id) => messagesRef.doc(id).get()),
+  );
+
+  const toDelete: Array<{
+    doc: FirebaseFirestore.DocumentSnapshot;
+    mediaItems: Array<{ publicId: string; kind: string }>;
+  }> = [];
+
+  for (let i = 0; i < docs.length; i++) {
+    const doc = docs[i];
+    const id = messageIds[i];
+
+    if (!doc.exists) {
+      rejected.push({ id, reason: "Message not found" });
+      continue;
+    }
+
+    const data = doc.data()!;
+
+    if (data.senderUid !== callerFirebaseUid) {
+      rejected.push({ id, reason: "Not the sender" });
+      continue;
+    }
+
+    if (data.deletedForEveryone) {
+      rejected.push({ id, reason: "Already deleted" });
+      continue;
+    }
+
+    const createdAt = data.createdAt?.toDate?.() ?? new Date(0);
+    const ageMinutes = (now - createdAt.getTime()) / 60_000;
+    if (ageMinutes > windowMinutes) {
+      rejected.push({ id, reason: "Delete window expired" });
+      continue;
+    }
+
+    const mediaItems: Array<{ publicId: string; kind: string }> = [];
+    if (Array.isArray(data.media)) {
+      for (const m of data.media) {
+        if (m.publicId) mediaItems.push({ publicId: m.publicId, kind: m.kind || "image" });
+        if (m.thumbnailPublicId) mediaItems.push({ publicId: m.thumbnailPublicId, kind: "image" });
+      }
+    }
+
+    toDelete.push({ doc, mediaItems });
+    deleted.push(id);
+  }
+
+  if (toDelete.length === 0) return { deleted, rejected };
+
+  // Delete Cloudinary assets
+  const allMedia = toDelete.flatMap((d) => d.mediaItems);
+  if (allMedia.length > 0) {
+    const imgIds = allMedia.filter((m) => m.kind === "image").map((m) => m.publicId);
+    const vidIds = allMedia.filter((m) => m.kind === "video").map((m) => m.publicId);
+    try {
+      if (imgIds.length > 0) await deleteCloudinaryAssets(imgIds, "image");
+      if (vidIds.length > 0) await deleteCloudinaryAssets(vidIds, "video");
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+
+  // Batch update messages (Firestore batch limit is 500, we limit to 50)
+  const batch = firestore.batch();
+  for (const item of toDelete) {
+    batch.update(item.doc.ref, {
+      deletedForEveryone: true,
+      deletedAt: FieldValue.serverTimestamp(),
+      text: "",
+      media: FieldValue.delete(),
+    });
+  }
+
+  // Scrub replyTo previews that quote deleted messages
+  for (const deletedId of deleted) {
+    const quoting = await messagesRef
+      .where("replyTo.messageId", "==", deletedId)
+      .get();
+    for (const qDoc of quoting.docs) {
+      batch.update(qDoc.ref, {
+        "replyTo.preview": "Message deleted",
+      });
+    }
+  }
+
+  await batch.commit();
+
+  // Update lastMessage if any of the deleted messages was the last one
+  const lastMsgQuery = await messagesRef
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!lastMsgQuery.empty) {
+    const lastDoc = lastMsgQuery.docs[0];
+    const lastData = lastDoc.data();
+    if (lastData.deletedForEveryone) {
+      await convRef.update({
+        lastMessage: { text: "", senderUid: lastData.senderUid, type: lastData.type || "text" },
+      });
+    }
+  }
+
+  return { deleted, rejected };
 };
 
 export const getMessageSnapshot = async (

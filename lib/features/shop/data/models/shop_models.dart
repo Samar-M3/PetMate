@@ -210,6 +210,222 @@ class ShopWishlistLine {
       );
 }
 
+class ShopAddress {
+  final String id;
+  final String fullName;
+  final String phoneNumber;
+  final String addressLine1;
+  final String? addressLine2;
+  final String city;
+  final String province;
+  final String? postalCode;
+  final bool isDefault;
+
+  const ShopAddress({
+    required this.id,
+    required this.fullName,
+    required this.phoneNumber,
+    required this.addressLine1,
+    this.addressLine2,
+    required this.city,
+    required this.province,
+    this.postalCode,
+    this.isDefault = false,
+  });
+
+  factory ShopAddress.fromJson(Map<String, dynamic> json) => ShopAddress(
+        id: json['id']?.toString() ?? '',
+        fullName: json['fullName']?.toString() ?? '',
+        phoneNumber: json['phoneNumber']?.toString() ?? '',
+        addressLine1: json['addressLine1']?.toString() ?? '',
+        addressLine2: json['addressLine2'] as String?,
+        city: json['city']?.toString() ?? '',
+        province: json['province']?.toString() ?? '',
+        postalCode: json['postalCode'] as String?,
+        isDefault: json['isDefault'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'fullName': fullName,
+        'phoneNumber': phoneNumber,
+        'addressLine1': addressLine1,
+        if (addressLine2 != null && addressLine2!.isNotEmpty)
+          'addressLine2': addressLine2,
+        'city': city,
+        'province': province,
+        if (postalCode != null && postalCode!.isNotEmpty)
+          'postalCode': postalCode,
+        'isDefault': isDefault,
+      };
+
+  String get formattedSummary =>
+      '$addressLine1, $city, $province${postalCode != null ? ' - $postalCode' : ''}';
+}
+
+class ShopOrderItem {
+  final String id;
+  final String productId;
+  final String? variantId;
+  final String productName;
+  final String? productImage;
+  final String? variantName;
+  final int quantity;
+  final double unitPrice;
+  final double totalPrice;
+
+  const ShopOrderItem({
+    required this.id,
+    required this.productId,
+    this.variantId,
+    required this.productName,
+    this.productImage,
+    this.variantName,
+    required this.quantity,
+    required this.unitPrice,
+    required this.totalPrice,
+  });
+
+  factory ShopOrderItem.fromJson(Map<String, dynamic> json) {
+    final prod = json['product'] as Map<String, dynamic>?;
+    final images = prod?['images'] as List?;
+    final firstImage = images != null && images.isNotEmpty
+        ? (images.first is Map ? images.first['imageUrl']?.toString() : null)
+        : null;
+
+    final variant = json['variant'] as Map<String, dynamic>?;
+
+    return ShopOrderItem(
+      id: json['id']?.toString() ?? '',
+      productId: json['productId']?.toString() ?? '',
+      variantId: json['variantId']?.toString(),
+      productName: prod?['name']?.toString() ?? 'Pet Product',
+      productImage: firstImage,
+      variantName: variant?['optionKey']?.toString(),
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      unitPrice: _number(json['unitPrice']) ?? 0,
+      totalPrice: _number(json['totalPrice']) ?? 0,
+    );
+  }
+}
+
+class ShopOrder {
+  final String id;
+  final String orderNumber;
+  final String status;
+  final String paymentMethod;
+  final String paymentStatus;
+  final double subtotal;
+  final double deliveryCharge;
+  final double discount;
+  final double totalAmount;
+  final String? customerNotes;
+  final DateTime createdAt;
+  final ShopAddress? deliveryAddress;
+  final List<ShopOrderItem> items;
+
+  const ShopOrder({
+    required this.id,
+    required this.orderNumber,
+    required this.status,
+    required this.paymentMethod,
+    required this.paymentStatus,
+    required this.subtotal,
+    required this.deliveryCharge,
+    required this.discount,
+    required this.totalAmount,
+    this.customerNotes,
+    required this.createdAt,
+    this.deliveryAddress,
+    this.items = const [],
+  });
+
+  factory ShopOrder.fromJson(Map<String, dynamic> json) => ShopOrder(
+        id: json['id']?.toString() ?? '',
+        orderNumber: json['orderNumber']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'PENDING',
+        paymentMethod: json['paymentMethod']?.toString() ?? 'CASH_ON_DELIVERY',
+        paymentStatus: json['paymentStatus']?.toString() ?? 'PENDING',
+        subtotal: _number(json['subtotal']) ?? 0,
+        deliveryCharge: _number(json['deliveryCharge']) ?? 0,
+        discount: _number(json['discount']) ?? 0,
+        totalAmount: _number(json['totalAmount']) ?? 0,
+        customerNotes: json['customerNotes'] as String?,
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+        deliveryAddress: json['deliveryAddress'] is Map<String, dynamic>
+            ? ShopAddress.fromJson(
+                json['deliveryAddress'] as Map<String, dynamic>)
+            : null,
+        items: (json['items'] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(ShopOrderItem.fromJson)
+            .toList(),
+      );
+
+  bool get canBeCancelled => status == 'PENDING' || status == 'CONFIRMED';
+}
+
+class ShopReview {
+  final String id;
+  final int rating;
+  final String? title;
+  final String? comment;
+  final List<String> images;
+  final DateTime createdAt;
+  final String userName;
+  final String? userAvatar;
+
+  const ShopReview({
+    required this.id,
+    required this.rating,
+    this.title,
+    this.comment,
+    this.images = const [],
+    required this.createdAt,
+    required this.userName,
+    this.userAvatar,
+  });
+
+  factory ShopReview.fromJson(Map<String, dynamic> json) => ShopReview(
+        id: json['id']?.toString() ?? '',
+        rating: (json['rating'] as num?)?.toInt() ?? 5,
+        title: json['title'] as String?,
+        comment: json['comment'] as String?,
+        images: (json['images'] as List? ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+        userName: json['userName']?.toString() ?? 'Pet Parent',
+        userAvatar: json['userAvatar'] as String?,
+      );
+}
+
+class ShopReviewSummary {
+  final List<ShopReview> reviews;
+  final int totalReviews;
+  final double avgRating;
+
+  const ShopReviewSummary({
+    required this.reviews,
+    required this.totalReviews,
+    required this.avgRating,
+  });
+
+  factory ShopReviewSummary.fromJson(Map<String, dynamic> json) =>
+      ShopReviewSummary(
+        reviews: (json['reviews'] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(ShopReview.fromJson)
+            .toList(),
+        totalReviews: (json['totalReviews'] as num?)?.toInt() ?? 0,
+        avgRating: _number(json['avgRating']) ?? 5.0,
+      );
+}
+
+
 double? _number(dynamic value) => value == null
     ? null
     : (value as num?)?.toDouble() ?? double.tryParse(value.toString());

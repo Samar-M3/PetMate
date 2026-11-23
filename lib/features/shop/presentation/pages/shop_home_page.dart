@@ -4,27 +4,29 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../home/presentation/widgets/profile_bottom_sheet.dart';
 import '../../data/models/shop_models.dart';
 import '../providers/shop_providers.dart';
 import '../widgets/shop_widgets.dart';
 
 class ShopHomePage extends ConsumerStatefulWidget {
   const ShopHomePage({super.key});
+
   @override
   ConsumerState<ShopHomePage> createState() => _ShopHomePageState();
 }
 
 class _ShopHomePageState extends ConsumerState<ShopHomePage> {
-  final _search = TextEditingController();
+  final _searchController = TextEditingController();
+  String _selectedPetType = 'All';
+
+  final List<String> _petTypes = ['All', 'Dogs', 'Cats', 'Birds', 'Small Pets'];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      if (ref.read(authStateProvider).isAuthenticated) {
+      final auth = ref.read(authStateProvider);
+      if (auth.isAuthenticated) {
         ref.read(shopCartProvider.notifier).load();
         ref.read(shopWishlistProvider.notifier).load();
       }
@@ -33,16 +35,55 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
 
   @override
   void dispose() {
-    _search.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  void _searchProducts() {
-    final value = _search.text.trim();
+  Future<void> _refresh() async {
+    ref.invalidate(shopCategoriesProvider);
+    ref.invalidate(shopFeaturedProvider);
+    ref.invalidate(shopNewArrivalsProvider);
+    ref.invalidate(shopRecommendedProvider);
+    final auth = ref.read(authStateProvider);
+    if (auth.isAuthenticated) {
+      await ref.read(shopCartProvider.notifier).load();
+      await ref.read(shopWishlistProvider.notifier).load();
+    }
+  }
+
+  void _onSearchSubmit(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
     context.push(
       Uri(
         path: '/shop/products',
-        queryParameters: {if (value.isNotEmpty) 'search': value},
+        queryParameters: {'search': trimmed},
+      ).toString(),
+    );
+  }
+
+  void _filterByPet(String pet) {
+    setState(() => _selectedPetType = pet);
+    if (pet == 'All') {
+      context.push('/shop/products');
+    } else {
+      context.push(
+        Uri(
+          path: '/shop/products',
+          queryParameters: {'search': pet.toLowerCase()},
+        ).toString(),
+      );
+    }
+  }
+
+  void _openCategory(ShopCategory category) {
+    context.push(
+      Uri(
+        path: '/shop/products',
+        queryParameters: {
+          'categoryId': category.id,
+          'categoryName': category.name,
+        },
       ).toString(),
     );
   }
@@ -53,162 +94,289 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
     final featured = ref.watch(shopFeaturedProvider);
     final arrivals = ref.watch(shopNewArrivalsProvider);
     final recommended = ref.watch(shopRecommendedProvider);
-    final cart = ref.watch(shopCartProvider);
-    final isWide = MediaQuery.sizeOf(context).width > 900;
+    final cartState = ref.watch(shopCartProvider);
+    final wishlistState = ref.watch(shopWishlistProvider);
+    final auth = ref.watch(authStateProvider);
+
     return Scaffold(
-      body: SafeArea(
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.storefront_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PetMate Shop',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                Text(
+                  'Pet Care & Essentials',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          // Order History Icon
+          IconButton(
+            tooltip: 'My Orders',
+            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.textPrimary),
+            onPressed: () {
+              if (!auth.isAuthenticated) {
+                promptShopLogin(context);
+                return;
+              }
+              context.push('/shop/orders');
+            },
+          ),
+          // Wishlist Icon with Badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Wishlist',
+                icon: const Icon(Icons.favorite_border_rounded, color: AppColors.textPrimary),
+                onPressed: () {
+                  if (!auth.isAuthenticated) {
+                    promptShopLogin(context);
+                    return;
+                  }
+                  context.push('/shop/wishlist');
+                },
+              ),
+              if (wishlistState.items.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.terracotta,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '${wishlistState.items.length}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Cart Icon with Badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Cart',
+                icon: const Icon(Icons.shopping_bag_outlined, color: AppColors.textPrimary),
+                onPressed: () => context.push('/shop/cart'),
+              ),
+              if (cartState.totalCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '${cartState.totalCount}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _refresh,
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            // Search Bar Header
+            SliverToBoxAdapter(
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                child: TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: _onSearchSubmit,
+                  decoration: InputDecoration(
+                    hintText: 'Search food, toys, beds, grooming...',
+                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 21),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 20),
+                            onPressed: () => _onSearchSubmit(_searchController.text),
+                          ),
+                    filled: true,
+                    fillColor: AppColors.inputFill,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ),
+
+            // Promotional Banner
+            SliverToBoxAdapter(
+              child: ShopPromoBanner(
+                onShopNow: () => context.push('/shop/products'),
+              ),
+            ),
+
+            // Shop by Pet Pills
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'PetMate Shop',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(color: AppColors.primaryDark),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _petTypes.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final pet = _petTypes[index];
+                      final isSelected = _selectedPetType == pet;
+                      return ChoiceChip(
+                        label: Text(
+                          pet == 'All' ? '🐾 All Pets' : pet == 'Dogs' ? '🐶 Dogs' : pet == 'Cats' ? '🐱 Cats' : pet == 'Birds' ? '🦜 Birds' : '🐰 Small Pets',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Wishlist',
-                          onPressed: () => context.push('/shop/wishlist'),
-                          icon: const Icon(Icons.favorite_border),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                          color: isSelected ? AppColors.primary : AppColors.border,
                         ),
-                        IconButton(
-                          tooltip: 'Profile',
-                          onPressed: () {
-                            if (ref.read(authStateProvider).isAuthenticated) {
-                              ProfileBottomSheet.show(context);
-                            } else {
-                              promptShopLogin(context);
-                            }
-                          },
-                          icon: const Icon(Icons.person_outline),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            IconButton(
-                              tooltip: 'Cart',
-                              onPressed: () => context.push('/shop/cart'),
-                              icon: const Icon(Icons.shopping_cart_outlined),
-                            ),
-                            if (cart.totalQuantity > 0)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: CircleAvatar(
-                                  radius: 9,
-                                  backgroundColor: AppColors.terracotta,
-                                  child: Text(
-                                    '${cart.totalQuantity}',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
+                        onSelected: (_) => _filterByPet(pet),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+
+            // Categories Section Title
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Shop by Category',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _search,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _searchProducts(),
-                      decoration: InputDecoration(
-                        hintText: 'Search products, brands, or categories',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: IconButton(
-                          tooltip: 'Search',
-                          onPressed: _searchProducts,
-                          icon: const Icon(Icons.arrow_forward),
-                        ),
+                    TextButton(
+                      onPressed: () => context.push('/shop/products'),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'All Categories',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Container(
-                    height: isWide ? 190 : 220,
-                    color: AppColors.creamDark,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Good care starts with the right essentials',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Explore food, play, grooming, and everyday comfort for your pet.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                const SizedBox(height: 10),
-                                TextButton(
-                                  onPressed: () =>
-                                      context.push('/shop/products'),
-                                  child: const Text('Explore products'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (featured.asData?.value.isNotEmpty == true)
-                          SizedBox(
-                            width: isWide ? 220 : 110,
-                            height: double.infinity,
-                            child: ShopImage(
-                              url: featured
-                                  .asData!
-                                  .value
-                                  .first
-                                  .images
-                                  .firstOrNull,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-                child: Text(
-                  'Shop by category',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ),
+
+            // Categories Grid / Carousel
             categories.when(
               loading: () => const SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 120,
-                  child: Center(child: CircularProgressIndicator()),
+                  height: 140,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
                 ),
               ),
               error: (error, _) => SliverToBoxAdapter(
@@ -224,77 +392,91 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                   ),
                 ),
               ),
-              data: (items) => items.isEmpty
-                  ? const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(
-                          child: Text('No categories are available yet.'),
-                        ),
-                      ),
-                    )
-                  : SliverPadding(
+              data: (items) {
+                final flattened = items
+                    .expand((category) => [category, ...category.children])
+                    .toList();
+
+                if (flattened.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('No categories available yet.')),
+                    ),
+                  );
+                }
+
+                return SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 140,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverGrid.builder(
-                        itemCount: items
-                            .expand(
-                              (category) => [category, ...category.children],
-                            )
-                            .length,
-                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 190,
-                          mainAxisExtent: 180,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
+                      itemCount: flattened.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) => SizedBox(
+                        width: 125,
+                        child: ShopCategoryCard(
+                          category: flattened[index],
+                          onTap: () => _openCategory(flattened[index]),
                         ),
-                        itemBuilder: (context, index) {
-                          final flattened = items
-                              .expand(
-                                (category) => [category, ...category.children],
-                              )
-                              .toList();
-                          return ShopCategoryCard(
-                            category: flattened[index],
-                            onTap: () => _openCategory(flattened[index]),
-                          );
-                        },
                       ),
                     ),
+                  ),
+                );
+              },
             ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // Featured Products
             SliverToBoxAdapter(
               child: ShopSection(
-                title: 'Featured products',
+                title: 'Featured Products',
+                subtitle: 'Handpicked favorites for happy, healthy pets',
                 value: featured,
                 onRetry: () => ref.invalidate(shopFeaturedProvider),
+                onSeeAll: () => context.push(
+                  Uri(
+                    path: '/shop/products',
+                    queryParameters: {'featured': 'true'},
+                  ).toString(),
+                ),
               ),
             ),
+
+            // New Arrivals
             SliverToBoxAdapter(
               child: ShopSection(
-                title: 'New arrivals',
+                title: 'New Arrivals',
+                subtitle: 'Fresh arrivals and latest pet essentials',
                 value: arrivals,
                 onRetry: () => ref.invalidate(shopNewArrivalsProvider),
+                onSeeAll: () => context.push(
+                  Uri(
+                    path: '/shop/products',
+                    queryParameters: {'sortBy': 'newest'},
+                  ).toString(),
+                ),
               ),
             ),
+
+            // General Recommendations / Best Sellers
             SliverToBoxAdapter(
               child: ShopSection(
-                title: 'General recommendations',
+                title: 'Recommended for You',
+                subtitle: 'Popular treats, toys, and care items',
                 value: recommended,
                 onRetry: () => ref.invalidate(shopRecommendedProvider),
+                onSeeAll: () => context.push('/shop/products'),
               ),
             ),
+
+            // Safe Area bottom spacer
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
         ),
       ),
     );
   }
-
-  void _openCategory(ShopCategory category) => context.push(
-    Uri(
-      path: '/shop/products',
-      queryParameters: {
-        'categoryId': category.id,
-        'categoryName': category.name,
-      },
-    ).toString(),
-  );
 }

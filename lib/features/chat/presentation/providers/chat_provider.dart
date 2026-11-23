@@ -97,10 +97,16 @@ class ChatConversationsNotifier extends Notifier<ChatConversationsState> {
         return match;
       }
 
+      final otherUid = fConv.participantUids.firstWhere(
+        (uid) => uid != myUid,
+        orElse: () => '',
+      );
+
       return match.copyWith(
         lastMessage: fConv.lastMessageText ?? match.lastMessage,
         lastMessageTime: fConv.lastMessageAt ?? match.lastMessageTime,
         unreadCount: fConv.unreadFor(myUid),
+        otherFirebaseUid: otherUid.isNotEmpty ? otherUid : null,
       );
     }).toList();
 
