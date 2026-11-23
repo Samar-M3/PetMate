@@ -1,38 +1,89 @@
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../core/services/api_client.dart';
+import 'package:http/http.dart' as http;
+import '../models/appointment_model.dart';
 import '../models/event_model.dart';
-import '../models/mock_care_data.dart';
 import '../models/vet_model.dart';
 
-// --- EVENTS NOTIFIER ---
+const String _apiBase = 'http://localhost:5000/api';
 
-class EventsNotifier extends AsyncNotifier<List<PetEvent>> {
-  ApiClient get _apiClient => ref.read(apiClientProvider);
+Future<Map<String, String>> _getHeaders() async {
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  return {
+    'Content-Type': 'application/json',
+    if (token != null) 'Authorization': 'Bearer $token',
+  };
+}
 
+/// Safely extracts a List from your backend's { success, data: { ... } } wrapper
+List<dynamic> _extractList(dynamic decoded, List<String> possibleKeys) {
+  if (decoded is List) return decoded;
+  if (decoded is Map<String, dynamic>) {
+    final inner = decoded['data'] ?? decoded;
+    if (inner is List) return inner;
+    if (inner is Map<String, dynamic>) {
+      for (final key in possibleKeys) {
+        if (inner[key] is List) return inner[key] as List;
+      }
+      for (final val in inner.values) {
+        if (val is List) return val;
+      }
+    }
+  }
+  return [];
+}
+
+// ==========================================
+// 1. EVENTS PROVIDER
+// ==========================================
+final careEventsProvider =
+AsyncNotifierProvider<CareEventsNotifier, List<PetEvent>>(
+    CareEventsNotifier.new);
+
+class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
   @override
   Future<List<PetEvent>> build() async {
     return _fetchEvents();
   }
 
-  Future<List<PetEvent>> _fetchEvents() async {
-    try {
-      final res = await _apiClient.get('/events');
-      final list = (res['events'] as List? ?? [])
-          .map((e) => PetEvent.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      if (list.isNotEmpty) {
-        MockCareData.events = list;
-        return list;
-      }
-    } catch (_) {}
-    return MockCareData.events;
+  Future<void> loadEvents() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(_fetchEvents);
   }
 
-  Future<void> loadEvents() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchEvents());
+  Future<List<PetEvent>> _fetchEvents() async {
+    final headers = await _getHeaders();
+    final res = await http.get(Uri.parse('$_apiBase/events'), headers: headers);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load events (${res.statusCode})');
+    }
+    final decoded = jsonDecode(res.body);
+    final list = _extractList(decoded, ['events', 'items', 'results']);
+    return list.map((j) => _mapEvent(j as Map<String, dynamic>)).toList();
+  }
+
+  PetEvent _mapEvent(Map<String, dynamic> j) {
+    final fullDate =
+    (j['fullDate'] ?? j['eventDate'] ?? j['date'] ?? 'Dec 05, 2026')
+        .toString();
+    final parts = fullDate.split(' ');
+    final parsedDay = parts.length > 1 ? parts[1].replaceAll(',', '') : '05';
+
+    return PetEvent(
+      id: j['id'].toString(),
+      title: j['title'] ?? '',
+      category: j['category'] ?? 'MEETUP',
+      dayName: j['dayName'] ?? 'SUN',
+      dayNum: j['dayNum']?.toString() ?? parsedDay,
+      fullDate: fullDate,
+      time: j['time'] ?? '10:00 AM - 01:00 PM',
+      location: j['location'] ?? '',
+      description: j['description'] ?? '',
+      attendeeCount: (j['attendeeCount'] as num?)?.toInt() ?? 0,
+      isBookmarked: j['isBookmarked'] ?? false,
+      isBooked: j['isBooked'] ?? false,
+    );
   }
 
   Future<void> addEvent({
@@ -43,152 +94,237 @@ class EventsNotifier extends AsyncNotifier<List<PetEvent>> {
     required String location,
     required String description,
   }) async {
-    String dayName = 'DAY';
-    String dayNum = '1';
+    final headers = await _getHeaders();
     final parts = fullDate.split(' ');
-    if (parts.length >= 2) {
-      dayNum = parts[1].replaceAll(',', '');
-    }
+    final dayNum = parts.length > 1 ? parts[1].replaceAll(',', '') : '05';
 
-    try {
-      final res = await _apiClient.post(
-        '/events',
-        body: {
-          'title': title,
-          'category': category,
-          'dayName': dayName,
-          'dayNum': dayNum,
-          'fullDate': fullDate,
-          'time': time,
-          'location': location,
-          'description': description,
-          'attendeeCount': 0,
-        },
-      );
+    final res = await http.post(
+      Uri.parse('$_apiBase/events'),
+      headers: headers,
+      body: jsonEncode({
+        'title': title,
+        'organizerName': 'PetMate Official',
+        'category': category,
+        'dayName': 'SUN',
+        'dayNum': dayNum,
+        'fullDate': fullDate,
+        'time': time,
+        'location': location,
+        'description': description,
+      }),
+    );
 
-      final newEvent = PetEvent.fromJson(res['event'] as Map<String, dynamic>);
-      MockCareData.events.insert(0, newEvent);
-      final current = state.value ?? [];
-      state = AsyncValue.data([newEvent, ...current]);
-    } catch (_) {
-      final fallbackEvent = PetEvent(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: title,
-        category: category,
-        dayName: dayName,
-        dayNum: dayNum,
-        fullDate: fullDate,
-        time: time,
-        location: location,
-        description: description,
-        attendeeCount: 0,
-      );
-      MockCareData.events.insert(0, fallbackEvent);
-      final current = state.value ?? [];
-      state = AsyncValue.data([fallbackEvent, ...current]);
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      await loadEvents();
+    } else {
+      throw Exception('Failed to create event: ${res.body}');
     }
   }
 
-  Future<void> deleteEvent(String id) async {
-    try {
-      await _apiClient.delete('/events/$id');
-    } catch (_) {}
-    MockCareData.events.removeWhere((e) => e.id == id);
-    final current = state.value ?? [];
-    state = AsyncValue.data(current.where((e) => e.id != id).toList());
+  Future<void> toggleRsvp(String eventId, bool book) async {
+    final headers = await _getHeaders();
+    await http.post(
+      Uri.parse('$_apiBase/events/$eventId/rsvp'),
+      headers: headers,
+      body: jsonEncode({'isBooked': book}),
+    );
+    await loadEvents();
+  }
+
+  Future<void> toggleBookmark(String eventId, bool bookmark) async {
+    final headers = await _getHeaders();
+    await http.post(
+      Uri.parse('$_apiBase/events/$eventId/bookmark'),
+      headers: headers,
+      body: jsonEncode({'isBookmarked': bookmark}),
+    );
+    await loadEvents();
   }
 }
 
-final careEventsProvider =
-    AsyncNotifierProvider<EventsNotifier, List<PetEvent>>(
-  EventsNotifier.new,
-);
+// ==========================================
+// 2. VETERINARIANS PROVIDER
+// ==========================================
+final careVetsProvider =
+AsyncNotifierProvider<CareVetsNotifier, List<Vet>>(CareVetsNotifier.new);
 
-// --- VETS NOTIFIER ---
+final veterinariansProvider = careVetsProvider;
 
-class VetsNotifier extends AsyncNotifier<List<Vet>> {
-  ApiClient get _apiClient => ref.read(apiClientProvider);
-
+class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
   @override
   Future<List<Vet>> build() async {
     return _fetchVets();
   }
 
-  Future<List<Vet>> _fetchVets() async {
-    try {
-      final res = await _apiClient.get('/veterinarians');
-      final list = (res['veterinarians'] as List? ?? [])
-          .map((v) => Vet.fromJson(v as Map<String, dynamic>))
-          .toList();
-
-      if (list.isNotEmpty) {
-        MockCareData.vets = list;
-        return list;
-      }
-    } catch (_) {}
-    return MockCareData.vets;
-  }
-
   Future<void> loadVets() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchVets());
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(_fetchVets);
   }
 
-  Future<void> addVet({
+  Future<List<Vet>> _fetchVets() async {
+    final headers = await _getHeaders();
+    final res =
+    await http.get(Uri.parse('$_apiBase/veterinarians'), headers: headers);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load veterinarians (${res.statusCode})');
+    }
+    final decoded = jsonDecode(res.body);
+    final list = _extractList(decoded, ['veterinarians', 'vets', 'items']);
+    return list.map((item) {
+      final j = item as Map<String, dynamic>;
+      return Vet(
+        id: j['id'].toString(),
+        name: j['name'] ?? j['fullName'] ?? j['user']?['profile']?['fullName'] ?? 'Veterinarian',
+        clinicName: j['clinicName'] ?? 'PetMate Partner Clinic',
+        specialty: j['specialty'] ?? 'General Veterinary Care',
+        address: j['address'] ?? 'Lalitpur',
+        rating: (j['rating'] as num?)?.toDouble() ?? 5.0,
+        fee: (j['fee'] as num?)?.toInt() ?? 500,
+        isVerified: j['isVerified'] ?? true,
+        isAcceptingBookings: j['isAcceptingBookings'] ?? true,
+        availableSlots: List<String>.from(
+          j['availableSlots'] ??
+              ['09:30 AM', '11:00 AM', '02:30 PM', '04:45 PM'],
+        ),
+      );
+    }).toList();
+  }
+
+  // Posts to /api/veterinarians (matching your backend's existing route prefix)
+  Future<void> addVeterinarian({
     required String name,
+    required String email,
+    required String password,
     required String clinicName,
+    required String licenseNumber,
     required String specialty,
     required String address,
     required int fee,
   }) async {
-    try {
-      final res = await _apiClient.post(
-        '/veterinarians',
-        body: {
-          'name': name,
-          'clinicName': clinicName,
-          'specialty': specialty,
-          'address': address,
-          'fee': fee,
-          'rating': 5.0,
-          'availableSlots': ['10:00 AM', '01:00 PM', '03:30 PM'],
-          'isVerified': true,
-          'isAcceptingBookings': true,
-        },
-      );
+    final headers = await _getHeaders();
+    final res = await http.post(
+      Uri.parse('$_apiBase/veterinarians'),
+      headers: headers,
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        'clinicName': clinicName,
+        'licenseNumber': licenseNumber,
+        'specialty': specialty,
+        'address': address,
+        'fee': fee,
+      }),
+    );
 
-      final newVet = Vet.fromJson(res['veterinarian'] as Map<String, dynamic>);
-      MockCareData.vets.insert(0, newVet);
-      final current = state.value ?? [];
-      state = AsyncValue.data([newVet, ...current]);
-    } catch (_) {
-      final fallbackVet = Vet(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: name,
-        clinicName: clinicName,
-        specialty: specialty,
-        address: address,
-        rating: 5.0,
-        fee: fee,
-        availableSlots: ['10:00 AM', '01:00 PM', '03:30 PM'],
-      );
-      MockCareData.vets.insert(0, fallbackVet);
-      final current = state.value ?? [];
-      state = AsyncValue.data([fallbackVet, ...current]);
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      await loadVets();
+    } else {
+      throw Exception('Failed to add veterinarian: ${res.body}');
     }
   }
 
-  Future<void> deleteVet(String id) async {
-    try {
-      await _apiClient.delete('/veterinarians/$id');
-    } catch (_) {}
-    MockCareData.vets.removeWhere((v) => v.id == id);
-    final current = state.value ?? [];
-    state = AsyncValue.data(current.where((v) => v.id != id).toList());
+  Future<void> updateSlots(String vetId, List<String> slots) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$_apiBase/veterinarians/$vetId/slots'),
+      headers: headers,
+      body: jsonEncode({'availableSlots': slots}),
+    );
+    await loadVets();
   }
 }
 
-final careVetsProvider =
-    AsyncNotifierProvider<VetsNotifier, List<Vet>>(
-  VetsNotifier.new,
+// ==========================================
+// 3. APPOINTMENTS PROVIDER
+// ==========================================
+final appointmentsProvider =
+AsyncNotifierProvider<AppointmentsNotifier, List<Appointment>>(
+    AppointmentsNotifier.new);
+
+class AppointmentsNotifier extends AsyncNotifier<List<Appointment>> {
+@override
+Future<List<Appointment>> build() async {
+return _fetchAppointments();
+}
+
+Future<List<Appointment>> _fetchAppointments() async {
+final headers = await _getHeaders();
+final res =
+await http.get(Uri.parse('$_apiBase/appointments'), headers: headers);
+if (res.statusCode != 200) {
+return [];
+}
+final decoded = jsonDecode(res.body);
+final list = _extractList(decoded, ['appointments', 'items']);
+return list.map((item) {
+final j = item as Map<String, dynamic>;
+return Appointment(
+id: j['id'].toString(),
+petName: j['petName'] ?? j['pet']?['name'] ?? 'My Pet',
+vetId: j['vetId'].toString(),
+vetName: j['vet']?['name'] ?? j['vetName'] ?? 'Veterinarian',
+clinicName: j['vet']?['clinicName'] ?? j['clinicName'] ?? 'Clinic',
+date: j['date'] ?? '',
+timeSlot: j['timeSlot'] ?? '',
+reason: j['reason'] ?? 'General Checkup',
+status: _formatStatus(j['status']),
+vetNotes: j['vetNotes'],
+nextVaccineDue: j['nextVaccineDue'],
 );
+}).toList();
+}
+
+String _formatStatus(dynamic raw) {
+final s = (raw ?? 'UPCOMING').toString().toUpperCase();
+if (s == 'COMPLETED') return 'Completed';
+if (s == 'CANCELLED') return 'Cancelled';
+return 'Upcoming';
+}
+
+Future<void> bookAppointment({
+required String petName,
+required String vetId,
+required String date,
+required String timeSlot,
+required String reason,
+}) async {
+final headers = await _getHeaders();
+final res = await http.post(
+Uri.parse('$_apiBase/appointments'),
+headers: headers,
+body: jsonEncode({
+'petName': petName,
+'vetId': vetId,
+'date': date,
+'timeSlot': timeSlot,
+'reason': reason,
+}),
+);
+
+if (res.statusCode == 200 || res.statusCode == 201) {
+ref.invalidateSelf();
+} else {
+throw Exception('Booking failed: ${res.body}');
+}
+}
+
+Future<void> updateStatus(
+String id, {
+required String status,
+String? vetNotes,
+      String? nextVaccineDue,
+    }) async {
+  final headers = await _getHeaders();
+  await http.patch(
+    Uri.parse('$_apiBase/appointments/$id/status'),
+    headers: headers,
+    body: jsonEncode({
+      'status': status.toUpperCase(),
+      'vetNotes': vetNotes,
+      'nextVaccineDue': nextVaccineDue,
+    }),
+  );
+  ref.invalidateSelf();
+}
+}
