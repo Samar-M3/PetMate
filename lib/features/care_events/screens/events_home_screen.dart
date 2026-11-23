@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/app_theme.dart';
 import '../providers/care_events_provider.dart';
-import '../widgets/event_list_card.dart';
-import 'events/event_detail_screen.dart';
+import '../widgets/care_ui.dart';
+import '../widgets/event_feed.dart';
 import 'events/my_event_bookings_screen.dart';
 
 class EventsHomeScreen extends ConsumerStatefulWidget {
@@ -14,8 +15,8 @@ class EventsHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
-  String _selectedCategory = 'ALL';
-  final List<String> _categories = ['ALL', 'MEETUP', 'AGILITY', 'OTHER'];
+  static const String _all = 'ALL';
+  String _selectedCategory = _all;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +43,7 @@ class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
                   backgroundColor: CareTheme.cardBg,
                   foregroundColor: CareTheme.terracotta,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                 ),
@@ -51,111 +52,76 @@ class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
                   'My Passes',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const MyEventBookingsScreen()),
-                  );
-                },
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const MyEventBookingsScreen()),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Category Filter Chips
-          SizedBox(
-            height: 36,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final cat = _categories[index];
-                final selected = _selectedCategory == cat;
-                return ChoiceChip(
-                  label: Text(cat),
-                  selected: selected,
-                  selectedColor: CareTheme.deepOlive,
-                  backgroundColor: CareTheme.cardBg,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: selected ? Colors.white : CareTheme.charcoal,
-                  ),
-                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Live Events Feed
           Expanded(
             child: eventsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: CareTheme.terracotta),
-              ),
-              error: (err, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Could not load events: $err',
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: () => ref.invalidate(careEventsProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+              loading: () => const CareLoading(),
+              error: (err, _) => CareErrorRetry(
+                error: err,
+                onRetry: () => ref.invalidate(careEventsProvider),
               ),
               data: (events) {
-                final filteredEvents = _selectedCategory == 'ALL'
-                    ? events
-                    : events
-                    .where((e) => e.category == _selectedCategory)
-                    .toList();
+                // Upcoming only; past events stay visible under My Passes.
+                final upcoming = events.where((e) => !e.isPast).toList();
 
-                if (filteredEvents.isEmpty) {
-                  return RefreshIndicator(
-                    onRefresh: () async => ref.invalidate(careEventsProvider),
-                    child: ListView(
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(
-                          child: Text(
-                            'No events published yet.\nCheck back soon!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: CareTheme.mutedText),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                // Categories come from the data, so admin-created ones show up too.
+                final categories = [
+                  _all,
+                  ...{for (final e in upcoming) e.category},
+                ];
+                final selected = categories.contains(_selectedCategory)
+                    ? _selectedCategory
+                    : _all;
+                final filtered = selected == _all
+                    ? upcoming
+                    : upcoming.where((e) => e.category == selected).toList();
 
-                return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(careEventsProvider),
-                  child: ListView.builder(
-                    itemCount: filteredEvents.length,
-                    itemBuilder: (context, index) {
-                      final ev = filteredEvents[index];
-                      return EventListCard(
-                        event: ev,
-                        onBookmarkTap: () => ref
-                            .read(careEventsProvider.notifier)
-                            .toggleBookmark(ev.id, !ev.isBookmarked),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => EventDetailScreen(event: ev)),
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: 36,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categories.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final cat = categories[index];
+                          final isSelected = selected == cat;
+                          return ChoiceChip(
+                            label: Text(cat),
+                            selected: isSelected,
+                            selectedColor: CareTheme.deepOlive,
+                            backgroundColor: CareTheme.cardBg,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  isSelected ? Colors.white : CareTheme.charcoal,
+                            ),
+                            onSelected: (_) =>
+                                setState(() => _selectedCategory = cat),
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: EventFeed(
+                        events: filtered,
+                        padding: EdgeInsets.zero,
+                        emptyMessage:
+                            'No upcoming events right now.\nCheck back soon!',
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

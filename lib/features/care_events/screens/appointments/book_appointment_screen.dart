@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 import '../../providers/care_events_provider.dart';
+import '../../utils/care_format.dart';
+import '../../widgets/care_ui.dart';
 
 class BookAppointmentScreen extends ConsumerStatefulWidget {
   final Vet vet;
@@ -14,46 +17,80 @@ class BookAppointmentScreen extends ConsumerStatefulWidget {
 }
 
 class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
-  String _selectedPet = 'Toto';
-  String _selectedDate = 'Nov 24, 2026';
+  static const int _daysAhead = 7;
+
+  final _petController = TextEditingController();
+  final _reasonController = TextEditingController();
+
+  late final List<DateTime> _dates;
+  late DateTime _selectedDate;
   String? _selectedSlot;
   bool _submitting = false;
-  final TextEditingController _reasonController = TextEditingController();
-
-  final List<String> _dates = ['Nov 24, 2026', 'Nov 25, 2026', 'Nov 26, 2026'];
 
   @override
   void initState() {
     super.initState();
-    if (widget.vet.availableSlots.isNotEmpty) {
-      _selectedSlot = widget.vet.availableSlots.first;
+    final today = todayDate();
+    _dates = [
+      for (var i = 0; i < _daysAhead; i++)
+        DateTime(today.year, today.month, today.day + i),
+    ];
+    _selectedDate = _dates.first;
+    _selectedSlot = _firstBookableSlot();
+  }
+
+  @override
+  void dispose() {
+    _petController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  /// A slot is bookable unless it has already started today.
+  bool _isBookable(String slot) {
+    if (!isSameDay(_selectedDate, todayDate())) return true;
+    final minutes = slotMinutes(slot);
+    if (minutes == null) return true;
+    final now = DateTime.now();
+    return minutes > now.hour * 60 + now.minute;
+  }
+
+  String? _firstBookableSlot() {
+    for (final s in widget.vet.availableSlots) {
+      if (_isBookable(s)) return s;
     }
+    return null;
   }
 
   Future<void> _confirmBooking() async {
-    if (_selectedSlot == null) return;
+    final pet = _petController.text.trim();
+    if (pet.isEmpty) {
+      showCareSnackBar(context, 'Please enter your pet\'s name.', isError: true);
+      return;
+    }
+    final slot = _selectedSlot;
+    if (slot == null) {
+      showCareSnackBar(context, 'Please choose a time slot.', isError: true);
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
       await ref.read(appointmentsProvider.notifier).bookAppointment(
-        petName: _selectedPet,
-        vetId: widget.vet.id,
-        date: _selectedDate,
-        timeSlot: _selectedSlot!,
-        reason: _reasonController.text.trim().isEmpty
-            ? 'General In-Clinic Checkup'
-            : _reasonController.text.trim(),
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clinic appointment booked!')),
-        );
-        Navigator.popUntil(context, (route) => route.isFirst);
-      }
+            petName: pet,
+            vetId: widget.vet.id,
+            date: formatCareDate(_selectedDate),
+            timeSlot: slot,
+            reason: _reasonController.text.trim().isEmpty
+                ? 'General In-Clinic Checkup'
+                : _reasonController.text.trim(),
+          );
+      if (!mounted) return;
+      showCareSnackBar(context, 'Clinic appointment booked!');
+      Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Booking failed: $e')),
-        );
+        showCareSnackBar(context, 'Booking failed: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -62,22 +99,19 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vet = widget.vet;
+
     return Scaffold(
       backgroundColor: CareTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareTheme.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Schedule Clinic Visit',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
-      ),
+      appBar: careAppBar('Schedule Clinic Visit'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: CareTheme.cardBg,
@@ -86,92 +120,87 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.vet.name,
+                  Text(vet.name,
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: CareTheme.charcoal)),
-                  Text('${widget.vet.clinicName} (${widget.vet.address})',
-                      style: const TextStyle(color: CareTheme.mutedText)),
-                  const SizedBox(height: 6),
-                  Text('Consultation Fee: ₹${widget.vet.fee} (Pay at Clinic)',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: CareTheme.deepOlive)),
+                  Text(
+                    vet.address.isEmpty
+                        ? vet.clinicName
+                        : '${vet.clinicName} (${vet.address})',
+                    style: const TextStyle(color: CareTheme.mutedText),
+                  ),
+                  if (vet.fee > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                        'Consultation Fee: ${formatFee(vet.fee)} (Pay at Clinic)',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: CareTheme.deepOlive)),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Select Pet',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              children: ['Toto', 'Bella'].map((pet) {
-                return ChoiceChip(
-                  label: Text(pet),
-                  selected: _selectedPet == pet,
-                  selectedColor: CareTheme.sageGreen,
-                  onSelected: (_) => setState(() => _selectedPet = pet),
-                );
-              }).toList(),
+            _label('Pet Name'),
+            TextField(
+              controller: _petController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: _inputDecoration('e.g., Toto'),
             ),
             const SizedBox(height: 20),
-            const Text('Select Date',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-            const SizedBox(height: 8),
+            _label('Select Date'),
             Wrap(
               spacing: 10,
               children: _dates.map((date) {
                 return ChoiceChip(
-                  label: Text(date),
-                  selected: _selectedDate == date,
+                  label: Text('${weekdayShort(date)} • ${monthShort(date)} ${date.day}'),
+                  selected: isSameDay(_selectedDate, date),
                   selectedColor: CareTheme.sageGreen,
-                  onSelected: (_) => setState(() => _selectedDate = date),
+                  onSelected: (_) => setState(() {
+                    _selectedDate = date;
+                    if (_selectedSlot == null || !_isBookable(_selectedSlot!)) {
+                      _selectedSlot = _firstBookableSlot();
+                    }
+                  }),
                 );
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text('Available Time Slots',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              children: widget.vet.availableSlots.map((slot) {
-                return ChoiceChip(
-                  label: Text(slot),
-                  selected: _selectedSlot == slot,
-                  selectedColor: CareTheme.terracotta,
-                  labelStyle: TextStyle(
-                    color: _selectedSlot == slot
-                        ? Colors.white
-                        : CareTheme.charcoal,
-                  ),
-                  onSelected: (_) => setState(() => _selectedSlot = slot),
-                );
-              }).toList(),
-            ),
+            _label('Available Time Slots'),
+            if (vet.availableSlots.isEmpty)
+              const Text('This clinic has no open slots right now.',
+                  style: TextStyle(color: CareTheme.mutedText))
+            else
+              Wrap(
+                spacing: 10,
+                children: vet.availableSlots.map((slot) {
+                  final bookable = _isBookable(slot);
+                  final selected = _selectedSlot == slot;
+                  return ChoiceChip(
+                    label: Text(slot),
+                    selected: selected,
+                    selectedColor: CareTheme.terracotta,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : CareTheme.charcoal,
+                    ),
+                    onSelected:
+                        bookable ? (_) => setState(() => _selectedSlot = slot) : null,
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 20),
-            const Text('Reason for Visit',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-            const SizedBox(height: 8),
+            _label('Reason for Visit'),
             TextField(
               controller: _reasonController,
-              decoration: InputDecoration(
-                hintText: 'e.g., Vaccination, routine checkup, skin allergy...',
-                filled: true,
-                fillColor: CareTheme.cardBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 200,
+              decoration:
+                  _inputDecoration('e.g., Vaccination, routine checkup, skin allergy...'),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -182,12 +211,19 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: _submitting ? null : _confirmBooking,
+                onPressed: (_submitting || _selectedSlot == null)
+                    ? null
+                    : _confirmBooking,
                 child: _submitting
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
                     : const Text('Confirm Clinic Appointment',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -195,4 +231,21 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       ),
     );
   }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
+      );
+
+  InputDecoration _inputDecoration(String hint) => InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: CareTheme.cardBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      );
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:petmatee/features/care_events/screens/vet_management/vet_admin_dashboard.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../care_events/screens/vet_management/vet_admin_dashboard.dart';
 
 class VetShell extends ConsumerWidget {
   const VetShell({super.key});

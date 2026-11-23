@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/app_theme.dart';
 import '../../providers/care_events_provider.dart';
-import '../../widgets/event_list_card.dart';
-import 'event_detail_screen.dart';
+import '../../widgets/care_ui.dart';
+import '../../widgets/event_feed.dart';
 import 'my_event_bookings_screen.dart';
 
+/// Full-screen list of every event (including past ones).
 class EventsCalendarScreen extends ConsumerWidget {
   const EventsCalendarScreen({super.key});
 
@@ -15,13 +17,8 @@ class EventsCalendarScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: CareTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareTheme.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('All Local Pet Events',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+      appBar: careAppBar(
+        'All Local Pet Events',
         actions: [
           TextButton.icon(
             onPressed: () => Navigator.push(
@@ -37,25 +34,14 @@ class EventsCalendarScreen extends ConsumerWidget {
         ],
       ),
       body: eventsAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: CareTheme.terracotta)),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (events) => ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: events.length,
-          itemBuilder: (context, index) {
-            final ev = events[index];
-            return EventListCard(
-              event: ev,
-              onBookmarkTap: () => ref
-                  .read(careEventsProvider.notifier)
-                  .toggleBookmark(ev.id, !ev.isBookmarked),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => EventDetailScreen(event: ev)),
-              ),
-            );
-          },
+        loading: () => const CareLoading(),
+        error: (e, _) => CareErrorRetry(
+          error: e,
+          onRetry: () => ref.invalidate(careEventsProvider),
+        ),
+        data: (events) => EventFeed(
+          events: events,
+          emptyMessage: 'No events published yet.',
         ),
       ),
     );

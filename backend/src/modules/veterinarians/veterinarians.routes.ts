@@ -1,11 +1,15 @@
 import { Router } from "express";
 import {
   getVeterinarians,
+  getMyVetProfile,
   addVeterinarian,
+  updateVeterinarian,
+  updateVetSlots,
   removeVeterinarian,
 } from "./veterinarians.controller.ts";
 import {
   authenticateAdmin,
+  authenticateFirebase,
   requireInitializedUser,
   requireRole,
   Role,
@@ -15,6 +19,8 @@ const router = Router();
 
 // Public / User read
 router.get("/", getVeterinarians);
+router.get("/me", authenticateFirebase, requireInitializedUser, getMyVetProfile);
+router.patch("/:id/slots", authenticateFirebase, requireInitializedUser, updateVetSlots);
 
 // Admin-only management
 router.post(
@@ -23,6 +29,14 @@ router.post(
   requireInitializedUser,
   requireRole(Role.ADMIN),
   addVeterinarian
+);
+
+router.patch(
+  "/:id",
+  authenticateAdmin,
+  requireInitializedUser,
+  requireRole(Role.ADMIN),
+  updateVeterinarian
 );
 
 router.delete(

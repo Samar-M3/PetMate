@@ -11,6 +11,7 @@ import chatRoutes from "./modules/chat/chat.routes.ts";
 import eventsRoutes from "./modules/events/events.routes.ts";
 import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts";
 import sellersRoutes from "./modules/sellers/sellers.routes.ts";
+import appointmentsRoutes from "./modules/appointments/appointments.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -81,6 +82,9 @@ app.use("/api/v1/events", eventsRoutes);
 
 app.use("/api/veterinarians", veterinariansRoutes);
 app.use("/api/v1/veterinarians", veterinariansRoutes);
+
+app.use("/api/appointments", appointmentsRoutes);
+app.use("/api/v1/appointments", appointmentsRoutes);
 
 app.use("/api", matchingRoutes);
 app.use("/api/v1", matchingRoutes);
