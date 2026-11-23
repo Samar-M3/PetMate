@@ -10,7 +10,12 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Guard against duplicate initialization from google-services plugin or hot restart
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    // Firebase already initialized by the native google-services plugin — safe to ignore
+  }
 
   final sharedPreferences = await SharedPreferences.getInstance();
 

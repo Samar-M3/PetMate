@@ -1,11 +1,38 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:http/http.dart' as http;
+import '../../../core/config/app_config.dart';
 import '../models/appointment_model.dart';
 import '../models/event_model.dart';
 import '../models/vet_model.dart';
-import '../services/care_api.dart';
-import '../utils/care_format.dart';
+
+final String _apiBase = AppConfig.baseUrl;
+
+Future<Map<String, String>> _getHeaders() async {
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  return {
+    'Content-Type': 'application/json',
+    if (token != null) 'Authorization': 'Bearer $token',
+  };
+}
+
+/// Safely extracts a List from your backend's { success, data: { ... } } wrapper
+List<dynamic> _extractList(dynamic decoded, List<String> possibleKeys) {
+  if (decoded is List) return decoded;
+  if (decoded is Map<String, dynamic>) {
+    final inner = decoded['data'] ?? decoded;
+    if (inner is List) return inner;
+    if (inner is Map<String, dynamic>) {
+      for (final key in possibleKeys) {
+        if (inner[key] is List) return inner[key] as List;
+      }
+      for (final val in inner.values) {
+        if (val is List) return val;
+      }
+    }
+  }
+  return [];
+}
 
 // ==========================================
 // 1. EVENTS

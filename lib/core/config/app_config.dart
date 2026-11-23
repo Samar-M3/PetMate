@@ -5,20 +5,32 @@ class AppConfig {
   static const String appVersion = '1.0.0';
 
   // Laptop local LAN IP for physical device testing over Wi-Fi
-  static const String laptopIp = '10.10.9.90';
+  static const String defaultLanIp = '192.168.1.29';
 
-  // API base URL:
-  // Physical Android device over Wi-Fi: http://10.10.9.90:5000/api
-  // Web / Windows: http://localhost:5000/api
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
-    }
+  // Backend host:
+  // - Web / Windows desktop -> localhost
+  // - Physical Android device -> defaultLanIp (192.168.1.29)
+  // - Can be overridden anytime with:
+  //     flutter run --dart-define=BACKEND_HOST=localhost (for adb reverse)
+  //     flutter run --dart-define=BACKEND_HOST=<new_ip>
+  static String get _host {
+    const fromEnv = String.fromEnvironment('BACKEND_HOST');
+    if (fromEnv.isNotEmpty) return fromEnv;
+
+    if (kIsWeb) return 'localhost';
+
+    // On physical Android device, 'localhost' refers to the phone itself.
+    // Default to the laptop LAN IP so it connects over Wi-Fi automatically.
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://$laptopIp:5000/api';
+      return defaultLanIp;
     }
-    return 'http://localhost:5000/api';
+
+    return 'localhost';
   }
+
+  static const int backendPort = 5000;
+
+  static String get baseUrl => 'http://$_host:$backendPort/api';
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
