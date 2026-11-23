@@ -78,7 +78,7 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   : _buildCartContent(cart),
       bottomNavigationBar: cart.items.isNotEmpty ? _buildStickyCheckoutBar(cart) : null,
     );
-  }
+  } //good
 
   Widget _buildEmpty() {
     return Center(
