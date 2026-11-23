@@ -72,6 +72,7 @@ class MatchConversationModel {
   final DateTime? lastMessageTime;
   final int unreadCount;
   final bool isOnline;
+  final String? otherFirebaseUid;
 
   const MatchConversationModel({
     required this.matchId,
@@ -83,6 +84,7 @@ class MatchConversationModel {
     this.lastMessageTime,
     this.unreadCount = 0,
     this.isOnline = true,
+    this.otherFirebaseUid,
   });
 
   factory MatchConversationModel.fromJson(Map<String, dynamic> json) {
@@ -113,6 +115,7 @@ class MatchConversationModel {
       lastMessageTime: lastMsgDate ?? matchedDate,
       unreadCount: json['unreadCount'] as int? ?? 0,
       isOnline: json['isOnline'] as bool? ?? true,
+      otherFirebaseUid: json['otherFirebaseUid'] as String?,
     );
   }
 
@@ -121,6 +124,7 @@ class MatchConversationModel {
     DateTime? lastMessageTime,
     int? unreadCount,
     bool? isOnline,
+    String? otherFirebaseUid,
   }) {
     return MatchConversationModel(
       matchId: matchId,
@@ -132,6 +136,7 @@ class MatchConversationModel {
       lastMessageTime: lastMessageTime ?? this.lastMessageTime,
       unreadCount: unreadCount ?? this.unreadCount,
       isOnline: isOnline ?? this.isOnline,
+      otherFirebaseUid: otherFirebaseUid ?? this.otherFirebaseUid,
     );
   }
 }

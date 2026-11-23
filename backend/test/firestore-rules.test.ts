@@ -120,4 +120,19 @@ describe("Firestore Security Rules Verification", () => {
     assert.ok(content.includes("request.resource.data.replyTo.keys().hasOnly(['messageId', 'senderUid', 'type', 'preview'])"));
     assert.ok(content.includes("request.resource.data.replyTo.preview.size() <= 100"));
   });
+
+  it("Conversations: watermarks deliveredAt, seenAt, and lastRead must follow strict update rules", () => {
+    const content = fs.readFileSync(rulesPath, "utf8");
+    assert.ok(content.includes("function validWatermark(field)"));
+    assert.ok(content.includes("validWatermark('deliveredAt')"));
+    assert.ok(content.includes("validWatermark('seenAt')"));
+    assert.ok(content.includes("validWatermark('lastRead')"));
+    assert.ok(content.includes("'deliveredAt', 'seenAt'"));
+    // Rules enforce caller can only update their own UID key
+    assert.ok(content.includes("keys().hasOnly([request.auth.uid])"));
+    // Rules enforce value must equal request.time
+    assert.ok(content.includes("request.resource.data[field][request.auth.uid] == request.time"));
+    // Rules enforce watermark cannot move backwards
+    assert.ok(content.includes("request.resource.data[field][request.auth.uid] >= resource.data[field][request.auth.uid]"));
+  });
 });

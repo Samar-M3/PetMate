@@ -14,6 +14,7 @@ export interface EnvironmentConfig {
   FIREBASE_PROJECT_ID?: string;
   FIREBASE_CLIENT_EMAIL?: string;
   FIREBASE_PRIVATE_KEY?: string;
+  FIREBASE_DATABASE_URL?: string;
   FIREBASE_SERVICE_ACCOUNT_PATH?: string;
   CLOUDINARY_CLOUD_NAME?: string;
   CLOUDINARY_API_KEY?: string;
@@ -52,6 +53,7 @@ const env: EnvironmentConfig = {
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || "petmate-d7a43",
   FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
   FIREBASE_PRIVATE_KEY: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+  FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL || "https://petmate-d7a43-default-rtdb.asia-southeast1.firebasedatabase.app/",
   FIREBASE_SERVICE_ACCOUNT_PATH: process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
 
   // Cloudinary credentials

@@ -6,6 +6,21 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid != null;
     }
 
+    function validWatermark(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field]) ||
+        (
+          request.resource.data[field] is map &&
+          request.auth.uid in request.resource.data[field] &&
+          request.resource.data[field][request.auth.uid] == request.time &&
+          (
+            (! (field in resource.data) && request.resource.data[field].keys().hasOnly([request.auth.uid])) ||
+            (field in resource.data &&
+             request.resource.data[field].diff(resource.data[field]).affectedKeys().hasOnly([request.auth.uid]) &&
+             (!(request.auth.uid in resource.data[field]) || request.resource.data[field][request.auth.uid] >= resource.data[field][request.auth.uid]))
+          )
+        );
+    }
+
     match /conversations/{conversationId} {
       // Read: allowed only if caller is in participantUids
       allow read: if isAuthenticated() &&
@@ -15,11 +30,15 @@ service cloud.firestore {
       allow create, delete: if false;
 
       // Update: allowed only for participants while status is ACTIVE,
-      // restricted to lastMessage, lastMessageAt, unread, and lastRead fields
+      // restricted to lastMessage, lastMessageAt, unread, lastRead, deliveredAt, and seenAt fields.
+      // deliveredAt, seenAt, and lastRead must follow watermark rules (own UID only, request.time, never backwards).
       allow update: if isAuthenticated() &&
         request.auth.uid in resource.data.participantUids &&
         (!('status' in resource.data) || resource.data.status == 'ACTIVE') &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unread', 'lastRead']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unread', 'lastRead', 'deliveredAt', 'seenAt']) &&
+        validWatermark('deliveredAt') &&
+        validWatermark('seenAt') &&
+        validWatermark('lastRead');
 
       // Messages subcollection
       match /messages/{messageId} {

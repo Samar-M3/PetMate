@@ -1,6 +1,56 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ---------------------------------------------------------------------------
+// Message Status Ticks
+// ---------------------------------------------------------------------------
+
+enum MessageStatus {
+  pending('Pending'),
+  sent('Sent'),
+  delivered('Delivered'),
+  read('Read'),
+  failed('Failed');
+
+  final String label;
+  const MessageStatus(this.label);
+}
+
+/// Computes the delivery and read status of a sent message.
+MessageStatus computeMessageStatus({
+  required FirestoreMessage message,
+  required FirestoreConversation? conversation,
+  required String myUid,
+  required String otherUid,
+  bool readReceiptsEnabled = true,
+}) {
+  if (message.senderUid != myUid) {
+    return MessageStatus.sent;
+  }
+
+  if (message.id.startsWith('temp_') || message.id.startsWith('pending_')) {
+    return MessageStatus.pending;
+  }
+
+  if (conversation == null) {
+    return MessageStatus.sent;
+  }
+
+  if (readReceiptsEnabled) {
+    final otherSeen = conversation.seenAtFor(otherUid);
+    if (otherSeen != null && !message.createdAt.isAfter(otherSeen)) {
+      return MessageStatus.read;
+    }
+  }
+
+  final otherDelivered = conversation.deliveredAtFor(otherUid);
+  if (otherDelivered != null && !message.createdAt.isAfter(otherDelivered)) {
+    return MessageStatus.delivered;
+  }
+
+  return MessageStatus.sent;
+}
+
+// ---------------------------------------------------------------------------
 // Reply-To snapshot stored with a message
 // ---------------------------------------------------------------------------
 
@@ -103,6 +153,8 @@ class FirestoreConversation {
   final DateTime? lastMessageAt;
   final Map<String, int> unread;
   final Map<String, DateTime?> lastRead;
+  final Map<String, DateTime?> deliveredAt;
+  final Map<String, DateTime?> seenAt;
 
   const FirestoreConversation({
     required this.matchId,
@@ -116,11 +168,16 @@ class FirestoreConversation {
     this.lastMessageAt,
     this.unread = const {},
     this.lastRead = const {},
+    this.deliveredAt = const {},
+    this.seenAt = const {},
   });
 
   bool get isActive => status == 'ACTIVE';
 
   int unreadFor(String uid) => unread[uid] ?? 0;
+
+  DateTime? deliveredAtFor(String uid) => deliveredAt[uid];
+  DateTime? seenAtFor(String uid) => seenAt[uid];
 
   String otherUid(String myUid) =>
       participantUids.firstWhere((u) => u != myUid, orElse: () => '');
@@ -137,6 +194,18 @@ class FirestoreConversation {
 
     final rawLastRead = data['lastRead'] as Map<String, dynamic>? ?? {};
     final lastRead = rawLastRead.map((k, v) {
+      if (v is Timestamp) return MapEntry(k, v.toDate());
+      return MapEntry(k, null);
+    });
+
+    final rawDeliveredAt = data['deliveredAt'] as Map<String, dynamic>? ?? {};
+    final deliveredAt = rawDeliveredAt.map((k, v) {
+      if (v is Timestamp) return MapEntry(k, v.toDate());
+      return MapEntry(k, null);
+    });
+
+    final rawSeenAt = data['seenAt'] as Map<String, dynamic>? ?? {};
+    final seenAt = rawSeenAt.map((k, v) {
       if (v is Timestamp) return MapEntry(k, v.toDate());
       return MapEntry(k, null);
     });
@@ -162,6 +231,8 @@ class FirestoreConversation {
       lastMessageAt: parseTs(data['lastMessageAt']),
       unread: unread,
       lastRead: lastRead,
+      deliveredAt: deliveredAt,
+      seenAt: seenAt,
     );
   }
 }
