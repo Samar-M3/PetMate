@@ -7,7 +7,7 @@ import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/domain/entities/user_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-class ProfileBottomSheet extends ConsumerWidget {
+class ProfileBottomSheet extends ConsumerStatefulWidget {
   const ProfileBottomSheet({super.key});
 
   static void show(BuildContext context) {
@@ -20,7 +20,20 @@ class ProfileBottomSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileBottomSheet> createState() => _ProfileBottomSheetState();
+}
+
+class _ProfileBottomSheetState extends ConsumerState<ProfileBottomSheet> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authStateProvider.notifier).refreshUserProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).user;
     final profile = user?.profile;
     final pets = user?.pets ?? [];
@@ -208,46 +221,57 @@ class ProfileBottomSheet extends ConsumerWidget {
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final pet = pets[index];
-                  return Container(
-                    width: 120,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AppNetworkImage(
-                          imageUrl:
-                              pet.effectiveImageUrl ?? pet.profilePictureUrl,
-                          width: 44,
-                          height: 44,
-                          shape: BoxShape.circle,
-                          fallbackIcon: Icons.pets,
+                      onTap: () {
+                        final router = GoRouter.of(context);
+                        Navigator.of(context).pop();
+                        router.push('/pet/${pet.id}');
+                      },
+                      child: Container(
+                        width: 120,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          pet.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppNetworkImage(
+                              imageUrl:
+                                  pet.effectiveImageUrl ?? pet.profilePictureUrl,
+                              width: 44,
+                              height: 44,
+                              shape: BoxShape.circle,
+                              fallbackIcon: Icons.pets,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              pet.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              pet.breed ?? pet.animalType ?? 'Pet',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          pet.breed ?? pet.animalType ?? 'Pet',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 },

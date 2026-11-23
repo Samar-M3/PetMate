@@ -162,15 +162,17 @@ class UserModel extends UserEntity {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     ProfileModel? prof;
-    if (json['profile'] != null && json['profile'] is Map<String, dynamic>) {
-      prof = ProfileModel.fromJson(json['profile'] as Map<String, dynamic>);
+    if (json['profile'] != null && json['profile'] is Map) {
+      prof = ProfileModel.fromJson(
+        Map<String, dynamic>.from(json['profile'] as Map),
+      );
     }
 
     List<PetModel> petsList = [];
     if (json['pets'] != null && json['pets'] is List) {
       petsList = (json['pets'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((p) => PetModel.fromJson(p))
+          .whereType<Map>()
+          .map((p) => PetModel.fromJson(Map<String, dynamic>.from(p)))
           .toList();
     }
 

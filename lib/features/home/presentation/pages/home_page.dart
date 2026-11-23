@@ -15,7 +15,6 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../widgets/swipeable_card_deck.dart';
-import '../widgets/tab_placeholders.dart';
 import '../../../shop/presentation/pages/shop_home_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -57,12 +56,22 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).user;
+    final authState = ref.watch(authStateProvider);
+    final user = authState.user;
     final allUserPets = user?.pets ?? [];
     final userPets = allUserPets.where((p) => p.isActive).toList();
     final discoveryState = ref.watch(discoveryProvider);
     final discoveryNotifier = ref.read(discoveryProvider.notifier);
     final requestsState = ref.watch(requestsProvider);
+
+    // If onboarding status says user has pets but user.pets in state is empty, auto-refresh
+    if ((authState.onboardingStatus?.hasPets ?? false) &&
+        allUserPets.isEmpty &&
+        !authState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(authStateProvider.notifier).refreshUserProfile();
+      });
+    }
 
     // Auto-initialize feed for user's primary active pet
     if (userPets.isNotEmpty &&

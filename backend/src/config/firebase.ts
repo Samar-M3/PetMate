@@ -73,4 +73,5 @@ try {
 
 export const firebaseAuth: Auth = getAuth(firebaseApp);
 export const firestore: Firestore = getFirestore(firebaseApp);
+firestore.settings({ ignoreUndefinedProperties: true });
 export default firebaseApp;
