@@ -171,6 +171,31 @@ class ChatRepository {
     }
   }
 
+  // 10b. Mark Delivered (delivery watermark)
+  Future<void> markDelivered(String conversationId, String myUid) async {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    try {
+      await _firestore.collection('conversations').doc(conversationId).update({
+        'deliveredAt.$myUid': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  // 10c. Mark Seen and Read (read receipt + zero unread counter)
+  Future<void> markSeenAndRead(String conversationId, String myUid, {bool includeSeenReceipt = true}) async {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    try {
+      final updates = <String, dynamic>{
+        'unread.$myUid': 0,
+        'lastRead.$myUid': FieldValue.serverTimestamp(),
+      };
+      if (includeSeenReceipt) {
+        updates['seenAt.$myUid'] = FieldValue.serverTimestamp();
+      }
+      await _firestore.collection('conversations').doc(conversationId).update(updates);
+    } catch (_) {}
+  }
+
   // 11. Delete for me (direct Firestore update — rules allow adding own uid)
   Future<void> deleteForMe(
     String conversationId,
@@ -196,6 +221,43 @@ class ChatRepository {
     await _apiClient.delete(
       '/chats/$conversationId/messages/$messageId?scope=everyone',
     );
+  }
+
+  // 16. Batch delete for me (direct Firestore updates)
+  Future<void> batchDeleteForMe(
+    String conversationId,
+    List<String> messageIds,
+    String myUid,
+  ) async {
+    if (conversationId.isEmpty || messageIds.isEmpty || myUid.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final id in messageIds) {
+      final ref = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(id);
+      batch.update(ref, {
+        'deletedFor': FieldValue.arrayUnion([myUid]),
+      });
+    }
+    await batch.commit();
+  }
+
+  // 17. Batch delete for everyone (via backend)
+  Future<Map<String, dynamic>> batchDeleteForEveryone(
+    String conversationId,
+    List<String> messageIds,
+  ) async {
+    final response = await _apiClient.post(
+      '/chats/$conversationId/messages/delete',
+      body: {
+        'messageIds': messageIds,
+        'scope': 'everyone',
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception('Failed to batch delete messages');
   }
 
   // 13. Request media upload signature from backend

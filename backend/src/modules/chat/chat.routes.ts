@@ -4,6 +4,7 @@ import {
   signatureController,
   mediaMessageController,
   deleteForEveryoneController,
+  batchDeleteController,
   mediaUrlsController,
 } from "./chat.controller.ts";
 import {
@@ -26,6 +27,9 @@ router.post("/:conversationId/messages/media", mediaMessageController);
 
 // Delete message for everyone
 router.delete("/:conversationId/messages/:messageId", deleteForEveryoneController);
+
+// Batch delete messages for everyone
+router.post("/:conversationId/messages/delete", batchDeleteController);
 
 // Get signed delivery URLs
 router.post("/:conversationId/media/urls", mediaUrlsController);

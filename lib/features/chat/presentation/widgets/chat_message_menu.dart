@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_colors.dart';
 
-/// Actions available from the message long-press menu.
-enum ChatMessageAction { reply, copy, deleteForMe, deleteForEveryone, report }
+/// Actions available from the message menu.
+enum ChatMessageAction { reply, copy, selectMessages, deleteForMe, deleteForEveryone, report }
 
 /// Shows a bottom sheet menu for message actions.
 Future<ChatMessageAction?> showMessageActionMenu(
@@ -33,6 +33,13 @@ Future<ChatMessageAction?> showMessageActionMenu(
       label: 'Copy',
     ));
   }
+
+  // Select messages
+  actions.add(_MenuAction(
+    action: ChatMessageAction.selectMessages,
+    icon: Icons.check_circle_outline_rounded,
+    label: 'Select messages',
+  ));
 
   // Delete for me (always available)
   actions.add(_MenuAction(
@@ -129,7 +136,97 @@ class _MenuAction {
   });
 }
 
-/// Shows a confirmation dialog for delete actions.
+/// Shows a desktop-style context menu at a specific position.
+Future<ChatMessageAction?> showDesktopMessageMenu(
+  BuildContext context,
+  Offset position, {
+  required bool isMine,
+  required bool isTextMessage,
+  required bool canDeleteForEveryone,
+  required bool isEnded,
+}) async {
+  final items = <PopupMenuEntry<ChatMessageAction>>[
+    if (!isEnded)
+      const PopupMenuItem(
+        value: ChatMessageAction.reply,
+        child: Row(
+          children: [
+            Icon(Icons.reply_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Reply'),
+          ],
+        ),
+      ),
+    if (isTextMessage)
+      const PopupMenuItem(
+        value: ChatMessageAction.copy,
+        child: Row(
+          children: [
+            Icon(Icons.copy_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Copy'),
+          ],
+        ),
+      ),
+    const PopupMenuItem(
+      value: ChatMessageAction.selectMessages,
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline_rounded, size: 18),
+          SizedBox(width: 8),
+          Text('Select messages'),
+        ],
+      ),
+    ),
+    const PopupMenuDivider(),
+    const PopupMenuItem(
+      value: ChatMessageAction.deleteForMe,
+      child: Row(
+        children: [
+          Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+          SizedBox(width: 8),
+          Text('Delete for me', style: TextStyle(color: AppColors.error)),
+        ],
+      ),
+    ),
+    if (isMine && canDeleteForEveryone && !isEnded)
+      const PopupMenuItem(
+        value: ChatMessageAction.deleteForEveryone,
+        child: Row(
+          children: [
+            Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.error),
+            SizedBox(width: 8),
+            Text('Delete for everyone', style: TextStyle(color: AppColors.error)),
+          ],
+        ),
+      ),
+    if (!isMine)
+      const PopupMenuItem(
+        value: ChatMessageAction.report,
+        child: Row(
+          children: [
+            Icon(Icons.flag_outlined, size: 18, color: AppColors.error),
+            SizedBox(width: 8),
+            Text('Report', style: TextStyle(color: AppColors.error)),
+          ],
+        ),
+      ),
+  ];
+
+  return showMenu<ChatMessageAction>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      position.dx,
+      position.dy,
+      position.dx + 1,
+      position.dy + 1,
+    ),
+    items: items,
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  );
+}
+
 Future<bool> showDeleteConfirmationDialog(
   BuildContext context, {
   required bool isForEveryone,
