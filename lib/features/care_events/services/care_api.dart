@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/config/app_config.dart';
+
 /// Error thrown for any failed API call. [message] is safe to show to users.
 class CareApiException implements Exception {
   final int? statusCode;
@@ -17,17 +19,10 @@ class CareApiException implements Exception {
 }
 
 /// Thin HTTP layer shared by the events, vets and appointments providers.
-///
-/// Set the server at build time:
-///   flutter run  --dart-define=API_BASE_URL=http://10.0.2.2:5000/api
-///   flutter build apk --dart-define=API_BASE_URL=https://api.yourdomain.com/api
 class CareApi {
   CareApi._();
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:5000/api',
-  );
+  static String get baseUrl => AppConfig.baseUrl;
 
   static const Duration _timeout = Duration(seconds: 15);
 
