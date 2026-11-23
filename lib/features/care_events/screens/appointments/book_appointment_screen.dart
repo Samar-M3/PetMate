@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/app_theme.dart';
-import '../../models/appointment_model.dart';
-import '../../models/mock_care_data.dart';
 import '../../models/vet_model.dart';
+import '../../providers/care_events_provider.dart';
 
-class BookAppointmentScreen extends StatefulWidget {
+class BookAppointmentScreen extends ConsumerStatefulWidget {
   final Vet vet;
-
   const BookAppointmentScreen({super.key, required this.vet});
 
   @override
-  State<BookAppointmentScreen> createState() => _BookAppointmentScreenState();
+  ConsumerState<BookAppointmentScreen> createState() =>
+      _BookAppointmentScreenState();
 }
 
-class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
+class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   String _selectedPet = 'Toto';
   String _selectedDate = 'Nov 24, 2026';
   String? _selectedSlot;
+  bool _submitting = false;
   final TextEditingController _reasonController = TextEditingController();
 
   final List<String> _dates = ['Nov 24, 2026', 'Nov 25, 2026', 'Nov 26, 2026'];
@@ -30,29 +30,34 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     }
   }
 
-  void _confirmBooking() {
+  Future<void> _confirmBooking() async {
     if (_selectedSlot == null) return;
-
-    MockCareData.appointments.insert(
-      0,
-      Appointment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+    setState(() => _submitting = true);
+    try {
+      await ref.read(appointmentsProvider.notifier).bookAppointment(
         petName: _selectedPet,
         vetId: widget.vet.id,
-        vetName: widget.vet.name,
-        clinicName: widget.vet.clinicName,
         date: _selectedDate,
         timeSlot: _selectedSlot!,
         reason: _reasonController.text.trim().isEmpty
             ? 'General In-Clinic Checkup'
             : _reasonController.text.trim(),
-      ),
-    );
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Clinic appointment booked!')));
-    Navigator.popUntil(context, (route) => route.isFirst);
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Clinic appointment booked!')),
+        );
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Booking failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -63,13 +68,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         backgroundColor: CareTheme.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text(
-          'Schedule Clinic Visit',
-          style: TextStyle(
-            color: CareTheme.charcoal,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('Schedule Clinic Visit',
+            style: TextStyle(
+                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -85,37 +86,25 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.vet.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.charcoal,
-                    ),
-                  ),
-                  Text(
-                    '${widget.vet.clinicName} (${widget.vet.address})',
-                    style: const TextStyle(color: CareTheme.mutedText),
-                  ),
+                  Text(widget.vet.name,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: CareTheme.charcoal)),
+                  Text('${widget.vet.clinicName} (${widget.vet.address})',
+                      style: const TextStyle(color: CareTheme.mutedText)),
                   const SizedBox(height: 6),
-                  Text(
-                    'Consultation Fee: ₹${widget.vet.fee} (Pay at Clinic)',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: CareTheme.deepOlive,
-                    ),
-                  ),
+                  Text('Consultation Fee: ₹${widget.vet.fee} (Pay at Clinic)',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: CareTheme.deepOlive)),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Select Pet',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: CareTheme.charcoal,
-              ),
-            ),
+            const Text('Select Pet',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -129,13 +118,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Select Date',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: CareTheme.charcoal,
-              ),
-            ),
+            const Text('Select Date',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -149,13 +134,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Available Time Slots',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: CareTheme.charcoal,
-              ),
-            ),
+            const Text('Available Time Slots',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
@@ -174,13 +155,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Reason for Visit',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: CareTheme.charcoal,
-              ),
-            ),
+            const Text('Reason for Visit',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
             const SizedBox(height: 8),
             TextField(
               controller: _reasonController,
@@ -203,14 +180,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   backgroundColor: CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                      borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: _confirmBooking,
-                child: const Text(
-                  'Confirm Clinic Appointment',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                onPressed: _submitting ? null : _confirmBooking,
+                child: _submitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Confirm Clinic Appointment',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
