@@ -34,10 +34,10 @@ class CareApi {
   static Future<dynamic> patch(String path, [Map<String, dynamic>? body]) =>
       _send('PATCH', path, body);
 
-  static Future<Map<String, String>> _headers() async {
+  static Future<Map<String, String>> _headers({bool forceRefresh = false}) async {
     String? token;
     try {
-      token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      token = await FirebaseAuth.instance.currentUser?.getIdToken(forceRefresh);
     } catch (_) {
       token = null;
     }
@@ -52,6 +52,7 @@ class CareApi {
     String method,
     String path, [
     Map<String, dynamic>? body,
+    bool tokenRefreshed = false,
   ]) async {
     if (kReleaseMode && baseUrl.contains('localhost')) {
       throw const CareApiException(
@@ -59,7 +60,7 @@ class CareApi {
     }
 
     final uri = Uri.parse('$baseUrl$path');
-    final headers = await _headers();
+    final headers = await _headers(forceRefresh: tokenRefreshed);
     final encoded = body == null ? null : jsonEncode(body);
 
     final http.Response res;
@@ -94,6 +95,20 @@ class CareApi {
     }
 
     if (res.statusCode >= 200 && res.statusCode < 300) return decoded;
+
+    // An expired token must not make a bookmark/booking look rejected. Refresh
+    // once and replay the request before reporting an error.
+    if (res.statusCode == 401 && !tokenRefreshed) {
+      try {
+        final refreshed =
+            await FirebaseAuth.instance.currentUser?.getIdToken(true);
+        if (refreshed != null && refreshed.isNotEmpty) {
+          return await _send(method, path, body, true);
+        }
+      } catch (_) {
+        // Fall through to the normal 401 error below.
+      }
+    }
 
     throw CareApiException(
       _messageFor(res.statusCode, decoded),
