@@ -2,6 +2,9 @@ import cloudinary from "../../config/cloudinary.ts";
 import prisma from "../../config/db.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import chatConfig from "../../config/chat.config.ts";
+import { FieldValue } from "firebase-admin/firestore";
+import { firestore, rtdb } from "../../config/firebase.ts";
+import { NotificationService } from "../../services/notification.service.ts";
 import {
   getConversationDoc,
   createMediaMessage,
@@ -82,7 +85,9 @@ export async function verifyParticipant(
     ? match.petB.user.firebaseUid
     : match.petA.user.firebaseUid;
 
-  return { match, callerFirebaseUid, otherFirebaseUid };
+  const otherUserId = isPetAOwner ? match.petB.userId : match.petA.userId;
+
+  return { match, callerFirebaseUid, otherFirebaseUid, otherUserId };
 }
 
 // ---------------------------------------------------------------------------
@@ -351,4 +356,153 @@ export async function runMediaRetention(): Promise<number> {
     chatConfig.CHAT_MEDIA_RETENTION_DAYS,
   );
   return count;
+}
+
+// ---------------------------------------------------------------------------
+// notifyChatMessage
+// ---------------------------------------------------------------------------
+
+export async function notifyChatMessage(
+  conversationId: string,
+  messageId: string,
+  callerUserId: string,
+  callerFirebaseUid: string
+): Promise<{ notified: boolean; reason?: string }> {
+  // 1. Verify caller is a participant in PostgreSQL match
+  const { match, otherUserId, otherFirebaseUid } = await verifyParticipant(
+    conversationId,
+    callerUserId
+  );
+
+  if (match.status !== "ACTIVE") {
+    return { notified: false, reason: "Conversation is ended or inactive" };
+  }
+
+  // 2. Verify conversation in Firestore is ACTIVE
+  const convDoc = await firestore.collection("conversations").doc(conversationId).get();
+  if (!convDoc.exists) {
+    throw new AppError("Conversation document not found", 404);
+  }
+  const convData = convDoc.data()!;
+  if (convData.status !== "ACTIVE") {
+    return { notified: false, reason: "Conversation is not active in Firestore" };
+  }
+
+  // 3. Atomically check & set notifiedAt on the message document for idempotency
+  const messageRef = firestore
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .doc(messageId);
+
+  const txResult = await firestore.runTransaction(async (t) => {
+    const doc = await t.get(messageRef);
+    if (!doc.exists) {
+      return { exists: false };
+    }
+    const data = doc.data()!;
+    if (data.notifiedAt) {
+      return { exists: true, alreadyNotified: true, data };
+    }
+    t.update(messageRef, { notifiedAt: FieldValue.serverTimestamp() });
+    return { exists: true, alreadyNotified: false, data };
+  });
+
+  if (!txResult.exists) {
+    throw new AppError("Message not found", 404);
+  }
+
+  if (txResult.alreadyNotified) {
+    return { notified: false, reason: "Already notified" };
+  }
+
+  const msgData = txResult.data!;
+
+  // 4. Verify caller is the sender of this message
+  if (msgData.senderUid !== callerFirebaseUid) {
+    throw new AppError("Caller is not the sender of this message", 403);
+  }
+
+  // 5. Never send for deleted messages
+  if (
+    msgData.deletedForEveryone === true ||
+    (Array.isArray(msgData.deletedForUsers) && msgData.deletedForUsers.includes(otherFirebaseUid))
+  ) {
+    return { notified: false, reason: "Message is deleted" };
+  }
+
+  // 6. Check recipient active status & user blocks in PostgreSQL
+  const recipient = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    include: { profile: true },
+  });
+
+  if (!recipient || !recipient.isActive) {
+    return { notified: false, reason: "Recipient account is inactive or not found" };
+  }
+
+  const isBlocked = await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerId: otherUserId, blockedId: callerUserId },
+        { blockerId: callerUserId, blockedId: otherUserId },
+      ],
+    },
+  });
+
+  if (isBlocked) {
+    return { notified: false, reason: "User is blocked" };
+  }
+
+  // 7. Presence check: if recipient has active connections in RTDB, skip sending push
+  try {
+    const connectionsSnap = await rtdb.ref(`status/${otherFirebaseUid}/connections`).get();
+    if (connectionsSnap.exists()) {
+      const val = connectionsSnap.val();
+      if (val && typeof val === "object" && Object.keys(val).length > 0) {
+        return { notified: false, reason: "Recipient is currently online" };
+      }
+    }
+  } catch (err) {
+    // If RTDB check fails, fail open and proceed with push
+  }
+
+  // 8. Format title and body
+  const callerUser = await prisma.user.findUnique({
+    where: { id: callerUserId },
+    include: { profile: true },
+  });
+  const senderName = callerUser?.profile?.fullName || callerUser?.email?.split("@")[0] || "Pet parent";
+
+  let bodyText = "New message";
+  if (msgData.type === "media" || (Array.isArray(msgData.media) && msgData.media.length > 0)) {
+    const mediaList = msgData.media || [];
+    if (mediaList.length === 1) {
+      bodyText = mediaList[0].isVideo ? "Video" : "Photo";
+    } else if (mediaList.length > 1) {
+      bodyText = `${mediaList.length} photos`;
+    } else {
+      bodyText = "Photo";
+    }
+  } else if (typeof msgData.text === "string") {
+    const trimmed = msgData.text.trim();
+    bodyText = trimmed.length > 80 ? `${trimmed.substring(0, 77)}...` : trimmed;
+  }
+
+  // 9. Send via NotificationService
+  await NotificationService.sendToUser(recipient.id, {
+    category: "messages",
+    type: "chat_message",
+    title: senderName,
+    body: bodyText,
+    data: {
+      route: `/chat/${conversationId}`,
+      conversationId,
+      messageId,
+      senderUid: callerFirebaseUid,
+    },
+    collapseKey: conversationId,
+  });
+
+  return { notified: true };
 }

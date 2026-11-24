@@ -8,11 +8,7 @@ export const listVeterinarians = async () => {
 
 export const findVetByUser = async (userId?: string, email?: string) => {
   if (userId) {
-    const vet = await prisma.veterinarian.findUnique({ where: { userId } });
-    if (vet) return vet;
-  }
-  if (email) {
-    const vet = await prisma.veterinarian.findUnique({ where: { email } });
+    const vet = await prisma.veterinarian.findFirst({ where: { id: userId } });
     if (vet) return vet;
   }
   return null;

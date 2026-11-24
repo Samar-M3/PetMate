@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/chat_constants.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/services/chat_media_service.dart';
@@ -40,6 +41,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   int _charCount = 0;
   int _messageLimit = 30;
   bool _isLoadingOlder = false;
+  bool _hasMore = true;
+  List<FirestoreMessage>? _currentMessages;
   FirestoreMessage? _replyingTo;
   TypingService? _typingService;
   final Set<String> _selectedMessageIds = {};
@@ -54,8 +57,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
 
-    // Ensure conversation exists in backend and mark as read
+    // Ensure conversation exists in backend, set active chat for push suppression, and check notification permission
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(activeConversationProvider.notifier).setActive(widget.match.matchId);
+      ref.read(fcmServiceProvider).checkAndPromptPermission(context);
       _initChat();
     });
   }
@@ -96,16 +101,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   }
 
   void _onScroll() {
-    // When scrolling near the top (since list is inverted/scrolled to top), load older
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 100 &&
-        !_isLoadingOlder) {
+    if (!_hasMore || _isLoadingOlder) return;
+    if (!_scrollController.hasClients ||
+        !_scrollController.position.hasContentDimensions) {
+      return;
+    }
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    // When scrolling near the top (since list is reverse: true, maxScrollExtent is top)
+    // Only paginate if content exceeds viewport meaningfully (> 60px)
+    if (maxScroll > 60 && _scrollController.position.pixels >= maxScroll - 150) {
       setState(() {
         _isLoadingOlder = true;
         _messageLimit += 30;
       });
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
+
+      // Safety timeout in case stream doesn't emit or network drops
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _isLoadingOlder) {
           setState(() => _isLoadingOlder = false);
         }
       });
@@ -114,6 +127,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   @override
   void dispose() {
+    ref.read(activeConversationProvider.notifier).setActive(null);
+    _scrollController.removeListener(_onScroll);
     _typingService?.dispose();
     _textController.dispose();
     _scrollController.dispose();
@@ -600,26 +615,58 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       ),
     );
 
+    // Cache initial messages if available
+    if (messagesAsync.hasValue && _currentMessages == null) {
+      _currentMessages = messagesAsync.value;
+      if (_currentMessages != null && _currentMessages!.length < _messageLimit) {
+        _hasMore = false;
+      }
+    }
+
     final isEnded = convAsync.value?.status == 'ENDED';
     final endedReason = convAsync.value?.endedReason;
 
-    // Mark as read when new messages are observed
+    // Mark as read and update message pagination state when new messages are observed
     ref.listen(
       messagesStreamProvider(
         (matchId: match.matchId, limit: _messageLimit),
       ),
-      (_, next) {
+      (prev, next) {
         final msgs = next.value;
-        if (myUid.isNotEmpty && (msgs?.isNotEmpty ?? false)) {
-          final conv = convAsync.value;
-          // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
-          if (conv != null && !conv.participantUids.contains(myUid)) return;
+        if (msgs != null) {
+          if (mounted) {
+            setState(() {
+              if (_currentMessages != null &&
+                  msgs.length <= _currentMessages!.length &&
+                  _messageLimit > 30) {
+                _hasMore = false;
+              } else if (msgs.length < _messageLimit) {
+                _hasMore = false;
+              }
+              _currentMessages = msgs;
+              _isLoadingOlder = false;
+            });
+          }
 
-          final latestMsgId = msgs!.first.id;
-          if (_lastMarkedReadMessageId != latestMsgId) {
-            _lastMarkedReadMessageId = latestMsgId;
-            final readReceipts = ref.read(readReceiptsSettingProvider);
-            ref.read(chatRepositoryProvider).markSeenAndRead(match.matchId, myUid, includeSeenReceipt: readReceipts);
+          if (myUid.isNotEmpty && msgs.isNotEmpty) {
+            final conv = convAsync.value;
+            // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
+            if (conv == null || conv.participantUids.contains(myUid)) {
+              final latestMsgId = msgs.first.id;
+              if (_lastMarkedReadMessageId != latestMsgId) {
+                _lastMarkedReadMessageId = latestMsgId;
+                final readReceipts = ref.read(readReceiptsSettingProvider);
+                ref.read(chatRepositoryProvider).markSeenAndRead(
+                      match.matchId,
+                      myUid,
+                      includeSeenReceipt: readReceipts,
+                    );
+              }
+            }
+          }
+        } else if (next.hasError && _isLoadingOlder) {
+          if (mounted) {
+            setState(() => _isLoadingOlder = false);
           }
         }
       },
@@ -646,6 +693,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       },
     );
 
+    final effectiveMessages = (messagesAsync.hasValue ? messagesAsync.value : null) ?? _currentMessages;
+
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
@@ -660,7 +709,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF7F5F0),
         appBar: _selectedMessageIds.isNotEmpty
-            ? _buildSelectionAppBar(context, messagesAsync.value ?? [])
+            ? _buildSelectionAppBar(context, effectiveMessages ?? [])
             : _buildAppBar(context, match),
         body: SafeArea(
         child: Column(
@@ -670,23 +719,35 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
             // 2. Real-time Messages Stream
             Expanded(
-              child: messagesAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-                error: (err, _) => Center(
-                  child: Text(
-                    'Unable to load messages: $err',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-                data: (messages) {
+              child: Builder(
+                builder: (context) {
+                  if (effectiveMessages == null) {
+                    if (messagesAsync.isLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      );
+                    }
+                    if (messagesAsync.hasError) {
+                      return Center(
+                        child: Text(
+                          'Unable to load messages: ${messagesAsync.error}',
+                          style: const TextStyle(color: AppColors.textSecondary),
+                        ),
+                      );
+                    }
+                  }
+
+                  final messages = effectiveMessages ?? [];
                   if (messages.isEmpty) {
                     return _buildEmptyChatView(match);
                   }
 
                   // Messages arrive newest first (index 0 is newest)
-                  final totalCount = messages.length + (isOtherTyping ? 1 : 0);
+                  final showLoadingOlder = _isLoadingOlder && _hasMore;
+                  final totalCount = messages.length +
+                      (isOtherTyping ? 1 : 0) +
+                      (showLoadingOlder ? 1 : 0);
+
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
@@ -698,6 +759,21 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     itemBuilder: (ctx, index) {
                       if (isOtherTyping && index == 0) {
                         return const TypingIndicatorBubble();
+                      }
+                      if (showLoadingOlder && index == totalCount - 1) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        );
                       }
                       final msgIndex = isOtherTyping ? index - 1 : index;
                       final msg = messages[msgIndex];

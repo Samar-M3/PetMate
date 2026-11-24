@@ -8,7 +8,7 @@ export const listAppointments = async (userId: string, userRole: string, vetId?:
     });
   }
   if (userRole === "VETERINARIAN" || vetId) {
-    const vet = vetId ? { id: vetId } : await prisma.veterinarian.findUnique({ where: { userId } });
+    const vet = vetId ? { id: vetId } : await prisma.veterinarian.findFirst({ where: { id: userId } });
     if (!vet) return [];
     return prisma.appointment.findMany({
       where: { vetId: vet.id },

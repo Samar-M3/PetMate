@@ -12,6 +12,7 @@ import eventsRoutes from "./modules/events/events.routes.ts";
 import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts";
 import sellersRoutes from "./modules/sellers/sellers.routes.ts";
 import appointmentsRoutes from "./modules/appointments/appointments.routes.ts";
+import { devicesRouter, notificationsRouter } from "./modules/notifications/notifications.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -85,6 +86,12 @@ app.use("/api/v1/veterinarians", veterinariansRoutes);
 
 app.use("/api/appointments", appointmentsRoutes);
 app.use("/api/v1/appointments", appointmentsRoutes);
+
+app.use("/api/devices", devicesRouter);
+app.use("/api/v1/devices", devicesRouter);
+
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/v1/notifications", notificationsRouter);
 
 app.use("/api", matchingRoutes);
 app.use("/api/v1", matchingRoutes);

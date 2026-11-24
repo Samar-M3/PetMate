@@ -9,8 +9,64 @@ import matchingConfig from "../../config/matching.config.ts";
 import { expireOldRequests } from "./matching.expiry.ts";
 import { expireSlotsAndDowngrade } from "../slots/slots.expiry.ts";
 import { ensureConversation, endConversation } from "../../services/firestore.service.ts";
+import { NotificationService } from "../../services/notification.service.ts";
 
 export { SwipeAction, RequestStatus, MatchStatus };
+
+async function notifyMatchCreated(matchId: string): Promise<void> {
+  try {
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        petA: { include: { user: true } },
+        petB: { include: { user: true } },
+      },
+    });
+    if (!match || match.status !== MatchStatus.ACTIVE) return;
+
+    // Send to Owner A
+    await NotificationService.sendToUser(match.petA.userId, {
+      category: "matches",
+      type: "match_created",
+      title: {
+        en: "It's a Match! 🎉",
+        ne: "म्याच भयो! 🎉",
+      },
+      body: {
+        en: `Your pet ${match.petA.name} matched with ${match.petB.name}! Say hello 👋`,
+        ne: `तपाईंको पाल्तु जनावर ${match.petA.name} ${match.petB.name} सँग म्याच भयो! 👋`,
+      },
+      data: {
+        route: `/chat/${matchId}`,
+        matchId,
+        otherPetName: match.petB.name,
+      },
+      collapseKey: `match_${matchId}`,
+    });
+
+    // Send to Owner B
+    await NotificationService.sendToUser(match.petB.userId, {
+      category: "matches",
+      type: "match_created",
+      title: {
+        en: "It's a Match! 🎉",
+        ne: "म्याच भयो! 🎉",
+      },
+      body: {
+        en: `Your pet ${match.petB.name} matched with ${match.petA.name}! Say hello 👋`,
+        ne: `तपाईंको पाल्तु जनावर ${match.petB.name} ${match.petA.name} सँग म्याच भयो! 👋`,
+      },
+      data: {
+        route: `/chat/${matchId}`,
+        matchId,
+        otherPetName: match.petA.name,
+      },
+      collapseKey: `match_${matchId}`,
+    });
+  } catch (err) {
+    console.error("[MatchingService] Failed to send match notifications:", err);
+  }
+}
 
 export function calculateAgeInMonths(dob?: Date | null): number {
   if (!dob) return 0;
@@ -530,6 +586,10 @@ export const recordSwipe = async ({
       status: "recorded",
       matched: false,
       swipeId: newSwipe.id,
+      targetUserId: targetPet.userId,
+      targetPetId: targetPet.id,
+      swiperPetName: swiperPet.name,
+      swiperPetId: swiperPet.id,
     };
   });
 
@@ -548,8 +608,32 @@ export const recordSwipe = async ({
       if (uidA && uidB) {
         await ensureConversation(result.matchId, [uidA, uidB]);
       }
+      await notifyMatchCreated(result.matchId);
     } catch (err) {
       console.error("[MatchingService] Post-swipe conversation creation error:", err);
+    }
+  } else if (action === SwipeAction.LIKE && !result.matched && (result as any).targetUserId) {
+    // Notify receiver of new connection request
+    try {
+      await NotificationService.sendToUser((result as any).targetUserId, {
+        category: "requests",
+        type: "connection_request",
+        title: {
+          en: "New Match Request! 🐾",
+          ne: "नयाँ म्याच अनुरोध! 🐾",
+        },
+        body: {
+          en: `${(result as any).swiperPetName} sent your pet a connection request!`,
+          ne: `${(result as any).swiperPetName} ले तपाईंको पाल्तु जनावरलाई अनुरोध पठायो!`,
+        },
+        data: {
+          route: "/requests",
+          senderPetId: (result as any).swiperPetId,
+          receiverPetId: (result as any).targetPetId,
+        },
+      });
+    } catch (err) {
+      console.error("[MatchingService] Notification error for match request:", err);
     }
   }
 
@@ -813,6 +897,7 @@ export const acceptConnectionRequest = async (
       if (uidA && uidB) {
         await ensureConversation(result.matchId, [uidA, uidB]);
       }
+      await notifyMatchCreated(result.matchId);
     } catch (err) {
       console.error("[MatchingService] Post-accept conversation creation error:", err);
     }
