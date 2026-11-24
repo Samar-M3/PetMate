@@ -3,13 +3,14 @@ import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import {
   listVeterinarians,
   findVetByUser,
-  createVeterinarian,
+  createVeterinarianAccount,
   updateVeterinarianRecord,
   updateVetSlotsRecord,
   deleteVeterinarian,
 } from "./veterinarians.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+import { validateCreateVeterinarianAccount } from "./veterinarians.validation.ts";
 
 export const getVeterinarians = async (
   _req: Request,
@@ -35,8 +36,7 @@ export const getMyVetProfile = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const email = req.firebaseUser?.email;
-    const veterinarian = await findVetByUser(userId, email);
+    const veterinarian = await findVetByUser(userId);
     if (!veterinarian) {
       return next(new AppError("Veterinarian profile not found", 404));
     }
@@ -51,26 +51,21 @@ export const getMyVetProfile = async (
 };
 
 export const addVeterinarian = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, clinicName, specialty, address } = req.body;
-    if (!name || !clinicName || !specialty || !address) {
-      return next(
-        new AppError(
-          "name, clinicName, specialty, and address are required",
-          400
-        )
-      );
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
     }
 
-    const veterinarian = await createVeterinarian(req.body);
+    const input = validateCreateVeterinarianAccount(req.body);
+    const result = await createVeterinarianAccount(req.user.id, input);
     sendSuccess(res, {
       statusCode: 201,
-      message: "Veterinarian registered successfully",
-      data: { veterinarian },
+      message: "Veterinarian account created. The veterinarian must set a new password at first login.",
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -96,14 +91,24 @@ export const updateVeterinarian = async (
 };
 
 export const updateVetSlots = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
     const { id } = req.params;
     const { availableSlots } = req.body;
-    const veterinarian = await updateVetSlotsRecord(id as string, availableSlots || []);
+    if (!Array.isArray(availableSlots) || availableSlots.some((slot) => typeof slot !== "string")) {
+      return next(new AppError("availableSlots must be an array of strings", 400));
+    }
+    const veterinarian = await updateVetSlotsRecord(
+      id as string,
+      availableSlots,
+      req.user.id,
+    );
     sendSuccess(res, {
       statusCode: 200,
       message: "Veterinarian slots updated successfully",

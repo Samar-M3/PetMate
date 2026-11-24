@@ -6,14 +6,15 @@ import '../../../../core/constants/app_colors.dart';
 import '../providers/pets_activation_provider.dart';
 
 class SlotsPurchasePage extends ConsumerStatefulWidget {
-  const SlotsPurchasePage({super.key});
+  const SlotsPurchasePage({super.key, this.targetPetId});
+
+  final String? targetPetId;
 
   @override
   ConsumerState<SlotsPurchasePage> createState() => _SlotsPurchasePageState();
 }
 
 class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
-  int _quantity = 1;
   String _selectedGateway = 'esewa';
   bool _isProcessing = false;
   String? _statusMessage;
@@ -27,15 +28,17 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
   }
 
   Future<void> _handlePayment() async {
+    var paymentVerified = false;
     setState(() {
       _isProcessing = true;
-      _statusMessage = 'Connecting to $_selectedGateway sandbox gateway...';
+      _statusMessage =
+          'Starting mock ${_selectedGateway.toUpperCase()} checkout...';
     });
 
     try {
       final notifier = ref.read(petsActivationProvider.notifier);
       final checkoutResult = await notifier.checkout(
-        quantity: _quantity,
+        quantity: 1,
         gateway: _selectedGateway,
       );
 
@@ -54,6 +57,14 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
         paymentId: paymentId,
         transactionId: transactionId,
       );
+      paymentVerified = true;
+
+      if (widget.targetPetId != null) {
+        await notifier.toggleActivation(
+          petId: widget.targetPetId!,
+          active: true,
+        );
+      }
 
       if (!mounted) return;
       setState(() {
@@ -61,8 +72,10 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
         _statusMessage = null;
       });
 
-      final message =
-          verifyResult['message'] as String? ?? 'Slots purchased successfully!';
+      final message = widget.targetPetId == null
+          ? (verifyResult['message'] as String? ??
+                'Additional active pet slot purchased.')
+          : 'Mock payment succeeded. Your selected pet is now active alongside your other pet for ${ref.read(petsActivationProvider).summary?.slotDurationDays ?? 30} days.';
 
       await showDialog(
         context: context,
@@ -105,7 +118,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Payment failed: ${e.toString().replaceAll('Exception: ', '')}',
+            '${paymentVerified ? 'Payment succeeded, but pet activation failed' : 'Payment failed'}: ${e.toString().replaceAll('Exception: ', '')}',
           ),
           backgroundColor: AppColors.error,
         ),
@@ -117,16 +130,16 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
   Widget build(BuildContext context) {
     final state = ref.watch(petsActivationProvider);
     final summary = state.summary;
-    final unitPrice = summary?.pricePerSlotNpr ?? 500.0;
+    final unitPrice = summary?.pricePerSlotNpr ?? 100.0;
     final duration = summary?.slotDurationDays ?? 30;
-    final available = summary?.availableSlotsToPurchase ?? 5;
-    final totalAmount = unitPrice * _quantity;
+    final available = summary?.availableSlotsToPurchase ?? 1;
+    final totalAmount = unitPrice;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(
         title: const Text(
-          'Get Extra Active Slots',
+          'Activate Two Pets',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.white,
@@ -182,7 +195,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Activate multiple pets at the same time so other pet parents can find them simultaneously in discovery decks.',
+                    'Keep two pet profiles visible in discovery at the same time. This extra active slot lasts for one month.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 13,
@@ -200,7 +213,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Rs. ${unitPrice.toStringAsFixed(0)} / slot for $duration days',
+                      'Rs. ${unitPrice.toStringAsFixed(0)} for $duration days',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -213,16 +226,6 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
             ),
             const SizedBox(height: 24),
 
-            // Quantity Selector
-            const Text(
-              'Select Number of Slots',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -231,53 +234,16 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$_quantity slot${_quantity > 1 ? 's' : ''}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'Up to $available available',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
+                  Icon(Icons.pets, color: AppColors.terracotta),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'One additional active pet for $duration days',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  Row(
-                    children: [
-                      IconButton.filledTonal(
-                        onPressed: _quantity > 1
-                            ? () => setState(() => _quantity--)
-                            : null,
-                        icon: const Icon(Icons.remove),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '$_quantity',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton.filledTonal(
-                        onPressed: _quantity < available
-                            ? () => setState(() => _quantity++)
-                            : null,
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
+                  Text('1 slot'),
                 ],
               ),
             ),
@@ -285,7 +251,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
 
             // Payment Gateway Selection
             const Text(
-              'Select Payment Gateway',
+              'Select Payment Method',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -327,7 +293,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                             ),
                           ),
                           const Text(
-                            'Sandbox/Digital',
+                            'Mock payment',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textMuted,
@@ -341,7 +307,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _selectedGateway = 'khalti'),
+                    onTap: () => setState(() => _selectedGateway = 'fonepay'),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -349,29 +315,29 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: _selectedGateway == 'khalti'
-                              ? const Color(0xFF5C2D91)
+                          color: _selectedGateway == 'fonepay'
+                              ? const Color(0xFFED1C24)
                               : AppColors.border,
-                          width: _selectedGateway == 'khalti' ? 2 : 1,
+                          width: _selectedGateway == 'fonepay' ? 2 : 1,
                         ),
                       ),
                       child: Column(
                         children: [
                           Icon(
                             Icons.payment,
-                            color: const Color(0xFF5C2D91),
+                            color: const Color(0xFFED1C24),
                             size: 32,
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Khalti',
+                            'Fonepay',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
                           ),
                           const Text(
-                            'Sandbox/Digital',
+                            'Mock payment',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textMuted,
@@ -405,7 +371,7 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('$_quantity x Active Slot ($duration Days)'),
+                      Text('Second active pet ($duration days)'),
                       Text('Rs. ${totalAmount.toStringAsFixed(0)}'),
                     ],
                   ),
@@ -485,8 +451,8 @@ class _SlotsPurchasePageState extends ConsumerState<SlotsPurchasePage> {
                   : _handlePayment,
               child: Text(
                 available == 0
-                    ? 'Maximum Slots Reached ($available)'
-                    : 'Pay Rs. ${totalAmount.toStringAsFixed(0)} with ${_selectedGateway.toUpperCase()}',
+                    ? 'Two-pet plan already active'
+                    : 'Mock pay Rs. ${totalAmount.toStringAsFixed(0)} with ${_selectedGateway.toUpperCase()}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

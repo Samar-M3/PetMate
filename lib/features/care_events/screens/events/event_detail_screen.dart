@@ -11,8 +11,8 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 
   /// Pass either the id, or an event (only its id is used; live data comes from the provider).
   EventDetailScreen({super.key, String? eventId, PetEvent? event})
-      : assert(eventId != null || event != null),
-        eventId = eventId ?? event!.id;
+    : assert(eventId != null || event != null),
+      eventId = eventId ?? event!.id;
 
   @override
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -38,12 +38,17 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       await ref.read(careEventsProvider.notifier).toggleRsvp(event.id, book);
       if (mounted) {
         showCareSnackBar(
-            context, book ? 'Spot booked! See it in My Passes.' : 'Spot cancelled.');
+          context,
+          book ? 'Spot booked! See it in My Passes.' : 'Spot cancelled.',
+        );
       }
     } catch (e) {
       if (mounted) {
-        showCareSnackBar(context, 'Could not update your booking: $e',
-            isError: true);
+        showCareSnackBar(
+          context,
+          'Could not update your booking: $e',
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -57,8 +62,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           .toggleBookmark(event.id, !event.isBookmarked);
     } catch (e) {
       if (mounted) {
-        showCareSnackBar(context, 'Could not update bookmark: $e',
-            isError: true);
+        showCareSnackBar(
+          context,
+          'Could not update bookmark: $e',
+          isError: true,
+        );
       }
     }
   }
@@ -139,37 +147,60 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(event.category,
-                      style: const TextStyle(
-                          color: Colors.white70, fontWeight: FontWeight.bold)),
+                  Text(
+                    event.category,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(event.title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    event.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  Text('${event.fullDate} • ${event.time}',
-                      style: const TextStyle(color: Colors.white)),
-                  Text(event.location,
-                      style: const TextStyle(color: Colors.white)),
+                  Text(
+                    '${event.fullDate} • ${event.time}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    event.location,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text('About this Event',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'About this Event',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(event.description,
-                style: const TextStyle(
-                    fontSize: 14, height: 1.5, color: CareTheme.charcoal)),
+            Text(
+              event.description,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 16),
-            Text('+${event.attendeeCount} pet parents going',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.deepOlive)),
+            Text(
+              '+${event.attendeeCount} pet parents going',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.deepOlive,
+              ),
+            ),
           ],
         ),
       ),
@@ -179,11 +210,13 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           height: 52,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  event.isBooked ? CareTheme.deepOlive : CareTheme.terracotta,
+              backgroundColor: event.isBooked
+                  ? CareTheme.deepOlive
+                  : CareTheme.terracotta,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onPressed: (_busy || ended) ? null : () => _toggleBooking(event),
             child: _busy
@@ -191,16 +224,20 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
                   )
                 : Text(
                     ended
                         ? 'Event has ended'
                         : event.isBooked
-                            ? 'Spot Booked (Tap to Cancel)'
-                            : 'Book Event Spot',
+                        ? 'Spot Booked (Tap to Cancel)'
+                        : 'Book Event Spot',
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
           ),
         ),

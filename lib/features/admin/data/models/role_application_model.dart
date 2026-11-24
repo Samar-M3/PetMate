@@ -23,6 +23,19 @@ class RoleApplicationModel {
   final String? storeStatus;
   final String? rejectionReason;
 
+  // Veterinarian clinic specific fields
+  final String? clinicName;
+  final String? licenseNumber;
+  final String? storeDescription;
+
+  // Verification documents
+  final String? govIdUrl;
+  final String? taxDocumentUrl;
+  final String? medicalLicenseUrl;
+
+  // Admin notes
+  final String? adminNotes;
+
   RoleApplicationModel({
     required this.id,
     required this.userId,
@@ -45,6 +58,13 @@ class RoleApplicationModel {
     this.identityDocUrl,
     this.storeStatus,
     this.rejectionReason,
+    this.clinicName,
+    this.licenseNumber,
+    this.storeDescription,
+    this.govIdUrl,
+    this.taxDocumentUrl,
+    this.medicalLicenseUrl,
+    this.adminNotes,
   });
 
   factory RoleApplicationModel.fromJson(Map<String, dynamic> json) {
@@ -78,8 +98,7 @@ class RoleApplicationModel {
       city: store?['city'] as String?,
       province: store?['province'] as String?,
       postalCode:
-          store?['postalCode'] as String? ??
-          store?['postal_code'] as String?,
+          store?['postalCode'] as String? ?? store?['postal_code'] as String?,
       registrationDocUrl:
           store?['registrationDocUrl'] as String? ??
           store?['registration_doc_url'] as String?,

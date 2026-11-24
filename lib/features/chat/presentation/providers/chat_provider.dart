@@ -12,7 +12,8 @@ import '../../domain/entities/chat_entities.dart';
 
 final currentFirebaseUidProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
-  final directUid = authState.firebaseUser?.uid ??
+  final directUid =
+      authState.firebaseUser?.uid ??
       FirebaseAuth.instance.currentUser?.uid ??
       authState.user?.firebaseUid ??
       '';
@@ -24,18 +25,19 @@ final currentFirebaseUidProvider = Provider<String>((ref) {
 // ---------------------------------------------------------------------------
 
 final firestoreConversationsStreamProvider =
-    StreamProvider<List<FirestoreConversation>>((ref) {
-  final myUid = ref.watch(currentFirebaseUidProvider);
-  final repo = ref.watch(chatRepositoryProvider);
-  return repo.watchConversations(myUid);
-});
+    StreamProvider.autoDispose<List<FirestoreConversation>>((ref) {
+      final myUid = ref.watch(currentFirebaseUidProvider);
+      final repo = ref.watch(chatRepositoryProvider);
+      return repo.watchConversations(myUid);
+    });
 
 // ---------------------------------------------------------------------------
 // Raw PostgreSQL Matches List Provider
 // ---------------------------------------------------------------------------
 
-final postgresMatchesProvider =
-    FutureProvider<List<MatchConversationModel>>((ref) async {
+final postgresMatchesProvider = FutureProvider<List<MatchConversationModel>>((
+  ref,
+) async {
   final repo = ref.watch(chatRepositoryProvider);
   return repo.getMatches();
 });
@@ -117,10 +119,7 @@ class ChatConversationsNotifier extends Notifier<ChatConversationsState> {
       return timeB.compareTo(timeA);
     });
 
-    return ChatConversationsState(
-      conversations: joined,
-      isLoading: false,
-    );
+    return ChatConversationsState(conversations: joined, isLoading: false);
   }
 
   Future<void> loadConversations() async {
@@ -130,8 +129,8 @@ class ChatConversationsNotifier extends Notifier<ChatConversationsState> {
 
 final chatConversationsProvider =
     NotifierProvider<ChatConversationsNotifier, ChatConversationsState>(
-  ChatConversationsNotifier.new,
-);
+      ChatConversationsNotifier.new,
+    );
 
 // ---------------------------------------------------------------------------
 // Total Unread Count Provider (for Badges)
@@ -150,23 +149,21 @@ final unreadChatsCountProvider = Provider<int>((ref) {
 // Single Conversation Document Stream
 // ---------------------------------------------------------------------------
 
-final singleConversationProvider =
-    StreamProvider.family<FirestoreConversation?, String>((ref, matchId) {
-  final repo = ref.watch(chatRepositoryProvider);
-  return repo.watchConversation(matchId);
-});
+final singleConversationProvider = StreamProvider.autoDispose
+    .family<FirestoreConversation?, String>((ref, matchId) {
+      final repo = ref.watch(chatRepositoryProvider);
+      return repo.watchConversation(matchId);
+    });
 
 // ---------------------------------------------------------------------------
 // Messages Stream Provider (family by matchId and pagination limit)
 // ---------------------------------------------------------------------------
 
-final messagesStreamProvider =
-    StreamProvider.autoDispose.family<List<FirestoreMessage>, ({String matchId, int limit})>(
-  (ref, arg) {
-    final repo = ref.watch(chatRepositoryProvider);
-    return repo.watchMessages(arg.matchId, limit: arg.limit);
-  },
-);
+final messagesStreamProvider = StreamProvider.autoDispose
+    .family<List<FirestoreMessage>, ({String matchId, int limit})>((ref, arg) {
+      final repo = ref.watch(chatRepositoryProvider);
+      return repo.watchMessages(arg.matchId, limit: arg.limit);
+    });
 
 // ---------------------------------------------------------------------------
 // Media URL Cache Provider
@@ -179,6 +176,9 @@ class CachedMediaUrl {
 }
 
 class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
+  final Map<String, Future<String?>> _inFlightSingle = {};
+  final Map<String, Future<Map<String, String>>> _inFlightBatch = {};
+
   @override
   Map<String, CachedMediaUrl> build() => {};
 
@@ -190,11 +190,37 @@ class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
   }) async {
     final cached = state[publicId];
     if (cached != null &&
-        cached.expiresAt
-            .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+        cached.expiresAt.isAfter(
+          DateTime.now().add(const Duration(minutes: 5)),
+        )) {
       return cached.url;
     }
 
+    final existing = _inFlightSingle[publicId];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _fetchSingle(
+      conversationId,
+      publicId,
+      kind: kind,
+      isThumbnail: isThumbnail,
+    );
+    _inFlightSingle[publicId] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightSingle.remove(publicId);
+    }
+  }
+
+  Future<String?> _fetchSingle(
+    String conversationId,
+    String publicId, {
+    String? kind,
+    bool isThumbnail = false,
+  }) async {
     try {
       final repo = ref.read(chatRepositoryProvider);
       final urls = await repo.getMediaUrls(
@@ -203,9 +229,9 @@ class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
         items: [
           {
             'publicId': publicId,
-            'kind': ?kind,
+            'kind': kind ?? 'image',
             'thumbnail': isThumbnail,
-          }
+          },
         ],
       );
       final url = urls[publicId];
@@ -235,40 +261,67 @@ class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
     for (final id in publicIds) {
       final cached = state[id];
       if (cached != null &&
-          cached.expiresAt
-              .isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+          cached.expiresAt.isAfter(
+            DateTime.now().add(const Duration(minutes: 5)),
+          )) {
         result[id] = cached.url;
       } else {
         needed.add(id);
       }
     }
 
-    if (needed.isNotEmpty) {
-      try {
-        final repo = ref.read(chatRepositoryProvider);
-        final neededItems = items
-            ?.where((it) => needed.contains(it['publicId']))
-            .toList();
-        final urls = await repo.getMediaUrls(
-          conversationId,
-          needed,
-          items: neededItems,
-        );
-        final newState = Map<String, CachedMediaUrl>.from(state);
-        for (final entry in urls.entries) {
-          result[entry.key] = entry.value;
-          newState[entry.key] = CachedMediaUrl(
-            url: entry.value,
-            expiresAt: DateTime.now().add(const Duration(minutes: 55)),
-          );
-        }
-        state = newState;
-      } catch (_) {
-        // Return what we have from cache
-      }
+    if (needed.isEmpty) {
+      return result;
     }
 
-    return result;
+    final batchKey = needed.join(',');
+    final existing = _inFlightBatch[batchKey];
+    if (existing != null) {
+      final fetched = await existing;
+      result.addAll(fetched);
+      return result;
+    }
+
+    final future = _fetchBatch(conversationId, needed, items: items);
+    _inFlightBatch[batchKey] = future;
+    try {
+      final fetched = await future;
+      result.addAll(fetched);
+      return result;
+    } finally {
+      _inFlightBatch.remove(batchKey);
+    }
+  }
+
+  Future<Map<String, String>> _fetchBatch(
+    String conversationId,
+    List<String> needed, {
+    List<Map<String, dynamic>>? items,
+  }) async {
+    final fetched = <String, String>{};
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      final neededItems = items
+          ?.where((it) => needed.contains(it['publicId']))
+          .toList();
+      final urls = await repo.getMediaUrls(
+        conversationId,
+        needed,
+        items: neededItems,
+      );
+      final newState = Map<String, CachedMediaUrl>.from(state);
+      for (final entry in urls.entries) {
+        fetched[entry.key] = entry.value;
+        newState[entry.key] = CachedMediaUrl(
+          url: entry.value,
+          expiresAt: DateTime.now().add(const Duration(minutes: 55)),
+        );
+      }
+      state = newState;
+    } catch (_) {
+      // Return what was fetched so far
+    }
+    return fetched;
   }
 
   void clear() => state = {};
@@ -276,5 +329,5 @@ class MediaUrlCache extends Notifier<Map<String, CachedMediaUrl>> {
 
 final mediaUrlCacheProvider =
     NotifierProvider<MediaUrlCache, Map<String, CachedMediaUrl>>(
-  MediaUrlCache.new,
-);
+      MediaUrlCache.new,
+    );

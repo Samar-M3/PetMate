@@ -317,7 +317,9 @@ export const setPetActivation = async (
         expiresAt: { gt: now },
       },
     });
-    const allowedActive = matchingConfig.FREE_ACTIVE_PETS + paidSlotsCount;
+    const allowedActive =
+      matchingConfig.FREE_ACTIVE_PETS +
+      Math.min(paidSlotsCount, matchingConfig.MAX_PAID_SLOTS);
 
     // 6. Count currently active pets for this user
     const currentlyActivePets = await tx.pet.findMany({

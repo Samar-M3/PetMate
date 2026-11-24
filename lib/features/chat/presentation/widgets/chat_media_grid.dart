@@ -121,10 +121,7 @@ class ChatMediaGrid extends ConsumerWidget {
       aspectRatio: aspectRatio,
     );
 
-    return GestureDetector(
-      onTap: () => onTap?.call(index),
-      child: child,
-    );
+    return GestureDetector(onTap: () => onTap?.call(index), child: child);
   }
 }
 
@@ -203,6 +200,16 @@ class _MediaTileContentState extends ConsumerState<_MediaTileContent> {
       content = CachedNetworkImage(
         imageUrl: _thumbnailUrl!,
         fit: BoxFit.cover,
+        memCacheWidth:
+            ((widget.height ?? 200) *
+                    MediaQuery.devicePixelRatioOf(context) *
+                    2)
+                .round(),
+        memCacheHeight:
+            ((widget.height ?? 200) *
+                    MediaQuery.devicePixelRatioOf(context) *
+                    2)
+                .round(),
         placeholder: (context, url) => Container(
           color: AppColors.inputFill,
           child: const Center(
@@ -258,10 +265,7 @@ class _MediaTileContentState extends ConsumerState<_MediaTileContent> {
               bottom: 4,
               right: 4,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.65),
                   borderRadius: BorderRadius.circular(4),
@@ -281,16 +285,10 @@ class _MediaTileContentState extends ConsumerState<_MediaTileContent> {
     }
 
     if (widget.aspectRatio != null) {
-      return AspectRatio(
-        aspectRatio: widget.aspectRatio!,
-        child: content,
-      );
+      return AspectRatio(aspectRatio: widget.aspectRatio!, child: content);
     }
 
-    return SizedBox(
-      height: widget.height ?? 160,
-      child: content,
-    );
+    return SizedBox(height: widget.height ?? 160, child: content);
   }
 
   String _formatDuration(double seconds) {
@@ -316,11 +314,7 @@ class MediaExpiredBubble extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.timer_off_outlined,
-            size: 18,
-            color: AppColors.textMuted,
-          ),
+          Icon(Icons.timer_off_outlined, size: 18, color: AppColors.textMuted),
           const SizedBox(width: 8),
           const Text(
             'Media expired',

@@ -1,12 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
+  const googleClientId =
+      '376139253985-88k3dgcl2957v8bv6dqre8dv7tqv3hab.apps.googleusercontent.com';
   return FirebaseAuthService(
     auth: FirebaseAuth.instance,
     googleSignIn: GoogleSignIn(
-      serverClientId: '376139253985-88k3dgcl2957v8bv6dqre8dv7tqv3hab.apps.googleusercontent.com',
+      clientId: kIsWeb ? googleClientId : null,
+      serverClientId: googleClientId,
     ),
   );
 });

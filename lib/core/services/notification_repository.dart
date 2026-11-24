@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/notification_preference_model.dart';
 import 'api_client.dart';
 
@@ -19,7 +20,7 @@ class NotificationRepository {
     String locale = 'en',
   }) async {
     await _apiClient.post(
-      '/api/v1/devices',
+      '/v1/devices',
       body: {
         'token': token,
         'platform': platform,
@@ -30,7 +31,7 @@ class NotificationRepository {
   }
 
   Future<void> deleteDeviceToken(String token) async {
-    await _apiClient.delete('/api/v1/devices/$token');
+    await _apiClient.delete('/v1/devices/$token');
   }
 
   Future<NotificationPreferenceModel> getPreferences() async {

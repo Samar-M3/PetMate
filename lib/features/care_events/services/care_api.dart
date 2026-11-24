@@ -56,7 +56,8 @@ class CareApi {
   ]) async {
     if (kReleaseMode && baseUrl.contains('localhost')) {
       throw const CareApiException(
-          'App is not configured with a server address (API_BASE_URL).');
+        'App is not configured with a server address (API_BASE_URL).',
+      );
     }
 
     final uri = Uri.parse('$baseUrl$path');
@@ -67,11 +68,13 @@ class CareApi {
     try {
       switch (method) {
         case 'POST':
-          res = await http.post(uri, headers: headers, body: encoded)
+          res = await http
+              .post(uri, headers: headers, body: encoded)
               .timeout(_timeout);
           break;
         case 'PATCH':
-          res = await http.patch(uri, headers: headers, body: encoded)
+          res = await http
+              .patch(uri, headers: headers, body: encoded)
               .timeout(_timeout);
           break;
         default:
@@ -79,10 +82,12 @@ class CareApi {
       }
     } on TimeoutException {
       throw const CareApiException(
-          'The server took too long to respond. Please try again.');
+        'The server took too long to respond. Please try again.',
+      );
     } on http.ClientException {
       throw const CareApiException(
-          'Could not reach the server. Check your internet connection.');
+        'Could not reach the server. Check your internet connection.',
+      );
     }
 
     dynamic decoded;
@@ -119,7 +124,8 @@ class CareApi {
   static String _messageFor(int status, dynamic decoded) {
     if (status == 401) return 'Your session has expired. Please sign in again.';
     if (status == 403) return 'You do not have permission to do that.';
-    if (status >= 500) return 'Something went wrong on our side. Please try again.';
+    if (status >= 500)
+      return 'Something went wrong on our side. Please try again.';
     if (decoded is Map) {
       final m = decoded['message'] ?? decoded['error'];
       if (m is String && m.trim().isNotEmpty) return m;

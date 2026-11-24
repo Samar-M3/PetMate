@@ -10,18 +10,15 @@ import '../../../../core/services/fcm_service.dart';
 import '../../data/models/match_conversation_model.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/services/chat_media_service.dart';
-import '../../data/services/typing_service.dart';
 import '../../domain/entities/chat_entities.dart';
 import '../providers/chat_provider.dart';
-import '../providers/presence_provider.dart';
-import '../providers/typing_provider.dart';
+import '../providers/chat_settings_provider.dart';
 import '../widgets/chat_media_grid.dart';
 import '../widgets/chat_message_menu.dart';
 import '../widgets/chat_privacy_settings_sheet.dart';
 import '../widgets/chat_reply_bar.dart';
 import '../widgets/date_separator.dart';
 import '../widgets/matched_pair_avatar.dart';
-import '../widgets/typing_indicator_bubble.dart';
 import 'media_preview_page.dart';
 import '../widgets/message_status_widget.dart';
 import 'media_viewer_page.dart';
@@ -37,6 +34,7 @@ class ChatDetailPage extends ConsumerStatefulWidget {
 
 class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   final TextEditingController _textController = TextEditingController();
+  final FocusNode _inputFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   int _charCount = 0;
   int _messageLimit = 30;
@@ -44,22 +42,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   bool _hasMore = true;
   List<FirestoreMessage>? _currentMessages;
   FirestoreMessage? _replyingTo;
-  TypingService? _typingService;
   final Set<String> _selectedMessageIds = {};
   String? _hoveredMessageId;
 
   DateTime? _lastMarkedDeliveredAt;
   String? _lastMarkedReadMessageId;
+  late final ActiveConversationNotifier _activeConversationNotifier;
 
   @override
   void initState() {
     super.initState();
+    _activeConversationNotifier = ref.read(activeConversationProvider.notifier);
     _textController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
 
     // Ensure conversation exists in backend, set active chat for push suppression, and check notification permission
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(activeConversationProvider.notifier).setActive(widget.match.matchId);
+      if (!mounted) return;
+      _activeConversationNotifier.setActive(widget.match.matchId);
       ref.read(fcmServiceProvider).checkAndPromptPermission(context);
       _initChat();
     });
@@ -70,19 +70,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (len != _charCount) {
       setState(() => _charCount = len);
     }
-    final canSendTyping = ref.read(showActivityStatusProvider);
-    _typingService?.onTextChanged(_textController.text, canSendTyping: canSendTyping);
-  }
-
-  void _initTypingService(String myUid) {
-    _typingService ??= TypingService(
-      conversationId: widget.match.matchId,
-      myUid: myUid,
-    );
   }
 
   Future<void> _initChat() async {
-    final myUid = ref.read(currentFirebaseUidProvider);
     final repo = ref.read(chatRepositoryProvider);
 
     try {
@@ -91,13 +81,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       // Backend may be offline or match already active
     }
 
-    if (myUid.isNotEmpty) {
-      final conv = ref.read(singleConversationProvider(widget.match.matchId)).value;
-      if (conv == null || conv.participantUids.contains(myUid)) {
-        final readReceipts = ref.read(readReceiptsSettingProvider);
-        repo.markSeenAndRead(widget.match.matchId, myUid, includeSeenReceipt: readReceipts);
-      }
-    }
+    if (!mounted) return;
+
+    // Receipt writes are driven by the live conversation and message listeners
+    // after participant membership has been confirmed.
   }
 
   void _onScroll() {
@@ -110,7 +97,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     // When scrolling near the top (since list is reverse: true, maxScrollExtent is top)
     // Only paginate if content exceeds viewport meaningfully (> 60px)
-    if (maxScroll > 60 && _scrollController.position.pixels >= maxScroll - 150) {
+    if (maxScroll > 60 &&
+        _scrollController.position.pixels >= maxScroll - 150) {
       setState(() {
         _isLoadingOlder = true;
         _messageLimit += 30;
@@ -127,19 +115,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   @override
   void dispose() {
-    ref.read(activeConversationProvider.notifier).setActive(null);
+    Future.microtask(() => _activeConversationNotifier.setActive(null));
     _scrollController.removeListener(_onScroll);
-    _typingService?.dispose();
+    _inputFocusNode.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToMessage(String targetMessageId, List<FirestoreMessage> messages) {
+  void _scrollToMessage(
+    String targetMessageId,
+    List<FirestoreMessage> messages,
+  ) {
     final targetIndex = messages.indexWhere((m) => m.id == targetMessageId);
     if (targetIndex != -1) {
-      final targetOffset = (targetIndex * 85.0)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      final targetOffset = (targetIndex * 85.0).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
       _scrollController.animateTo(
         targetOffset,
         duration: const Duration(milliseconds: 350),
@@ -172,7 +165,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Photo & Video Gallery'),
                 subtitle: const Text('Select up to 10 images or videos'),
                 onTap: () async {
@@ -194,13 +190,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                                     type: _replyingTo!.type,
                                     preview: _replyingTo!.isMedia
                                         ? (_replyingTo!.media.isNotEmpty &&
-                                                _replyingTo!.media.first.isVideo
-                                            ? 'Video'
-                                            : 'Photo')
-                                        : _replyingTo!.text
-                                            .characters
-                                            .take(100)
-                                            .toString(),
+                                                  _replyingTo!
+                                                      .media
+                                                      .first
+                                                      .isVideo
+                                              ? 'Video'
+                                              : 'Photo')
+                                        : _replyingTo!.text.characters
+                                              .take(100)
+                                              .toString(),
                                   )
                                 : null,
                           ),
@@ -214,7 +212,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          content: Text(
+                            e.toString().replaceAll('Exception: ', ''),
+                          ),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -223,7 +223,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Take Photo'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -244,13 +247,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                                     type: _replyingTo!.type,
                                     preview: _replyingTo!.isMedia
                                         ? (_replyingTo!.media.isNotEmpty &&
-                                                _replyingTo!.media.first.isVideo
-                                            ? 'Video'
-                                            : 'Photo')
-                                        : _replyingTo!.text
-                                            .characters
-                                            .take(100)
-                                            .toString(),
+                                                  _replyingTo!
+                                                      .media
+                                                      .first
+                                                      .isVideo
+                                              ? 'Video'
+                                              : 'Photo')
+                                        : _replyingTo!.text.characters
+                                              .take(100)
+                                              .toString(),
                                   )
                                 : null,
                           ),
@@ -264,7 +269,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          content: Text(
+                            e.toString().replaceAll('Exception: ', ''),
+                          ),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -273,7 +280,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.videocam_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.videocam_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Record Video (max 60s)'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -294,13 +304,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                                     type: _replyingTo!.type,
                                     preview: _replyingTo!.isMedia
                                         ? (_replyingTo!.media.isNotEmpty &&
-                                                _replyingTo!.media.first.isVideo
-                                            ? 'Video'
-                                            : 'Photo')
-                                        : _replyingTo!.text
-                                            .characters
-                                            .take(100)
-                                            .toString(),
+                                                  _replyingTo!
+                                                      .media
+                                                      .first
+                                                      .isVideo
+                                              ? 'Video'
+                                              : 'Photo')
+                                        : _replyingTo!.text.characters
+                                              .take(100)
+                                              .toString(),
                                   )
                                 : null,
                           ),
@@ -314,7 +326,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          content: Text(
+                            e.toString().replaceAll('Exception: ', ''),
+                          ),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -333,13 +347,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
-    _typingService?.stopTyping();
 
     final myUid = ref.read(currentFirebaseUidProvider);
     if (myUid.isEmpty) return;
 
-    final convAsync =
-        ref.read(singleConversationProvider(widget.match.matchId));
+    final convAsync = ref.read(
+      singleConversationProvider(widget.match.matchId),
+    );
     final conv = convAsync.value;
     final otherUid = conv?.otherUid(myUid) ?? '';
 
@@ -350,9 +364,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             type: _replyingTo!.type,
             preview: _replyingTo!.isMedia
                 ? (_replyingTo!.media.isNotEmpty &&
-                        _replyingTo!.media.first.isVideo
-                    ? 'Video'
-                    : 'Photo')
+                          _replyingTo!.media.first.isVideo
+                      ? 'Video'
+                      : 'Photo')
                 : _replyingTo!.text.characters.take(100).toString(),
           )
         : null;
@@ -365,22 +379,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
     // Fire-and-forget: send in background, don't block the UI
     final repo = ref.read(chatRepositoryProvider);
-    repo.sendMessage(
-      widget.match.matchId,
-      text,
-      myUid,
-      otherUid,
-      replyTo: replyTo,
-    ).catchError((e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send message: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    });
+    repo
+        .sendMessage(
+          widget.match.matchId,
+          text,
+          myUid,
+          otherUid,
+          replyTo: replyTo,
+        )
+        .catchError((e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to send message: ${e.toString()}'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        });
   }
 
   void _showUnmatchDialog(BuildContext context) {
@@ -399,14 +415,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
+              final repo = ref.read(chatRepositoryProvider);
+              final convsNotifier = ref.read(
+                chatConversationsProvider.notifier,
+              );
               Navigator.pop(ctx);
               try {
-                await ref
-                    .read(chatRepositoryProvider)
-                    .unmatch(widget.match.matchId);
-                ref
-                    .read(chatConversationsProvider.notifier)
-                    .loadConversations();
+                await repo.unmatch(widget.match.matchId);
+                convsNotifier.loadConversations();
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -447,14 +463,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
+              final repo = ref.read(chatRepositoryProvider);
+              final convsNotifier = ref.read(
+                chatConversationsProvider.notifier,
+              );
               Navigator.pop(ctx);
               try {
-                await ref
-                    .read(chatRepositoryProvider)
-                    .blockUser(widget.match.otherOwner.id);
-                ref
-                    .read(chatConversationsProvider.notifier)
-                    .loadConversations();
+                await repo.blockUser(widget.match.otherOwner.id);
+                convsNotifier.loadConversations();
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -537,13 +553,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                 title: Text(reason, style: const TextStyle(fontSize: 14)),
                 trailing: const Icon(Icons.chevron_right, size: 20),
                 onTap: () async {
+                  final repo = ref.read(chatRepositoryProvider);
                   Navigator.pop(ctx);
                   try {
-                    await ref.read(chatRepositoryProvider).reportChat(
-                          widget.match.matchId,
-                          messageId: messageId,
-                          reason: reason,
-                        );
+                    await repo.reportChat(
+                      widget.match.matchId,
+                      messageId: messageId,
+                      reason: reason,
+                    );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -577,48 +594,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Widget build(BuildContext context) {
     final match = widget.match;
     final myUid = ref.watch(currentFirebaseUidProvider);
-    if (myUid.isNotEmpty) {
-      _initTypingService(myUid);
-    }
-
-    final otherUid = match.otherFirebaseUid ?? '';
-    final isOtherTyping = otherUid.isNotEmpty
-        ? ref.watch(otherUserTypingProvider((
-            conversationId: match.matchId,
-            otherUid: otherUid,
-          ))).value == true
-        : false;
-
-    // Auto-scroll when other user starts typing if near bottom
-    ref.listen(
-      otherUserTypingProvider((
-        conversationId: match.matchId,
-        otherUid: otherUid,
-      )),
-      (prev, next) {
-        if (next.value == true && _scrollController.hasClients) {
-          if (_scrollController.offset <= 80) {
-            _scrollController.animateTo(
-              0,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-            );
-          }
-        }
-      },
-    );
 
     final convAsync = ref.watch(singleConversationProvider(match.matchId));
+    final readReceiptsEnabled = ref.watch(readReceiptsSettingProvider);
     final messagesAsync = ref.watch(
-      messagesStreamProvider(
-        (matchId: match.matchId, limit: _messageLimit),
-      ),
+      messagesStreamProvider((matchId: match.matchId, limit: _messageLimit)),
     );
 
     // Cache initial messages if available
     if (messagesAsync.hasValue && _currentMessages == null) {
       _currentMessages = messagesAsync.value;
-      if (_currentMessages != null && _currentMessages!.length < _messageLimit) {
+      if (_currentMessages != null &&
+          _currentMessages!.length < _messageLimit) {
         _hasMore = false;
       }
     }
@@ -628,9 +615,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
     // Mark as read and update message pagination state when new messages are observed
     ref.listen(
-      messagesStreamProvider(
-        (matchId: match.matchId, limit: _messageLimit),
-      ),
+      messagesStreamProvider((matchId: match.matchId, limit: _messageLimit)),
       (prev, next) {
         final msgs = next.value;
         if (msgs != null) {
@@ -651,16 +636,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           if (myUid.isNotEmpty && msgs.isNotEmpty) {
             final conv = convAsync.value;
             // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
-            if (conv == null || conv.participantUids.contains(myUid)) {
+            if (conv != null &&
+                conv.status == 'ACTIVE' &&
+                conv.participantUids.contains(myUid)) {
               final latestMsgId = msgs.first.id;
               if (_lastMarkedReadMessageId != latestMsgId) {
-                _lastMarkedReadMessageId = latestMsgId;
                 final readReceipts = ref.read(readReceiptsSettingProvider);
-                ref.read(chatRepositoryProvider).markSeenAndRead(
+                ref
+                    .read(chatRepositoryProvider)
+                    .markSeenAndRead(
                       match.matchId,
                       myUid,
+                      latestMessageId: latestMsgId,
                       includeSeenReceipt: readReceipts,
-                    );
+                    )
+                    .then((allowed) {
+                      if (allowed && mounted) {
+                        _lastMarkedReadMessageId = latestMsgId;
+                      }
+                    });
               }
             }
           }
@@ -673,148 +667,162 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
 
     // Mark delivery watermark when viewing conversation
-    ref.listen(
-      singleConversationProvider(match.matchId),
-      (_, next) {
-        final conv = next.value;
-        if (conv != null && myUid.isNotEmpty) {
-          // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
-          if (!conv.participantUids.contains(myUid)) return;
+    ref.listen(singleConversationProvider(match.matchId), (_, next) {
+      final conv = next.value;
+      if (conv != null && myUid.isNotEmpty && conv.status == 'ACTIVE') {
+        // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
+        if (!conv.participantUids.contains(myUid)) return;
 
-          final lastMsgAt = conv.lastMessageAt;
-          final myDelivered = conv.deliveredAtFor(myUid);
-          if (lastMsgAt != null &&
-              (myDelivered == null || lastMsgAt.isAfter(myDelivered)) &&
-              _lastMarkedDeliveredAt != lastMsgAt) {
-            _lastMarkedDeliveredAt = lastMsgAt;
-            ref.read(chatRepositoryProvider).markDelivered(match.matchId, myUid);
-          }
+        final lastMsgAt = conv.lastMessageAt;
+        final myDelivered = conv.deliveredAtFor(myUid);
+        if (lastMsgAt != null &&
+              conv.lastMessageSenderUid != null &&
+            conv.lastMessageSenderUid != myUid &&
+            (myDelivered == null || lastMsgAt.isAfter(myDelivered)) &&
+            _lastMarkedDeliveredAt != lastMsgAt) {
+          ref
+              .read(chatRepositoryProvider)
+              .markDelivered(match.matchId, myUid, lastMessageAt: lastMsgAt)
+              .then((allowed) {
+                if (allowed && mounted) _lastMarkedDeliveredAt = lastMsgAt;
+              });
         }
-      },
-    );
+      }
+    });
 
-    final effectiveMessages = (messagesAsync.hasValue ? messagesAsync.value : null) ?? _currentMessages;
+    final effectiveMessages =
+        (messagesAsync.hasValue ? messagesAsync.value : null) ??
+        _currentMessages;
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape &&
-            _selectedMessageIds.isNotEmpty) {
+    return PopScope(
+      canPop: _selectedMessageIds.isEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selectedMessageIds.isNotEmpty) {
           setState(() => _selectedMessageIds.clear());
-          return KeyEventResult.handled;
         }
-        return KeyEventResult.ignored;
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F5F0),
-        appBar: _selectedMessageIds.isNotEmpty
-            ? _buildSelectionAppBar(context, effectiveMessages ?? [])
-            : _buildAppBar(context, match),
-        body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Ended Banner if conversation was ended
-            if (isEnded) _buildEndedBanner(endedReason),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (_selectedMessageIds.isNotEmpty) {
+              setState(() => _selectedMessageIds.clear());
+            }
+          },
+        },
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          backgroundColor: const Color(0xFFF7F5F0),
+          appBar: _selectedMessageIds.isNotEmpty
+              ? _buildSelectionAppBar(context, effectiveMessages ?? [])
+              : _buildAppBar(context, match),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // 1. Ended Banner if conversation was ended
+                if (isEnded) _buildEndedBanner(endedReason),
 
-            // 2. Real-time Messages Stream
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  if (effectiveMessages == null) {
-                    if (messagesAsync.isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      );
-                    }
-                    if (messagesAsync.hasError) {
-                      return Center(
-                        child: Text(
-                          'Unable to load messages: ${messagesAsync.error}',
-                          style: const TextStyle(color: AppColors.textSecondary),
-                        ),
-                      );
-                    }
-                  }
-
-                  final messages = effectiveMessages ?? [];
-                  if (messages.isEmpty) {
-                    return _buildEmptyChatView(match);
-                  }
-
-                  // Messages arrive newest first (index 0 is newest)
-                  final showLoadingOlder = _isLoadingOlder && _hasMore;
-                  final totalCount = messages.length +
-                      (isOtherTyping ? 1 : 0) +
-                      (showLoadingOlder ? 1 : 0);
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    itemCount: totalCount,
-                    itemBuilder: (ctx, index) {
-                      if (isOtherTyping && index == 0) {
-                        return const TypingIndicatorBubble();
-                      }
-                      if (showLoadingOlder && index == totalCount - 1) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                          child: Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
+                // 2. Real-time Messages Stream
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      if (effectiveMessages == null) {
+                        if (messagesAsync.isLoading) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          );
+                        }
+                        if (messagesAsync.hasError) {
+                          return Center(
+                            child: Text(
+                              'Unable to load messages: ${messagesAsync.error}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
                               ),
                             ),
-                          ),
-                        );
-                      }
-                      final msgIndex = isOtherTyping ? index - 1 : index;
-                      final msg = messages[msgIndex];
-                      final isMine = msg.senderUid == myUid;
-                      final showDateSeparator = msgIndex == messages.length - 1 ||
-                          isDifferentDay(
-                            msg.createdAt,
-                            messages[msgIndex + 1].createdAt,
                           );
+                        }
+                      }
 
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (showDateSeparator)
-                            DateSeparatorWidget(date: msg.createdAt),
-                          _buildMessageBubble(
-                            msg,
-                            isMine,
-                            isEnded,
-                            messages,
-                            myUid,
-                          ),
-                        ],
+                      final messages = effectiveMessages ?? [];
+                      if (messages.isEmpty) {
+                        return _buildEmptyChatView(match);
+                      }
+
+                      // Messages arrive newest first (index 0 is newest)
+                      final showLoadingOlder = _isLoadingOlder && _hasMore;
+                      final totalCount =
+                          messages.length + (showLoadingOlder ? 1 : 0);
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        itemCount: totalCount,
+                        itemBuilder: (ctx, index) {
+                          if (showLoadingOlder && index == totalCount - 1) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          final msgIndex = index;
+                          final msg = messages[msgIndex];
+                          final isMine = msg.senderUid == myUid;
+                          final showDateSeparator =
+                              msgIndex == messages.length - 1 ||
+                              isDifferentDay(
+                                msg.createdAt,
+                                messages[msgIndex + 1].createdAt,
+                              );
+
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (showDateSeparator)
+                                DateSeparatorWidget(date: msg.createdAt),
+                              _buildMessageBubble(
+                                msg,
+                                isMine,
+                                isEnded,
+                                messages,
+                                myUid,
+                                convAsync.value,
+                                readReceiptsEnabled,
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
 
-            // 3. Message Input Bar or Disabled State
-            if (isEnded)
-              _buildDisabledInputBar()
-            else
-              _buildMessageInputBar(context),
-          ],
+                // 3. Message Input Bar or Disabled State
+                if (isEnded)
+                  _buildDisabledInputBar()
+                else
+                  _buildMessageInputBar(context),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildEndedBanner(String? reason) {
     String message = 'This conversation has ended.';
@@ -858,9 +866,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     final selectedMsgs = allMessages
         .where((m) => _selectedMessageIds.contains(m.id))
         .toList();
-    final canCopy = selectedMsgs.isNotEmpty &&
-        selectedMsgs.every((m) => m.isText && !m.deletedForEveryone && m.text.isNotEmpty);
-    final canReply = selectedMsgs.length == 1 && !selectedMsgs.first.deletedForEveryone;
+    final canCopy =
+        selectedMsgs.isNotEmpty &&
+        selectedMsgs.every(
+          (m) => m.isText && !m.deletedForEveryone && m.text.isNotEmpty,
+        );
+    final canReply =
+        selectedMsgs.length == 1 && !selectedMsgs.first.deletedForEveryone;
 
     return AppBar(
       backgroundColor: AppColors.primary,
@@ -901,7 +913,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               Clipboard.setData(ClipboardData(text: combined));
               setState(() => _selectedMessageIds.clear());
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${selectedMsgs.length} message(s) copied')),
+                SnackBar(
+                  content: Text('${selectedMsgs.length} message(s) copied'),
+                ),
               );
             },
           ),
@@ -918,12 +932,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     List<FirestoreMessage> selectedMsgs,
   ) async {
     final myUid = ref.read(currentFirebaseUidProvider);
-    final convAsync = ref.read(singleConversationProvider(widget.match.matchId));
+    final convAsync = ref.read(
+      singleConversationProvider(widget.match.matchId),
+    );
     final isEnded = convAsync.value?.status == 'ENDED';
 
-    final eligibleForEveryone = !isEnded &&
+    final eligibleForEveryone =
+        !isEnded &&
         selectedMsgs.isNotEmpty &&
-        selectedMsgs.every((m) => _canDeleteForEveryone(m, m.senderUid == myUid));
+        selectedMsgs.every(
+          (m) => _canDeleteForEveryone(m, m.senderUid == myUid),
+        );
 
     final action = await showModalBottomSheet<String>(
       context: context,
@@ -960,22 +979,36 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                ),
                 title: const Text(
                   'Delete for me',
-                  style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: const Text('Remove from your chat view only'),
                 onTap: () => Navigator.pop(ctx, 'for_me'),
               ),
               if (eligibleForEveryone)
                 ListTile(
-                  leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+                  leading: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: AppColors.error,
+                  ),
                   title: const Text(
                     'Delete for everyone',
-                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  subtitle: const Text('Remove for everyone in the conversation'),
+                  subtitle: const Text(
+                    'Remove for everyone in the conversation',
+                  ),
                   onTap: () => Navigator.pop(ctx, 'for_everyone'),
                 ),
               const SizedBox(height: 8),
@@ -996,11 +1029,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         await repo.batchDeleteForMe(widget.match.matchId, messageIds, myUid);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${messageIds.length} message(s) deleted for you')),
+            SnackBar(
+              content: Text('${messageIds.length} message(s) deleted for you'),
+            ),
           );
         }
       } else if (action == 'for_everyone') {
-        final result = await repo.batchDeleteForEveryone(widget.match.matchId, messageIds);
+        final result = await repo.batchDeleteForEveryone(
+          widget.match.matchId,
+          messageIds,
+        );
         final deletedList = (result['data']?['deleted'] as List?) ?? [];
         final rejectedList = (result['data']?['rejected'] as List?) ?? [];
         if (mounted) {
@@ -1014,7 +1052,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${deletedList.length} message(s) deleted for everyone')),
+              SnackBar(
+                content: Text(
+                  '${deletedList.length} message(s) deleted for everyone',
+                ),
+              ),
             );
           }
         }
@@ -1035,16 +1077,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     BuildContext context,
     MatchConversationModel match,
   ) {
-    final otherUid = match.otherFirebaseUid ?? '';
-    final presence = otherUid.isNotEmpty
-        ? ref.watch(presenceStreamProvider(otherUid)).value
-        : null;
-    final activityText = otherUid.isNotEmpty
-        ? ref.watch(relativeActivityTextProvider(otherUid)).value
-        : null;
-    final isOnline = presence?.isOnline == true && presence?.visible == true;
-    final isNow = activityText == 'Active now' || activityText == 'अहिले सक्रिय';
-
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 1,
@@ -1067,8 +1099,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                 ownerImageUrl: match.otherOwner.imageUrl,
                 ownerName: match.otherOwner.name,
                 size: 42,
-                showOnlineIndicator: true,
-                isOnline: isOnline,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1087,11 +1117,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      activityText ?? (match.otherPet.breed ?? 'Playdate match'),
-                      style: TextStyle(
+                      match.otherPet.breed ?? 'Playdate match',
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: isNow ? const Color(0xFF2E7D32) : AppColors.textSecondary,
-                        fontWeight: isNow ? FontWeight.w600 : FontWeight.normal,
+                        color: AppColors.textSecondary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1157,7 +1186,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               value: 'unmatch',
               child: Row(
                 children: [
-                  Icon(Icons.link_off_rounded, size: 18, color: AppColors.error),
+                  Icon(
+                    Icons.link_off_rounded,
+                    size: 18,
+                    color: AppColors.error,
+                  ),
                   SizedBox(width: 10),
                   Text('Unmatch', style: TextStyle(color: AppColors.error)),
                 ],
@@ -1252,7 +1285,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       } else {
         if (_selectedMessageIds.length >= 50) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maximum 50 messages can be selected')),
+            const SnackBar(
+              content: Text('Maximum 50 messages can be selected'),
+            ),
           );
         } else {
           _selectedMessageIds.add(msgId);
@@ -1293,11 +1328,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         );
         if (confirmed && mounted) {
           try {
-            await ref.read(chatRepositoryProvider).deleteForMe(
-                  widget.match.matchId,
-                  msg.id,
-                  myUid,
-                );
+            await ref
+                .read(chatRepositoryProvider)
+                .deleteForMe(widget.match.matchId, msg.id, myUid);
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1318,10 +1351,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         );
         if (confirmed && mounted) {
           try {
-            await ref.read(chatRepositoryProvider).deleteForEveryone(
-                  widget.match.matchId,
-                  msg.id,
-                );
+            await ref
+                .read(chatRepositoryProvider)
+                .deleteForEveryone(widget.match.matchId, msg.id);
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1347,6 +1379,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     bool isEnded,
     List<FirestoreMessage> allMessages,
     String myUid,
+    FirestoreConversation? conversation,
+    bool readReceiptsEnabled,
   ) {
     // If deleted for me, hide completely
     if (msg.isDeletedFor(myUid)) {
@@ -1369,10 +1403,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.block_rounded, size: 14, color: AppColors.textMuted),
+              const Icon(
+                Icons.block_rounded,
+                size: 14,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(width: 6),
               Text(
-                isMine ? 'You deleted this message' : 'This message was deleted',
+                isMine
+                    ? 'You deleted this message'
+                    : 'This message was deleted',
                 style: const TextStyle(
                   fontSize: 12.5,
                   fontStyle: FontStyle.italic,
@@ -1382,7 +1422,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
               const SizedBox(width: 8),
               Text(
                 timeStr,
-                style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -1397,7 +1440,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     // Swipe to reply wrapper
     return Dismissible(
       key: Key('msg_${msg.id}'),
-      direction: (isEnded || isSelectionMode) ? DismissDirection.none : DismissDirection.startToEnd,
+      direction: (isEnded || isSelectionMode)
+          ? DismissDirection.none
+          : DismissDirection.startToEnd,
       confirmDismiss: (direction) async {
         setState(() => _replyingTo = msg);
         HapticFeedback.lightImpact();
@@ -1447,17 +1492,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             }
           },
           child: Container(
-            color: isSelected ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
             padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
             child: Row(
-              mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment: isMine
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
               children: [
                 if (isSelectionMode && !isMine) ...[
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Icon(
-                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textMuted,
                       size: 20,
                     ),
                   ),
@@ -1476,7 +1529,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? (isMine ? const Color(0xFFD4EAE2) : const Color(0xFFE8ECEF))
+                            ? (isMine
+                                  ? const Color(0xFFD4EAE2)
+                                  : const Color(0xFFE8ECEF))
                             : (isMine ? const Color(0xFFE7F3EF) : Colors.white),
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(16),
@@ -1495,14 +1550,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                           color: isSelected
                               ? AppColors.primary
                               : (isMine
-                                  ? AppColors.primary.withValues(alpha: 0.25)
-                                  : AppColors.border),
+                                    ? AppColors.primary.withValues(alpha: 0.25)
+                                    : AppColors.border),
                           width: isSelected ? 1.5 : 0.8,
                         ),
                       ),
                       child: Column(
-                        crossAxisAlignment:
-                            isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        crossAxisAlignment: isMine
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // 1. Quoted Reply Block (if replying to another message)
@@ -1519,9 +1575,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                                     ? 'You'
                                     : widget.match.otherOwner.name,
                                 preview: msg.replyTo!.preview,
-                                isDeleted: msg.replyTo!.preview == 'Message deleted',
-                                onTap: () =>
-                                    _scrollToMessage(msg.replyTo!.messageId, allMessages),
+                                isDeleted:
+                                    msg.replyTo!.preview == 'Message deleted',
+                                onTap: () => _scrollToMessage(
+                                  msg.replyTo!.messageId,
+                                  allMessages,
+                                ),
                               ),
                             ),
 
@@ -1586,27 +1645,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     color: isMine
-                                        ? AppColors.primary.withValues(alpha: 0.8)
+                                        ? AppColors.primary.withValues(
+                                            alpha: 0.8,
+                                          )
                                         : AppColors.textMuted,
                                   ),
                                 ),
                                 if (isMine) ...[
                                   const SizedBox(width: 4),
-                                  Builder(
-                                    builder: (context) {
-                                      final convAsync = ref.watch(singleConversationProvider(widget.match.matchId));
-                                      final conv = convAsync.value;
-                                      final otherUid = conv?.otherUid(myUid) ?? '';
-                                      final readReceipts = ref.watch(readReceiptsSettingProvider);
-                                      final status = computeMessageStatus(
-                                        message: msg,
-                                        conversation: conv,
-                                        myUid: myUid,
-                                        otherUid: otherUid,
-                                        readReceiptsEnabled: readReceipts,
-                                      );
-                                      return MessageStatusWidget(status: status, size: 14);
-                                    },
+                                  MessageStatusWidget(
+                                    status: computeMessageStatus(
+                                      message: msg,
+                                      conversation: conversation,
+                                      myUid: myUid,
+                                      otherUid:
+                                          conversation?.otherUid(myUid) ?? '',
+                                      readReceiptsEnabled: readReceiptsEnabled,
+                                    ),
+                                    size: 14,
                                   ),
                                 ],
                               ],
@@ -1629,7 +1685,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                               details.globalPosition,
                               isMine: isMine,
                               isTextMessage: msg.isText,
-                              canDeleteForEveryone: _canDeleteForEveryone(msg, isMine),
+                              canDeleteForEveryone: _canDeleteForEveryone(
+                                msg,
+                                isMine,
+                              ),
                               isEnded: isEnded,
                             );
                             if (action != null && mounted) {
@@ -1639,8 +1698,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                           child: Container(
                             padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
-                              color: (isMine ? const Color(0xFFE7F3EF) : Colors.white)
-                                  .withValues(alpha: 0.95),
+                              color:
+                                  (isMine
+                                          ? const Color(0xFFE7F3EF)
+                                          : Colors.white)
+                                      .withValues(alpha: 0.95),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -1663,8 +1725,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Icon(
-                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textMuted,
                       size: 20,
                     ),
                   ),
@@ -1723,9 +1789,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                   : widget.match.otherOwner.name,
               preview: _replyingTo!.isMedia
                   ? (_replyingTo!.media.isNotEmpty &&
-                          _replyingTo!.media.first.isVideo
-                      ? 'Video'
-                      : 'Photo')
+                            _replyingTo!.media.first.isVideo
+                        ? 'Video'
+                        : 'Photo')
                   : _replyingTo!.text,
               isMediaMessage: _replyingTo!.isMedia,
               onCancel: () => setState(() => _replyingTo = null),
@@ -1765,19 +1831,25 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     ),
                     child: TextField(
                       controller: _textController,
+                      focusNode: _inputFocusNode,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
                       textCapitalization: TextCapitalization.sentences,
                       maxLines: 5,
                       minLines: 1,
                       maxLength: 1000,
-                      buildCounter: (_,
-                              {required currentLength,
-                              maxLength,
-                              required isFocused}) =>
-                          null,
+                      buildCounter: (
+                        _, {
+                        required currentLength,
+                        maxLength,
+                        required isFocused,
+                      }) => null,
                       decoration: const InputDecoration(
                         hintText: 'Type a message...',
-                        hintStyle:
-                            TextStyle(fontSize: 14, color: AppColors.textMuted),
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textMuted,
+                        ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -1803,11 +1875,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Icon(
-                              Icons.send_rounded,
-                              color:
-                                  canSend ? Colors.white : AppColors.textMuted,
-                              size: 20,
-                            ),
+                        Icons.send_rounded,
+                        color: canSend ? Colors.white : AppColors.textMuted,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),
@@ -1815,7 +1886,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             ),
           ),
 
-          // Character limit feedback when typing near max limit
+          // Character limit feedback as the input approaches its limit.
           if (_charCount > 800)
             Padding(
               padding: const EdgeInsets.only(top: 2, right: 16, bottom: 4),
@@ -1869,7 +1940,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             const SizedBox(height: 4),
             Text(
               '${match.otherPet.breed ?? 'Pet'} • ${match.otherOwner.location ?? 'Nearby'}',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 18),
             Row(
@@ -1910,7 +1984,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       Navigator.pop(ctx);
                       context.push('/owner/${match.otherOwner.id}');
                     },
-                    icon: const Icon(Icons.person, color: Colors.white, size: 16),
+                    icon: const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                     label: const Text(
                       'Owner Profile',
                       style: TextStyle(

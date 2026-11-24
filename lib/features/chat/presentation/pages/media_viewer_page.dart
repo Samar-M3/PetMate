@@ -43,11 +43,9 @@ class _MediaViewerPageState extends ConsumerState<MediaViewerPage> {
     final cache = ref.read(mediaUrlCacheProvider.notifier);
     final publicIds = widget.items.map((i) => i.publicId).toList();
     final items = widget.items
-        .map((i) => {
-              'publicId': i.publicId,
-              'kind': i.kind,
-              'thumbnail': false,
-            })
+        .map(
+          (i) => {'publicId': i.publicId, 'kind': i.kind, 'thumbnail': false},
+        )
         .toList();
     final urls = await cache.getUrls(
       widget.conversationId,
@@ -155,10 +153,7 @@ class _VideoViewerWidget extends StatefulWidget {
   final String url;
   final void Function(VideoPlayerController)? onControllerCreated;
 
-  const _VideoViewerWidget({
-    required this.url,
-    this.onControllerCreated,
-  });
+  const _VideoViewerWidget({required this.url, this.onControllerCreated});
 
   @override
   State<_VideoViewerWidget> createState() => _VideoViewerWidgetState();
@@ -181,8 +176,9 @@ class _VideoViewerWidgetState extends State<_VideoViewerWidget> {
     setState(() => _isLoading = true);
 
     try {
-      final controller =
-          VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+      );
       _controller = controller;
       widget.onControllerCreated?.call(controller);
 
@@ -338,10 +334,7 @@ class _VideoProgressBar extends StatelessWidget {
               final dur = value.duration;
               return Text(
                 '${_fmt(pos)} / ${_fmt(dur)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 11),
               );
             },
           ),

@@ -156,6 +156,7 @@ class UserModel extends UserEntity {
     super.role,
     super.isActive,
     super.onboardingCompleted,
+    super.mustChangePassword,
     super.profile,
     super.pets,
   });
@@ -191,6 +192,10 @@ class UserModel extends UserEntity {
           json['onboardingCompleted'] as bool? ??
           json['onboarding_completed'] as bool? ??
           false,
+      mustChangePassword:
+          json['mustChangePassword'] as bool? ??
+          json['must_change_password'] as bool? ??
+          false,
       profile: prof,
       pets: petsList,
     );
@@ -205,6 +210,7 @@ class UserModel extends UserEntity {
       'role': role.toBackendString(),
       'isActive': isActive,
       'onboardingCompleted': onboardingCompleted,
+      'mustChangePassword': mustChangePassword,
       if (profile != null) 'profile': (profile as ProfileModel).toJson(),
       'pets': pets.map((p) => (p as PetModel).toJson()).toList(),
     };

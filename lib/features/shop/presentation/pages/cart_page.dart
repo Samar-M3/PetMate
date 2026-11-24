@@ -34,7 +34,9 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
         elevation: 0,
         scrolledUnderElevation: 1,
         title: Text(
-          cart.totalCount > 0 ? 'My Cart (${cart.totalCount})' : 'Shopping Cart',
+          cart.totalCount > 0
+              ? 'My Cart (${cart.totalCount})'
+              : 'Shopping Cart',
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -49,12 +51,19 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Clear Shopping Cart?'),
-                    content: const Text('Are you sure you want to remove all items from your cart?'),
+                    content: const Text(
+                      'Are you sure you want to remove all items from your cart?',
+                    ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                        ),
                         child: const Text('Clear All'),
                       ),
                     ],
@@ -64,19 +73,30 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   await ref.read(shopCartProvider.notifier).clear();
                 }
               },
-              icon: const Icon(Icons.delete_sweep_outlined, size: 18, color: AppColors.textSecondary),
-              label: const Text('Clear', style: TextStyle(color: AppColors.textSecondary)),
+              icon: const Icon(
+                Icons.delete_sweep_outlined,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+              label: const Text(
+                'Clear',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
         ],
       ),
       body: cart.loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : cart.error != null && cart.items.isEmpty
-              ? _buildError(cart.error!)
-              : cart.items.isEmpty
-                  ? _buildEmpty()
-                  : _buildCartContent(cart),
-      bottomNavigationBar: cart.items.isNotEmpty ? _buildStickyCheckoutBar(cart) : null,
+          ? _buildError(cart.error!)
+          : cart.items.isEmpty
+          ? _buildEmpty()
+          : _buildCartContent(cart),
+      bottomNavigationBar: cart.items.isNotEmpty
+          ? _buildStickyCheckoutBar(cart)
+          : null,
     );
   } //good
 
@@ -119,8 +139,13 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => context.go('/shop'),
               icon: const Icon(Icons.storefront_rounded, size: 18),
@@ -142,7 +167,11 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
@@ -177,9 +206,13 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
           child: Row(
             children: [
               Icon(
-                cart.subtotal >= 1500 ? Icons.check_circle_rounded : Icons.local_shipping_outlined,
+                cart.subtotal >= 1500
+                    ? Icons.check_circle_rounded
+                    : Icons.local_shipping_outlined,
                 size: 18,
-                color: cart.subtotal >= 1500 ? AppColors.success : AppColors.primary,
+                color: cart.subtotal >= 1500
+                    ? AppColors.success
+                    : AppColors.primary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -190,7 +223,9 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: cart.subtotal >= 1500 ? AppColors.success : AppColors.primaryDark,
+                    color: cart.subtotal >= 1500
+                        ? AppColors.success
+                        : AppColors.primaryDark,
                   ),
                 ),
               ),
@@ -227,21 +262,41 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Subtotal', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                  Text(formatShopPrice(cart.subtotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const Text(
+                    'Subtotal',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    formatShopPrice(cart.subtotal),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Delivery Charge', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  const Text(
+                    'Delivery Charge',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
                   Text(
                     cart.subtotal >= 1500 ? 'FREE' : formatShopPrice(100),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: cart.subtotal >= 1500 ? AppColors.success : AppColors.textPrimary,
+                      color: cart.subtotal >= 1500
+                          ? AppColors.success
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -261,7 +316,11 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                     ),
                   ),
                   Text(
-                    formatShopPrice(cart.subtotal >= 1500 ? cart.subtotal : cart.subtotal + 100),
+                    formatShopPrice(
+                      cart.subtotal >= 1500
+                          ? cart.subtotal
+                          : cart.subtotal + 100,
+                    ),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -323,9 +382,14 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
                       visualDensity: VisualDensity.compact,
-                      onPressed: () => ref.read(shopCartProvider.notifier).remove(line.id),
+                      onPressed: () =>
+                          ref.read(shopCartProvider.notifier).remove(line.id),
                     ),
                   ],
                 ),
@@ -333,7 +397,10 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   const SizedBox(height: 2),
                   Text(
                     'Variant: ${line.variant!.optionKey}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 6),
@@ -360,23 +427,41 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                         children: [
                           InkWell(
                             onTap: line.quantity > 1
-                                ? () => ref.read(shopCartProvider.notifier).updateQuantity(line.id, line.quantity - 1)
-                                : () => ref.read(shopCartProvider.notifier).remove(line.id),
+                                ? () => ref
+                                      .read(shopCartProvider.notifier)
+                                      .updateQuantity(
+                                        line.id,
+                                        line.quantity - 1,
+                                      )
+                                : () => ref
+                                      .read(shopCartProvider.notifier)
+                                      .remove(line.id),
                             borderRadius: BorderRadius.circular(8),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               child: Icon(Icons.remove, size: 14),
                             ),
                           ),
                           Text(
                             '${line.quantity}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                           InkWell(
-                            onTap: () => ref.read(shopCartProvider.notifier).updateQuantity(line.id, line.quantity + 1),
+                            onTap: () => ref
+                                .read(shopCartProvider.notifier)
+                                .updateQuantity(line.id, line.quantity + 1),
                             borderRadius: BorderRadius.circular(8),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               child: Icon(Icons.add, size: 14),
                             ),
                           ),
@@ -416,7 +501,13 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Total to pay', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                const Text(
+                  'Total to pay',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 Text(
                   formatShopPrice(total),
                   style: const TextStyle(
@@ -434,7 +525,9 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 1,
                 ),
                 onPressed: () => context.push('/shop/checkout'),

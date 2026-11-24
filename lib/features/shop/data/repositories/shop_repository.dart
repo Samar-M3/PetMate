@@ -84,7 +84,8 @@ class ShopRepository {
   }
 
   Future<ShopOrder> cancelOrder(String id, {String? reason}) async {
-    final data = await _remote.cancelOrder(id, reason: reason) as Map<String, dynamic>;
+    final data =
+        await _remote.cancelOrder(id, reason: reason) as Map<String, dynamic>;
     return ShopOrder.fromJson(Map<String, dynamic>.from(data['order'] as Map));
   }
 
@@ -95,17 +96,26 @@ class ShopRepository {
   }
 
   Future<ShopAddress> createAddress(ShopAddress address) async {
-    final data = await _remote.createAddress(address.toJson()) as Map<String, dynamic>;
-    return ShopAddress.fromJson(Map<String, dynamic>.from(data['address'] as Map));
+    final data =
+        await _remote.createAddress(address.toJson()) as Map<String, dynamic>;
+    return ShopAddress.fromJson(
+      Map<String, dynamic>.from(data['address'] as Map),
+    );
   }
 
-  Future<ShopAddress> updateAddress(String id, Map<String, dynamic> patch) async {
+  Future<ShopAddress> updateAddress(
+    String id,
+    Map<String, dynamic> patch,
+  ) async {
     final data = await _remote.updateAddress(id, patch) as Map<String, dynamic>;
-    return ShopAddress.fromJson(Map<String, dynamic>.from(data['address'] as Map));
+    return ShopAddress.fromJson(
+      Map<String, dynamic>.from(data['address'] as Map),
+    );
   }
 
   Future<void> deleteAddress(String id) async => _remote.deleteAddress(id);
-  Future<void> setDefaultAddress(String id) async => _remote.setDefaultAddress(id);
+  Future<void> setDefaultAddress(String id) async =>
+      _remote.setDefaultAddress(id);
 
   // Reviews
   Future<ShopReviewSummary> reviews(String productId) async {

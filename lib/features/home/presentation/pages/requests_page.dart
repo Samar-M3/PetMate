@@ -471,7 +471,9 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                       notifier.accept(
                         request.id,
                         onAccepted: (result) {
-                          ref.read(fcmServiceProvider).checkAndPromptPermission(context);
+                          ref
+                              .read(fcmServiceProvider)
+                              .checkAndPromptPermission(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(

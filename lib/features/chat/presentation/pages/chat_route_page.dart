@@ -64,7 +64,10 @@ class ChatRoutePage extends ConsumerWidget {
                 const Text(
                   'This conversation may have ended or was removed.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

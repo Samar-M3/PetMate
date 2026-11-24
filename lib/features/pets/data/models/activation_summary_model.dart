@@ -96,8 +96,8 @@ class ActivationSummaryModel {
       activeCount: json['activeCount'] as int? ?? 0,
       freeSlots: json['freeSlots'] as int? ?? 1,
       paidSlotsCount: json['paidSlotsCount'] as int? ?? 0,
-      maxPaidSlots: json['maxPaidSlots'] as int? ?? 5,
-      availableSlotsToPurchase: json['availableSlotsToPurchase'] as int? ?? 5,
+      maxPaidSlots: json['maxPaidSlots'] as int? ?? 1,
+      availableSlotsToPurchase: json['availableSlotsToPurchase'] as int? ?? 1,
       paidSlots: rawPaidSlots
           .whereType<Map<String, dynamic>>()
           .map((s) => PaidSlotModel.fromJson(s))
@@ -106,7 +106,7 @@ class ActivationSummaryModel {
           .whereType<Map<String, dynamic>>()
           .map((p) => ActivePetSummaryItem.fromJson(p))
           .toList(),
-      pricePerSlotNpr: (json['pricePerSlotNpr'] as num?)?.toDouble() ?? 500.0,
+      pricePerSlotNpr: (json['pricePerSlotNpr'] as num?)?.toDouble() ?? 100.0,
       slotDurationDays: json['slotDurationDays'] as int? ?? 30,
       expiringSoonWarning: json['expiringSoonWarning'] as String?,
       recentDowngradeMessage: json['recentDowngradeMessage'] as String?,

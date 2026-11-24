@@ -27,7 +27,10 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
       await ref.read(shopCartProvider.notifier).load();
       final addresses = ref.read(shopAddressesProvider).items;
       if (addresses.isNotEmpty) {
-        final def = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
+        final def = addresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => addresses.first,
+        );
         setState(() => _selectedAddressId = def.id);
       }
     });
@@ -97,9 +100,13 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       labelText: 'Full Name *',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Full name is required' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Full name is required'
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -109,9 +116,13 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       labelText: 'Phone Number *',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Phone number is required' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Phone number is required'
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -120,9 +131,13 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       labelText: 'Street Address / Landmark *',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Street address is required' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Street address is required'
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -134,9 +149,13 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                             labelText: 'City *',
                             filled: true,
                             fillColor: AppColors.inputFill,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'City is required' : null,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'City is required'
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -147,9 +166,13 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                             labelText: 'Province *',
                             filled: true,
                             fillColor: AppColors.inputFill,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Province is required' : null,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Province is required'
+                              : null,
                         ),
                       ),
                     ],
@@ -161,16 +184,22 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       labelText: 'Postal Code (Optional)',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
                   CheckboxListTile(
-                    title: const Text('Set as default delivery address', style: TextStyle(fontSize: 13)),
+                    title: const Text(
+                      'Set as default delivery address',
+                      style: TextStyle(fontSize: 13),
+                    ),
                     value: isDefault,
                     activeColor: AppColors.primary,
                     contentPadding: EdgeInsets.zero,
-                    onChanged: (val) => setSheetState(() => isDefault = val ?? false),
+                    onChanged: (val) =>
+                        setSheetState(() => isDefault = val ?? false),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -178,7 +207,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
@@ -187,19 +218,31 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                         fullName: nameCtrl.text.trim(),
                         phoneNumber: phoneCtrl.text.trim(),
                         addressLine1: addr1Ctrl.text.trim(),
-                        addressLine2: addr2Ctrl.text.trim().isEmpty ? null : addr2Ctrl.text.trim(),
+                        addressLine2: addr2Ctrl.text.trim().isEmpty
+                            ? null
+                            : addr2Ctrl.text.trim(),
                         city: cityCtrl.text.trim(),
                         province: provinceCtrl.text.trim(),
-                        postalCode: postalCtrl.text.trim().isEmpty ? null : postalCtrl.text.trim(),
+                        postalCode: postalCtrl.text.trim().isEmpty
+                            ? null
+                            : postalCtrl.text.trim(),
                         isDefault: isDefault,
                       );
-                      final created = await ref.read(shopAddressesProvider.notifier).add(addr);
+                      final created = await ref
+                          .read(shopAddressesProvider.notifier)
+                          .add(addr);
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (created != null) {
                         setState(() => _selectedAddressId = created.id);
                       }
                     },
-                    child: const Text('Save Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: const Text(
+                      'Save Address',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -222,7 +265,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
       return;
     }
 
-    final order = await ref.read(shopOrdersProvider.notifier).placeOrder(
+    final order = await ref
+        .read(shopOrdersProvider.notifier)
+        .placeOrder(
           deliveryAddressId: _selectedAddressId!,
           paymentMethod: _paymentMethod,
           customerNotes: _notesController.text.trim(),
@@ -235,7 +280,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -246,25 +293,39 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                     color: AppColors.success.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 48,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   'Order Confirmed!',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Thank you for your order!\nOrder #${order.orderNumber}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
@@ -277,7 +338,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
           ),
         );
       } else {
-        final err = ref.read(shopOrdersProvider).error ?? 'Failed to place order. Please check stock and try again.';
+        final err =
+            ref.read(shopOrdersProvider).error ??
+            'Failed to place order. Please check stock and try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err), backgroundColor: AppColors.error),
         );
@@ -316,9 +379,15 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.shopping_bag_outlined, size: 56, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 56,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(height: 12),
-                    const Text('Your cart is empty. Please add items to checkout.'),
+                    const Text(
+                      'Your cart is empty. Please add items to checkout.',
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => context.go('/shop'),
@@ -349,11 +418,18 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.location_on_outlined, color: AppColors.primary, size: 20),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Delivery Address',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -374,7 +450,10 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                                 children: [
                                   const Text(
                                     'No delivery addresses saved yet.',
-                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                   const SizedBox(height: 8),
                                   OutlinedButton.icon(
@@ -394,11 +473,15 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary.withValues(alpha: 0.08)
+                                      ? AppColors.primary.withValues(
+                                          alpha: 0.08,
+                                        )
                                       : AppColors.inputFill,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isSelected ? AppColors.primary : AppColors.border,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.border,
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -406,32 +489,66 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                                   value: addr.id,
                                   groupValue: _selectedAddressId,
                                   activeColor: AppColors.primary,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   title: Row(
                                     children: [
-                                      Text(addr.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      Text(
+                                        addr.fullName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                       if (addr.isDefault) ...[
                                         const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(4),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
                                           ),
-                                          child: const Text('Default', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Default',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ],
                                   ),
                                   subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const SizedBox(height: 2),
-                                      Text(addr.formattedSummary, style: const TextStyle(fontSize: 12)),
-                                      Text('Phone: ${addr.phoneNumber}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                      Text(
+                                        addr.formattedSummary,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      Text(
+                                        'Phone: ${addr.phoneNumber}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                  onChanged: (val) => setState(() => _selectedAddressId = val),
+                                  onChanged: (val) =>
+                                      setState(() => _selectedAddressId = val),
                                 ),
                               );
                             }).toList(),
@@ -457,17 +574,27 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.shopping_bag_outlined, color: AppColors.primary, size: 20),
+                                Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Order Items',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
                             Text(
                               '${cartState.items.length} items',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -489,24 +616,34 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.product.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                       Text(
                                         'Qty: ${item.quantity} ${item.variant != null ? "• ${item.variant!.optionKey}" : ""}',
-                                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Text(
                                   formatShopPrice(item.lineSubtotal),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -530,11 +667,18 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.payment_outlined, color: AppColors.primary, size: 20),
+                            Icon(
+                              Icons.payment_outlined,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Payment Method',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -544,25 +688,64 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           value: 'CASH_ON_DELIVERY',
                           groupValue: _paymentMethod,
                           activeColor: AppColors.primary,
-                          title: const Text('Cash on Delivery (COD)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: const Text('Pay with cash or QR scan when your package arrives', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                          onChanged: (val) => setState(() => _paymentMethod = val!),
+                          title: const Text(
+                            'Cash on Delivery (COD)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Pay with cash or QR scan when your package arrives',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          onChanged: (val) =>
+                              setState(() => _paymentMethod = val!),
                         ),
                         RadioListTile<String>(
                           value: 'ESEWA',
                           groupValue: _paymentMethod,
                           activeColor: AppColors.primary,
-                          title: const Text('eSewa Mobile Wallet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: const Text('Digital payment verified upon order placement', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                          onChanged: (val) => setState(() => _paymentMethod = val!),
+                          title: const Text(
+                            'eSewa Mobile Wallet',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Digital payment verified upon order placement',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          onChanged: (val) =>
+                              setState(() => _paymentMethod = val!),
                         ),
                         RadioListTile<String>(
                           value: 'KHALTI',
                           groupValue: _paymentMethod,
                           activeColor: AppColors.primary,
-                          title: const Text('Khalti Digital Wallet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: const Text('Fast wallet checkout confirmation', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                          onChanged: (val) => setState(() => _paymentMethod = val!),
+                          title: const Text(
+                            'Khalti Digital Wallet',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Fast wallet checkout confirmation',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          onChanged: (val) =>
+                              setState(() => _paymentMethod = val!),
                         ),
                       ],
                     ),
@@ -582,11 +765,18 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.notes_rounded, color: AppColors.primary, size: 20),
+                            Icon(
+                              Icons.notes_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Delivery Instructions (Optional)',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -598,7 +788,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                             hintText: 'e.g. Call before delivery, leave with guard...',
                             filled: true,
                             fillColor: AppColors.inputFill,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ],
@@ -619,21 +811,43 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Subtotal', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                            Text(formatShopPrice(cartState.subtotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            const Text(
+                              'Subtotal',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              formatShopPrice(cartState.subtotal),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Delivery Charge', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                            const Text(
+                              'Delivery Charge',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
                             Text(
-                              deliveryFee == 0 ? 'FREE' : formatShopPrice(deliveryFee.toDouble()),
+                              deliveryFee == 0
+                                  ? 'FREE'
+                                  : formatShopPrice(deliveryFee.toDouble()),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                color: deliveryFee == 0 ? AppColors.success : AppColors.textPrimary,
+                                color: deliveryFee == 0
+                                    ? AppColors.success
+                                    : AppColors.textPrimary,
                               ),
                             ),
                           ],
@@ -644,10 +858,20 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            const Text(
+                              'Total Amount',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             Text(
                               formatShopPrice(total),
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
                           ],
                         ),
@@ -662,7 +886,9 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       elevation: 1,
                     ),
                     onPressed: ordersState.isPlacingOrder ? null : _placeOrder,
@@ -670,11 +896,17 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
                           )
                         : Text(
                             'Confirm & Place Order (${formatShopPrice(total)})',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 32),

@@ -143,7 +143,9 @@ class EventListCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: event.isBookmarked ? 'Remove bookmark' : 'Bookmark event',
+              tooltip: event.isBookmarked
+                  ? 'Remove bookmark'
+                  : 'Bookmark event',
               onPressed: onBookmarkTap,
               icon: Icon(
                 event.isBookmarked

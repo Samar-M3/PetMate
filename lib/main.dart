@@ -14,7 +14,9 @@ Future<void> main() async {
 
   // Guard against duplicate initialization from google-services plugin or hot restart
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     // Firebase already initialized by the native google-services plugin — safe to ignore
   }

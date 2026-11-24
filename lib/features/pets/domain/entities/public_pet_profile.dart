@@ -18,10 +18,10 @@ class PublicPetOwnerSummary {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'displayName': displayName,
-        'avatarUrl': avatarUrl,
-      };
+    'id': id,
+    'displayName': displayName,
+    'avatarUrl': avatarUrl,
+  };
 }
 
 class PublicPetProfile {
@@ -74,15 +74,18 @@ class PublicPetProfile {
       weight: json['weight'] as String?,
       area: json['area'] as String? ?? 'Kathmandu, Nepal',
       about: json['about'] as String? ?? '',
-      photos: (json['photos'] as List<dynamic>?)
+      photos:
+          (json['photos'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      healthBadges: (json['healthBadges'] as List<dynamic>?)
+      healthBadges:
+          (json['healthBadges'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      personality: (json['personality'] as List<dynamic>?)
+      personality:
+          (json['personality'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -93,21 +96,21 @@ class PublicPetProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'species': species,
-        'breed': breed,
-        'sex': sex,
-        'ageMonths': ageMonths,
-        'ageString': ageString,
-        'weight': weight,
-        'area': area,
-        'about': about,
-        'photos': photos,
-        'healthBadges': healthBadges,
-        'personality': personality,
-        'owner': owner.toJson(),
-        'relationship': relationship,
-        'canSwipe': canSwipe,
-      };
+    'id': id,
+    'name': name,
+    'species': species,
+    'breed': breed,
+    'sex': sex,
+    'ageMonths': ageMonths,
+    'ageString': ageString,
+    'weight': weight,
+    'area': area,
+    'about': about,
+    'photos': photos,
+    'healthBadges': healthBadges,
+    'personality': personality,
+    'owner': owner.toJson(),
+    'relationship': relationship,
+    'canSwipe': canSwipe,
+  };
 }

@@ -33,6 +33,8 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
     final summary = ref.read(petsActivationProvider).summary;
     final allowedActive = summary?.allowedActive ?? 1;
     final activePets = summary?.activePets ?? [];
+    final slotPrice = summary?.pricePerSlotNpr ?? 100.0;
+    final slotDurationDays = summary?.slotDurationDays ?? 30;
 
     // Case 1: Turning OFF is always allowed directly
     if (currentActive) {
@@ -64,36 +66,47 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
     // Case 2: Turning ON when 1 allowed slot and an active pet already exists -> Prompt Confirmation
     if (allowedActive == 1 && activePets.isNotEmpty) {
       final activePet = activePets.first;
-      final confirm = await showDialog<bool>(
+      final choice = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text('Swap Active Pet?'),
+          title: const Text('Activate Another Pet?'),
           content: Text(
-            'Turning on $petName will turn off ${activePet.name}.\n\nOnly one pet profile can be visible in discovery decks with your current free slot.',
+            'You can switch your active pet for free, or keep ${activePet.name} active and pay Rs. ${slotPrice.toStringAsFixed(0)} to make both pets visible for $slotDurationDays days.',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(ctx, 'swap'),
               child: Text(
-                'Turn On $petName',
+                'Switch pets',
                 style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'paid'),
+              child: Text(
+                'Keep both - Rs. ${slotPrice.toStringAsFixed(0)} / $slotDurationDays days',
               ),
             ),
           ],
         ),
       );
 
-      if (confirm != true) return;
+      if (!context.mounted) return;
+      if (choice == 'paid') {
+        await context.push('/slots?petId=$petId');
+        return;
+      }
+      if (choice != 'swap') return;
 
       try {
         await notifier.toggleActivation(petId: petId, active: true);
@@ -174,19 +187,6 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.terracotta,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.push('/slots');
-              },
-              child: const Text(
-                'Get More Slots',
-                style: TextStyle(color: Colors.white),
-              ),
             ),
           ],
         ),
@@ -310,7 +310,9 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.12,
+                                ),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -535,7 +537,8 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
   }
 
   Widget _buildPetCard(BuildContext context, dynamic pet) {
-    final photo = pet.effectiveImageUrl ?? pet.imageUrl ?? pet.profilePictureUrl;
+    final photo =
+        pet.effectiveImageUrl ?? pet.imageUrl ?? pet.profilePictureUrl;
     final active = pet.isActive == true;
 
     return Container(
@@ -608,19 +611,17 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                           ),
                           decoration: BoxDecoration(
                             color: active
-                                ? AppColors.success.withValues(
-                                    alpha: 0.12,
-                                  )
-                                : AppColors.textMuted.withValues(
-                                    alpha: 0.15,
-                                  ),
+                                ? AppColors.success.withValues(alpha: 0.12)
+                                : AppColors.textMuted.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                active ? Icons.visibility : Icons.visibility_off,
+                                active
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
                                 size: 12,
                                 color: active
                                     ? AppColors.success
@@ -628,9 +629,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                active
-                                    ? 'Visible in deck'
-                                    : 'Hidden from deck',
+                                active ? 'Visible in deck' : 'Hidden from deck',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,

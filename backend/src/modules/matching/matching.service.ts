@@ -125,15 +125,51 @@ export const getDeckFeed = async ({
   ageMax,
   area,
 }: DeckFeedParams) => {
-  // 1. Run lazy expiration of pending requests and slots
-  await expireOldRequests();
-  await expireSlotsAndDowngrade(userId);
+  // 1. Parallel fetch acting pet and all exclusion queries (Task F: eliminate sequential awaits)
+  const cooldownThreshold = new Date(
+    Date.now() - matchingConfig.PASS_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+  );
 
-  // 2. Validate acting pet belongs to caller and is active
-  const actingPet = await prisma.pet.findFirst({
-    where: { id: actingPetId, userId },
-    include: { user: true },
-  });
+  const [actingPet, petSwipes, relatedRequests, existingMatches] = await Promise.all([
+    prisma.pet.findFirst({
+      where: { id: actingPetId, userId },
+      include: { user: true },
+    }),
+    prisma.petSwipe.findMany({
+      where: {
+        swiperPetId: actingPetId,
+        OR: [
+          { action: SwipeAction.LIKE },
+          { action: SwipeAction.PASS, createdAt: { gte: cooldownThreshold } },
+        ],
+      },
+      select: { targetPetId: true },
+    }),
+    prisma.connectionRequest.findMany({
+      where: {
+        OR: [
+          { senderPetId: actingPetId },
+          {
+            receiverPetId: actingPetId,
+            status: {
+              in: [
+                RequestStatus.ACCEPTED,
+                RequestStatus.DECLINED,
+                RequestStatus.REJECTED,
+              ],
+            },
+          },
+        ],
+      },
+      select: { senderPetId: true, receiverPetId: true },
+    }),
+    prisma.match.findMany({
+      where: {
+        OR: [{ petAId: actingPetId }, { petBId: actingPetId }],
+      },
+      select: { petAId: true, petBId: true },
+    }),
+  ]);
 
   if (!actingPet) {
     throw new AppError("Acting pet not found or unauthorized", 404);
@@ -147,85 +183,22 @@ export const getDeckFeed = async ({
     throw new AppError("Acting pet is inactive. Only active pets can view the deck or swipe.", 400);
   }
 
-  // 3. Exclusions:
-  // 3a. LIKE swipes by acting pet (never shown again)
-  const likeSwipes = await prisma.petSwipe.findMany({
-    where: {
-      swiperPetId: actingPetId,
-      action: SwipeAction.LIKE,
-    },
-    select: { targetPetId: true },
-  });
-  const likedPetIds = likeSwipes.map((s) => s.targetPetId);
+  const excludedPetIds = new Set<string>();
+  excludedPetIds.add(actingPetId);
 
-  // 3b. PASS swipes newer than PASS_COOLDOWN_DAYS
-  const cooldownThreshold = new Date(
-    Date.now() - matchingConfig.PASS_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
-  );
-  const activePassSwipes = await prisma.petSwipe.findMany({
-    where: {
-      swiperPetId: actingPetId,
-      action: SwipeAction.PASS,
-      createdAt: { gte: cooldownThreshold },
-    },
-    select: { targetPetId: true },
-  });
-  const passedRecentPetIds = activePassSwipes.map((s) => s.targetPetId);
-
-  // 3c. MatchRequest between the pair:
-  // - Requests sent BY acting pet: excluded (acting pet already liked or acted on them)
-  // - Requests ACCEPTED, DECLINED, or REJECTED: excluded for both pets
-  // - Note: PENDING requests received by acting pet are NOT excluded, so the acting pet can also discover and like back
-  const relatedRequests = await prisma.connectionRequest.findMany({
-    where: {
-      OR: [
-        { senderPetId: actingPetId },
-        {
-          receiverPetId: actingPetId,
-          status: {
-            in: [
-              RequestStatus.ACCEPTED,
-              RequestStatus.DECLINED,
-              RequestStatus.REJECTED,
-            ],
-          },
-        },
-      ],
-    },
-    select: { senderPetId: true, receiverPetId: true },
-  });
-  const requestExcludedPetIds = new Set<string>();
+  for (const s of petSwipes) {
+    excludedPetIds.add(s.targetPetId);
+  }
   for (const req of relatedRequests) {
-    if (req.senderPetId !== actingPetId) requestExcludedPetIds.add(req.senderPetId);
-    if (req.receiverPetId !== actingPetId) requestExcludedPetIds.add(req.receiverPetId);
+    if (req.senderPetId !== actingPetId) excludedPetIds.add(req.senderPetId);
+    if (req.receiverPetId !== actingPetId) excludedPetIds.add(req.receiverPetId);
   }
-
-  // 3d. Match between the pair in ANY status (ACTIVE or ENDED)
-  const existingMatches = await prisma.match.findMany({
-    where: {
-      OR: [
-        { petAId: actingPetId },
-        { petBId: actingPetId },
-      ],
-    },
-    select: { petAId: true, petBId: true },
-  });
-  const matchedPetIds = new Set<string>();
   for (const m of existingMatches) {
-    if (m.petAId !== actingPetId) matchedPetIds.add(m.petAId);
-    if (m.petBId !== actingPetId) matchedPetIds.add(m.petBId);
+    if (m.petAId !== actingPetId) excludedPetIds.add(m.petAId);
+    if (m.petBId !== actingPetId) excludedPetIds.add(m.petBId);
   }
 
-  // Combine all excluded pet IDs
-  const allExcludedPetIds = Array.from(
-    new Set([
-      actingPetId,
-      ...likedPetIds,
-      ...passedRecentPetIds,
-      ...Array.from(requestExcludedPetIds),
-      ...Array.from(matchedPetIds),
-    ])
-  );
+  const allExcludedPetIds = Array.from(excludedPetIds);
 
   // 4. Age filtering
   const now = new Date();
@@ -701,59 +674,63 @@ export const getIncomingRequests = async ({
   cursor,
   limit = 20,
 }: IncomingRequestsParams) => {
-  // Run lazy expiration before listing
-  await expireOldRequests();
-
   const effectiveLimit = Math.min(Math.max(limit, 1), 50);
 
-  const requests = await prisma.connectionRequest.findMany({
-    where: {
-      receiverUserId: userId,
-      status: RequestStatus.PENDING,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } },
-      ],
-    },
-    take: effectiveLimit + 1,
-    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      expiresAt: true,
-      senderPet: {
-        select: {
-          id: true,
-          name: true,
-          imageUrl: true,
-          profilePictureUrl: true,
-          breed: true,
-          gender: true,
+  const whereClause = {
+    receiverUserId: userId,
+    status: RequestStatus.PENDING,
+    OR: [
+      { expiresAt: null },
+      { expiresAt: { gt: new Date() } },
+    ],
+  };
+
+  const [requests, pendingCount] = await Promise.all([
+    prisma.connectionRequest.findMany({
+      where: whereClause,
+      take: effectiveLimit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        expiresAt: true,
+        senderPet: {
+          select: {
+            id: true,
+            name: true,
+            imageUrl: true,
+            profilePictureUrl: true,
+            breed: true,
+            gender: true,
+          },
         },
-      },
-      senderUser: {
-        select: {
-          id: true,
-          profile: {
-            select: {
-              fullName: true,
-              username: true,
-              imageUrl: true,
-              profilePictureUrl: true,
+        senderUser: {
+          select: {
+            id: true,
+            profile: {
+              select: {
+                fullName: true,
+                username: true,
+                imageUrl: true,
+                profilePictureUrl: true,
+              },
             },
           },
         },
-      },
-      receiverPet: {
-        select: {
-          id: true,
-          name: true,
+        receiverPet: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.connectionRequest.count({
+      where: whereClause,
+    }),
+  ]);
 
   let nextCursor: string | null = null;
   if (requests.length > effectiveLimit) {
@@ -782,17 +759,6 @@ export const getIncomingRequests = async ({
       createdAt: r.createdAt,
       expiresAt: r.expiresAt,
     };
-  });
-
-  const pendingCount = await prisma.connectionRequest.count({
-    where: {
-      receiverUserId: userId,
-      status: RequestStatus.PENDING,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } },
-      ],
-    },
   });
 
   return {
@@ -957,46 +923,42 @@ export const rejectConnectionRequest = async (
 };
 
 export const getUserMatches = async (userId: string) => {
-  // Find all pets owned by this user
-  const userPets = await prisma.pet.findMany({
-    where: { userId },
-    select: { id: true },
-  });
-  const petIds = userPets.map((p) => p.id);
-
-  if (petIds.length === 0) return [];
-
-  const matches = await prisma.match.findMany({
-    where: {
-      status: MatchStatus.ACTIVE,
-      OR: [
-        { petAId: { in: petIds } },
-        { petBId: { in: petIds } },
-      ],
-    },
-    include: {
-      petA: {
-        include: {
-          user: { include: { profile: true } },
-          images: { where: { isMain: true } },
+  // Parallel fetch matches and user blocks directly via pet owner relations (Task F: eliminate sequential awaits)
+  const [matches, userBlocks] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        status: MatchStatus.ACTIVE,
+        OR: [
+          { petA: { userId } },
+          { petB: { userId } },
+        ],
+      },
+      include: {
+        petA: {
+          include: {
+            user: { include: { profile: true } },
+            images: { where: { isMain: true } },
+          },
+        },
+        petB: {
+          include: {
+            user: { include: { profile: true } },
+            images: { where: { isMain: true } },
+          },
         },
       },
-      petB: {
-        include: {
-          user: { include: { profile: true } },
-          images: { where: { isMain: true } },
-        },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.userBlock.findMany({
+      where: {
+        OR: [{ blockerId: userId }, { blockedId: userId }],
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      select: { blockerId: true, blockedId: true },
+    }),
+  ]);
 
-  // Find blocks involving this user
-  const userBlocks = await prisma.userBlock.findMany({
-    where: {
-      OR: [{ blockerId: userId }, { blockedId: userId }],
-    },
-  });
+  if (matches.length === 0) return [];
+
   const blockedUserIds = new Set<string>();
   for (const b of userBlocks) {
     if (b.blockerId === userId) blockedUserIds.add(b.blockedId);
@@ -1004,13 +966,13 @@ export const getUserMatches = async (userId: string) => {
   }
 
   const activeMatches = matches.filter((m) => {
-    const isPetAOwner = petIds.includes(m.petAId);
+    const isPetAOwner = m.petA.userId === userId;
     const otherOwnerId = isPetAOwner ? m.petB.userId : m.petA.userId;
     return !blockedUserIds.has(otherOwnerId);
   });
 
   return activeMatches.map((m) => {
-    const isPetAOwner = petIds.includes(m.petAId);
+    const isPetAOwner = m.petA.userId === userId;
     const myPet = isPetAOwner ? m.petA : m.petB;
     const otherPet = isPetAOwner ? m.petB : m.petA;
     const otherOwner = otherPet.user;
@@ -1104,11 +1066,13 @@ export const getMatchChat = async (userId: string, matchId: string) => {
     throw new AppError("Match not found or chat not accessible", 404);
   }
 
-  // Ensure Firestore conversation doc exists
+  // Ensure Firestore conversation doc exists (non-blocking so chat session retrieval returns instantly)
   const uidA = match.petA.user.firebaseUid;
   const uidB = match.petB.user.firebaseUid;
   if (uidA && uidB) {
-    await ensureConversation(match.id, [uidA, uidB]);
+    ensureConversation(match.id, [uidA, uidB]).catch((err) => {
+      console.warn(`[MatchingService] Background ensureConversation warning for ${match.id}:`, err?.message || err);
+    });
   }
 
   return {

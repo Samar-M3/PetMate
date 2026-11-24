@@ -37,8 +37,9 @@ class SellerState {
       isLoading: isLoading ?? this.isLoading,
       isResubmitting: isResubmitting ?? this.isResubmitting,
       errorMessage: clearErrors ? null : (errorMessage ?? this.errorMessage),
-      successMessage:
-          clearSuccess ? null : (successMessage ?? this.successMessage),
+      successMessage: clearSuccess
+          ? null
+          : (successMessage ?? this.successMessage),
       statusResponse: statusResponse ?? this.statusResponse,
       dashboardData: dashboardData ?? this.dashboardData,
     );
@@ -79,7 +80,11 @@ class SellerNotifier extends Notifier<SellerState> {
 
   /// Register seller
   Future<bool> registerSeller(SellerRegistrationRequest request) async {
-    state = state.copyWith(isLoading: true, clearErrors: true, clearSuccess: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearErrors: true,
+      clearSuccess: true,
+    );
     try {
       final result = await _repository.registerSeller(request);
 
@@ -92,22 +97,19 @@ class SellerNotifier extends Notifier<SellerState> {
         // Refresh auth state in auth notifier
         final user = _authService.currentUser;
         if (user != null) {
-          await ref.read(authStateProvider.notifier).loginWithEmail(
-                request.email,
-                request.password,
-              );
+          await ref
+              .read(authStateProvider.notifier)
+              .loginWithEmail(request.email, request.password);
         }
       } catch (_) {
         // If automatic sign in is delayed, user can still log in via SellerLoginPage
       }
 
-      final msg = result['message'] as String? ??
+      final msg =
+          result['message'] as String? ??
           'Seller registration submitted successfully. Your store is now pending admin review.';
 
-      state = state.copyWith(
-        isLoading: false,
-        successMessage: msg,
-      );
+      state = state.copyWith(isLoading: false, successMessage: msg);
 
       // Attempt to load seller status
       await loadSellerStatus();
@@ -135,8 +137,7 @@ class SellerNotifier extends Notifier<SellerState> {
       final updatedStore = await _repository.resubmitApplication(updatedData);
       state = state.copyWith(
         isResubmitting: false,
-        successMessage:
-            'Application resubmitted successfully! It is now pending admin review.',
+        successMessage: 'Application resubmitted successfully! It is now pending admin review.',
         statusResponse: SellerStatusResponseModel(
           hasStore: true,
           applicationStatus: 'PENDING',
@@ -162,13 +163,14 @@ class SellerNotifier extends Notifier<SellerState> {
 
   /// Request password reset
   Future<bool> requestPasswordReset(String email) async {
-    state = state.copyWith(isLoading: true, clearErrors: true, clearSuccess: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearErrors: true,
+      clearSuccess: true,
+    );
     try {
       final msg = await _repository.requestPasswordReset(email);
-      state = state.copyWith(
-        isLoading: false,
-        successMessage: msg,
-      );
+      state = state.copyWith(isLoading: false, successMessage: msg);
       return true;
     } on AppException catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.message);
