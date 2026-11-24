@@ -161,7 +161,7 @@ final singleConversationProvider =
 // ---------------------------------------------------------------------------
 
 final messagesStreamProvider =
-    StreamProvider.family<List<FirestoreMessage>, ({String matchId, int limit})>(
+    StreamProvider.autoDispose.family<List<FirestoreMessage>, ({String matchId, int limit})>(
   (ref, arg) {
     final repo = ref.watch(chatRepositoryProvider);
     return repo.watchMessages(arg.matchId, limit: arg.limit);

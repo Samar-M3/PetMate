@@ -34,9 +34,7 @@ class ChatRepository {
   // 2. Chat Access & Verification (PostgreSQL + Firestore repair)
   Future<Map<String, dynamic>> getMatchChat(String matchId) async {
     final response = await _apiClient.get('/matches/$matchId/chat');
-    if (response is Map<String, dynamic>) {
-      return response;
-    }
+    if (response is Map<String, dynamic>) return response;
     throw Exception('Failed to get match chat');
   }
 
@@ -154,7 +152,14 @@ class ChatRepository {
     }
 
     batch.update(convRef, convUpdate);
+    final messageId = msgRef.id;
     await batch.commit();
+
+    // Trigger push notification in background, ignoring failures so sending is never blocked
+    _apiClient.post(
+      '/api/v1/chats/$conversationId/notify',
+      body: {'messageId': messageId},
+    ).catchError((_) => null);
   }
 
   // 10. Mark Read
@@ -297,7 +302,14 @@ class ChatRepository {
         if (replyTo != null) 'replyTo': replyTo.toMap(),
       },
     );
-    if (response is Map<String, dynamic>) return response;
+    if (response is Map<String, dynamic>) {
+      final messageId = response['messageId'] ?? response['data']?['messageId'] ?? clientMessageId;
+      _apiClient.post(
+        '/api/v1/chats/$conversationId/notify',
+        body: {'messageId': messageId},
+      ).catchError((_) => null);
+      return response;
+    }
     throw Exception('Failed to create media message');
   }
 

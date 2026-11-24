@@ -7,6 +7,7 @@ import {
 } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import { endConversation } from "../../services/firestore.service.ts";
+import { NotificationService } from "../../services/notification.service.ts";
 
 export interface ListUsersParams {
   page?: number;
@@ -422,6 +423,16 @@ export const approveRoleApplication = async (
     return [app, usr];
   });
 
+  try {
+    await NotificationService.notifyApplicationStatus(
+      application.userId,
+      application.type,
+      true
+    );
+  } catch (err) {
+    console.error("[AdminService] Failed to send application approved push:", err);
+  }
+
   return { application: updatedApp, user: updatedUser };
 };
 
@@ -480,6 +491,16 @@ export const rejectRoleApplication = async (
 
     return app;
   });
+
+  try {
+    await NotificationService.notifyApplicationStatus(
+      application.userId,
+      application.type,
+      false
+    );
+  } catch (err) {
+    console.error("[AdminService] Failed to send application rejected push:", err);
+  }
 
   return updatedApp;
 };

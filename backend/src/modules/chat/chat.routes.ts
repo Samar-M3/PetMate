@@ -6,6 +6,7 @@ import {
   deleteForEveryoneController,
   batchDeleteController,
   mediaUrlsController,
+  notifyChatMessageController,
 } from "./chat.controller.ts";
 import {
   authenticateFirebase,
@@ -33,5 +34,8 @@ router.post("/:conversationId/messages/delete", batchDeleteController);
 
 // Get signed delivery URLs
 router.post("/:conversationId/media/urls", mediaUrlsController);
+
+// Notify chat message push trigger
+router.post("/:conversationId/notify", notifyChatMessageController);
 
 export default router;
