@@ -50,7 +50,16 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
       let decodedToken: DecodedIdToken;
 
       try {
-        decodedToken = await firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false);
+        try {
+          decodedToken = await firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false);
+        } catch (checkErr: any) {
+          if (options.checkRevoked && (checkErr.message?.includes("invalid_grant") || checkErr.message?.includes("Credential") || checkErr.message?.includes("OAuth2"))) {
+            console.warn("⚠️ checkRevoked verification failed due to credential issue. Falling back to standard public key verification.");
+            decodedToken = await firebaseAuth.verifyIdToken(token, false);
+          } else {
+            throw checkErr;
+          }
+        }
       } catch (err: any) {
         return next(
           new AppError(

@@ -1,29 +1,118 @@
 import prisma from "../../config/db.ts";
 
-export const listEvents = async () => {
-  return prisma.event.findMany({
+async function getOrCreatePostgresUserId(firebaseUid: string, email?: string): Promise<string> {
+  let user = await prisma.user.findUnique({
+    where: { firebaseUid },
+  });
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        firebaseUid,
+        email: email || null,
+        role: "PET_OWNER",
+        isActive: true,
+      },
+    });
+  }
+  return user.id;
+}
+
+export const listEvents = async (pgUserId?: string, firebaseUid?: string, email?: string) => {
+  let resolvedUserId = pgUserId;
+  if (!resolvedUserId && firebaseUid) {
+    resolvedUserId = await getOrCreatePostgresUserId(firebaseUid, email);
+  }
+
+  const events = await prisma.event.findMany({
+    include: {
+      rsvps: resolvedUserId ? { where: { userId: resolvedUserId } } : false,
+      bookmarks: resolvedUserId ? { where: { userId: resolvedUserId } } : false,
+    },
     orderBy: { createdAt: "desc" },
   });
+
+  return events.map((event) => {
+    const isBooked = resolvedUserId ? (event.rsvps as any[]).length > 0 : false;
+    const isBookmarked = resolvedUserId ? (event.bookmarks as any[]).length > 0 : false;
+    const { rsvps, bookmarks, ...rest } = event;
+    return {
+      ...rest,
+      isBooked,
+      isBookmarked,
+    };
+  });
 };
 
-export const updateEventBookmark = async (id: string, _isBookmarked: boolean) => {
-  const event = await prisma.event.findUnique({ where: { id } });
-  if (!event) {
-    throw new Error("Event not found");
+export const updateEventBookmark = async (firebaseUid: string, eventId: string, isBookmarked: boolean, email?: string) => {
+  const userId = await getOrCreatePostgresUserId(firebaseUid, email);
+
+  if (isBookmarked) {
+    await prisma.eventBookmark.upsert({
+      where: { userId_eventId: { userId, eventId } },
+      update: {},
+      create: { userId, eventId },
+    });
+  } else {
+    await prisma.eventBookmark.deleteMany({
+      where: { userId, eventId },
+    });
   }
-  return event;
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      rsvps: { where: { userId } },
+      bookmarks: { where: { userId } },
+    },
+  });
+
+  if (!event) throw new Error("Event not found");
+
+  return {
+    ...event,
+    isBooked: event.rsvps.length > 0,
+    isBookmarked: event.bookmarks.length > 0,
+  };
 };
 
-export const updateEventRsvp = async (id: string, isBooked: boolean) => {
-  const event = await prisma.event.findUnique({ where: { id } });
-  if (!event) {
-    throw new Error("Event not found");
+export const updateEventRsvp = async (firebaseUid: string, eventId: string, isBooked: boolean, email?: string) => {
+  const userId = await getOrCreatePostgresUserId(firebaseUid, email);
+
+  if (isBooked) {
+    await prisma.eventRsvp.upsert({
+      where: { userId_eventId: { userId, eventId } },
+      update: {},
+      create: { userId, eventId },
+    });
+  } else {
+    await prisma.eventRsvp.deleteMany({
+      where: { userId, eventId },
+    });
   }
-  const attendeeCount = Math.max(0, event.attendeeCount + (isBooked ? 1 : -1));
-  return prisma.event.update({
-    where: { id },
+
+  // Recalculate true attendee count from RSVPs table
+  const attendeeCount = await prisma.eventRsvp.count({ where: { eventId } });
+  await prisma.event.update({
+    where: { id: eventId },
     data: { attendeeCount },
   });
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      rsvps: { where: { userId } },
+      bookmarks: { where: { userId } },
+    },
+  });
+
+  if (!event) throw new Error("Event not found");
+
+  return {
+    ...event,
+    attendeeCount,
+    isBooked: event.rsvps.length > 0,
+    isBookmarked: event.bookmarks.length > 0,
+  };
 };
 
 export const createEvent = async (data: {
