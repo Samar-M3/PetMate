@@ -1,13 +1,11 @@
-import { initializeApp, getApps, type App } from "firebase-admin/app";
+import { initializeApp, getApps, cert, type App, type AppOptions } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getDatabase, type Database } from "firebase-admin/database";
-<<<<<<< HEAD
-=======
+
 import { getMessaging, type Messaging } from "firebase-admin/messaging";
 import fs from "node:fs";
 import path from "node:path";
->>>>>>> f9a1712c8c12b37047c7edb77032226044a73fb3
 import env from "./env.ts";
 
 let firebaseApp: App;
@@ -18,11 +16,32 @@ try {
     firebaseApp = existingApps[0]!;
   } else {
     const projectId = env.FIREBASE_PROJECT_ID || "petmate-d7a43";
-    firebaseApp = initializeApp({
+    const appOptions: AppOptions = {
       projectId,
       databaseURL: env.FIREBASE_DATABASE_URL,
-    });
-    console.log(`🔥 Firebase Admin initialized with projectId '${projectId}' (public key verification mode).`);
+    };
+
+    if (env.FIREBASE_SERVICE_ACCOUNT_PATH && fs.existsSync(env.FIREBASE_SERVICE_ACCOUNT_PATH)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(env.FIREBASE_SERVICE_ACCOUNT_PATH, "utf8"));
+      appOptions.credential = cert(serviceAccount);
+      console.log(`🔥 Firebase Admin initialized with service account file (${env.FIREBASE_SERVICE_ACCOUNT_PATH}).`);
+    } else if (
+      env.FIREBASE_CLIENT_EMAIL &&
+      env.FIREBASE_PRIVATE_KEY &&
+      !env.FIREBASE_PRIVATE_KEY.includes("...") &&
+      !env.FIREBASE_CLIENT_EMAIL.includes("xxxx@")
+    ) {
+      appOptions.credential = cert({
+        projectId,
+        clientEmail: env.FIREBASE_CLIENT_EMAIL,
+        privateKey: env.FIREBASE_PRIVATE_KEY,
+      });
+      console.log(`🔥 Firebase Admin initialized with service account credentials for project '${projectId}' (${env.FIREBASE_CLIENT_EMAIL}).`);
+    } else {
+      console.log(`🔥 Firebase Admin initialized with projectId '${projectId}' (public key verification mode - missing service account credentials).`);
+    }
+
+    firebaseApp = initializeApp(appOptions);
   }
 } catch (error) {
   console.error("❌ Failed to initialize Firebase Admin SDK:", error);

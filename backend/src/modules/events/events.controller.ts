@@ -1,6 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
-import { listEvents, createEvent, deleteEvent, updateEventBookmark, updateEventRsvp } from "./events.service.ts";
+import {
+  listEvents,
+  createEvent,
+  deleteEvent,
+  updateEventBookmark,
+  updateEventRsvp,
+  parseEventFlag,
+} from "./events.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
@@ -10,10 +17,9 @@ export const getEvents = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const pgUserId = req.user?.id;
-    const firebaseUid = req.firebaseUid || req.user?.firebaseUid;
-    const email = req.firebaseUser?.email;
-    const events = await listEvents(pgUserId, firebaseUid, email);
+    // `requireInitializedUser` is not used for reads: guests may browse, but
+    // only an authenticated user's own rows are used for the state flags.
+    const events = await listEvents(req.user?.id);
     sendSuccess(res, {
       statusCode: 200,
       message: "Events retrieved successfully",
@@ -30,14 +36,20 @@ export const bookmarkEvent = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const firebaseUid = req.firebaseUid || req.user?.firebaseUid;
-    const email = req.firebaseUser?.email;
-    if (!firebaseUid) {
+    if (!req.user) {
       return next(new AppError("User not authenticated", 401));
     }
-    const { id } = req.params;
-    const { isBookmarked } = req.body;
-    const event = await updateEventBookmark(firebaseUid, id as string, !!isBookmarked, email);
+
+    const isBookmarked = parseEventFlag(req.body?.isBookmarked);
+    if (isBookmarked === null) {
+      return next(new AppError("isBookmarked must be a boolean", 400));
+    }
+
+    const event = await updateEventBookmark(
+      req.user.id,
+      req.params.id as string,
+      isBookmarked
+    );
     sendSuccess(res, {
       statusCode: 200,
       message: "Event bookmark updated successfully",
@@ -54,14 +66,20 @@ export const rsvpEvent = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const firebaseUid = req.firebaseUid || req.user?.firebaseUid;
-    const email = req.firebaseUser?.email;
-    if (!firebaseUid) {
+    if (!req.user) {
       return next(new AppError("User not authenticated", 401));
     }
-    const { id } = req.params;
-    const { isBooked } = req.body;
-    const event = await updateEventRsvp(firebaseUid, id as string, !!isBooked, email);
+
+    const isBooked = parseEventFlag(req.body?.isBooked);
+    if (isBooked === null) {
+      return next(new AppError("isBooked must be a boolean", 400));
+    }
+
+    const event = await updateEventRsvp(
+      req.user.id,
+      req.params.id as string,
+      isBooked
+    );
     sendSuccess(res, {
       statusCode: 200,
       message: "Event RSVP/booking functionality successfully updated",

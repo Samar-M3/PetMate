@@ -1,4 +1,5 @@
 import prisma from "../../config/db.ts";
+import { AppointmentStatus } from "../../generated/prisma/enums.ts";
 
 export const listAppointments = async (userId: string, userRole: string, vetId?: string) => {
   if (userRole === "ADMIN") {
@@ -46,7 +47,7 @@ export const createAppointment = async (userId: string, data: {
 
 export const updateAppointmentStatus = async (
   id: string,
-  status: string,
+  status: AppointmentStatus,
   vetNotes?: string,
   nextVaccineDue?: string
 ) => {
