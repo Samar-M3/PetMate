@@ -12,7 +12,8 @@ class SplashPage extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     // Show retry UI only when: authenticated (Firebase OK) but backend sync
     // failed and we have an error message AND user is still null.
-    final showRetry = authState.isAuthenticated &&
+    final showRetry =
+        authState.isAuthenticated &&
         authState.user == null &&
         !authState.isLoading &&
         authState.errorMessage != null;

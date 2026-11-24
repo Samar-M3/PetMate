@@ -11,12 +11,7 @@ class ProfileBottomSheet extends ConsumerStatefulWidget {
   const ProfileBottomSheet({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const ProfileBottomSheet(),
-    );
+    context.push('/profile');
   }
 
   @override
@@ -243,7 +238,8 @@ class _ProfileBottomSheetState extends ConsumerState<ProfileBottomSheet> {
                           children: [
                             AppNetworkImage(
                               imageUrl:
-                                  pet.effectiveImageUrl ?? pet.profilePictureUrl,
+                                  pet.effectiveImageUrl ??
+                                  pet.profilePictureUrl,
                               width: 44,
                               height: 44,
                               shape: BoxShape.circle,

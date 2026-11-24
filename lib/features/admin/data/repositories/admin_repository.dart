@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/api_client.dart';
+import '../models/admin_audit_log_model.dart';
 import '../models/admin_stats_model.dart';
 import '../models/admin_user_model.dart';
 import '../models/role_application_model.dart';
@@ -92,5 +93,19 @@ class AdminRepository {
       '/admin/applications/$applicationId/reject',
       body: {if (notes != null && notes.isNotEmpty) 'notes': notes},
     );
+  }
+
+  Future<List<AdminAuditLogModel>> getAuditLogs({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final response = await apiClient.get(
+      '/admin/audit-logs',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    final logsList = (response['logs'] as List? ?? [])
+        .map((l) => AdminAuditLogModel.fromJson(l as Map<String, dynamic>))
+        .toList();
+    return logsList;
   }
 }

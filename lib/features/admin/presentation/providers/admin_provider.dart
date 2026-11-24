@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/admin_audit_log_model.dart';
 import '../../data/models/admin_stats_model.dart';
 import '../../data/models/admin_user_model.dart';
 import '../../data/models/role_application_model.dart';
@@ -200,5 +201,29 @@ class AdminApplicationsNotifier extends Notifier<AdminApplicationsState> {
     await _repository.rejectApplication(applicationId, notes: notes);
     await loadApplications();
     ref.read(adminStatsProvider.notifier).refresh();
+  }
+}
+
+// --- AUDIT LOGS PROVIDER ---
+
+final adminAuditLogsProvider =
+    AsyncNotifierProvider<AdminAuditLogsNotifier, List<AdminAuditLogModel>>(
+      AdminAuditLogsNotifier.new,
+    );
+
+class AdminAuditLogsNotifier extends AsyncNotifier<List<AdminAuditLogModel>> {
+  @override
+  Future<List<AdminAuditLogModel>> build() async {
+    return _fetchLogs();
+  }
+
+  Future<List<AdminAuditLogModel>> _fetchLogs() async {
+    final repository = ref.read(adminRepositoryProvider);
+    return repository.getAuditLogs();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _fetchLogs());
   }
 }

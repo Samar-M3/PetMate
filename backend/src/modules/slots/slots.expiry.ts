@@ -49,7 +49,10 @@ export async function expireSlotsAndDowngrade(userId?: string): Promise<{
 
   for (const user of usersWithActivePets) {
     const activeCount = user.pets.length;
-    const paidSlots = user.slotEntitlements.length;
+    const paidSlots = Math.min(
+      user.slotEntitlements.length,
+      matchingConfig.MAX_PAID_SLOTS
+    );
     const allowedActive = matchingConfig.FREE_ACTIVE_PETS + paidSlots;
 
     if (activeCount > allowedActive) {

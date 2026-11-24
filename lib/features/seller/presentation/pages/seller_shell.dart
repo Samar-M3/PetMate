@@ -32,7 +32,8 @@ class _SellerShellState extends ConsumerState<SellerShell> {
   Widget build(BuildContext context) {
     final sellerState = ref.watch(sellerProvider);
     final dashboard = sellerState.dashboardData;
-    final storeName = dashboard?.store.name ??
+    final storeName =
+        dashboard?.store.name ??
         sellerState.statusResponse?.store?.name ??
         'My Store';
 
@@ -178,7 +179,8 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Welcome, $storeName!',
@@ -243,7 +245,8 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                       title: 'Total Revenue',
                                       value:
                                           'NPR ${(dashboard?.metrics.totalRevenueNpr ?? 0).toStringAsFixed(2)}',
-                                      icon: Icons.account_balance_wallet_outlined,
+                                      icon:
+                                          Icons.account_balance_wallet_outlined,
                                       color: AppColors.success,
                                     ),
                                   ],
@@ -277,7 +280,8 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                       title: 'Total Revenue',
                                       value:
                                           'NPR ${(dashboard?.metrics.totalRevenueNpr ?? 0).toStringAsFixed(2)}',
-                                      icon: Icons.account_balance_wallet_outlined,
+                                      icon:
+                                          Icons.account_balance_wallet_outlined,
                                       color: AppColors.success,
                                     ),
                                   ),
@@ -313,15 +317,15 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                   title: 'Add New Product',
                                   subtitle:
                                       'Publish pet food, toys, health or gear',
-                                  onTap: () => context.go('/seller/products/add'),
+                                  onTap: () =>
+                                      context.go('/seller/products/add'),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildActionTile(
                                   icon: Icons.storefront_outlined,
                                   iconColor: AppColors.terracotta,
                                   title: 'Visit PetMate Marketplace',
-                                  subtitle:
-                                      'Browse all items live on the marketplace',
+                                  subtitle: 'Browse all items live on the marketplace',
                                   onTap: () => context.go('/shop'),
                                 ),
                                 const SizedBox(height: 8),
@@ -329,8 +333,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                   icon: Icons.description_outlined,
                                   iconColor: AppColors.primary,
                                   title: 'Application & Business Info',
-                                  subtitle:
-                                      'Review store documents, address and status',
+                                  subtitle: 'Review store documents, address and status',
                                   onTap: () => context.go('/seller/status'),
                                 ),
                               ],

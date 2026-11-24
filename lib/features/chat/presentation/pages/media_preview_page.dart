@@ -120,7 +120,9 @@ class _MediaPreviewPageState extends ConsumerState<MediaPreviewPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+              'Upload failed: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -213,10 +215,7 @@ class _MediaPreviewPageState extends ConsumerState<MediaPreviewPage> {
                                   ),
                                 ),
                               )
-                            : Image.memory(
-                                item.bytes,
-                                fit: BoxFit.cover,
-                              ),
+                            : Image.memory(item.bytes, fit: BoxFit.cover),
                       ),
 
                       // Video badge
@@ -294,7 +293,12 @@ class _MediaPreviewPageState extends ConsumerState<MediaPreviewPage> {
                       enabled: !_isUploading,
                       style: const TextStyle(color: Colors.white),
                       maxLength: 1000,
-                      buildCounter: (_, {required currentLength, maxLength, required isFocused}) => null,
+                      buildCounter: (
+                        _, {
+                        required currentLength,
+                        maxLength,
+                        required isFocused,
+                      }) => null,
                       decoration: InputDecoration(
                         hintText: 'Add a caption...',
                         hintStyle: const TextStyle(color: Colors.white38),
@@ -313,9 +317,7 @@ class _MediaPreviewPageState extends ConsumerState<MediaPreviewPage> {
                   ),
                   const SizedBox(width: 10),
                   Material(
-                    color: _isUploading
-                        ? Colors.white24
-                        : AppColors.terracotta,
+                    color: _isUploading ? Colors.white24 : AppColors.terracotta,
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),

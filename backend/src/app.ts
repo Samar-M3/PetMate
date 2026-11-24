@@ -16,6 +16,8 @@ import { devicesRouter, notificationsRouter } from "./modules/notifications/noti
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
+import prisma, { queryContext, type RequestQueryContext } from "./config/db.ts";
+
 const app = express();
 
 app.use(
@@ -29,21 +31,45 @@ app.use(
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
-// Request Logging Middleware for Real-time Diagnostics
+// Request Timing & Diagnostics Middleware (Task A: duration, status, query count, flag >500ms)
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const timestamp = new Date().toISOString().substring(11, 19);
-  console.log(`[Express ${timestamp}] 📥 ${req.method} ${req.originalUrl} (from ${req.ip})`);
-  next();
+  const start = performance.now();
+  const store: RequestQueryContext = { queryCount: 0, queries: [] };
+
+  queryContext.run(store, () => {
+    res.on("finish", () => {
+      const durationMs = (performance.now() - start).toFixed(1);
+      const isSlow = Number(durationMs) > 500;
+      const slowFlag = isSlow ? " ⚠️ [SLOW >500ms]" : "";
+      const queriesDetail = store.queryCount > 0 ? ` (${store.queries.slice(0, 5).join(", ")}${store.queries.length > 5 ? "..." : ""})` : "";
+      console.log(
+        `[Express] ${req.method} ${req.originalUrl} -> ${res.statusCode} | ${durationMs}ms | Prisma queries: ${store.queryCount}${queriesDetail}${slowFlag}`
+      );
+    });
+    next();
+  });
 });
 
-// Health Check
-const healthHandler = (req: Request, res: Response) => {
+// Health Check with Database Latency
+const healthHandler = async (req: Request, res: Response) => {
+  const start = performance.now();
+  let dbStatus = "UP";
+  let dbLatencyMs = "0.0";
+  try {
+    await prisma.$queryRaw`SELECT 1 as ping`;
+    dbLatencyMs = (performance.now() - start).toFixed(2);
+  } catch (err: any) {
+    dbStatus = `DOWN: ${err.message}`;
+  }
+
   sendSuccess(res, {
     message: "PetMate Backend API is running healthy",
     data: {
-      status: "UP",
+      status: dbStatus === "UP" ? "UP" : "DEGRADED",
       auth: "Firebase Authentication",
       database: "PostgreSQL",
+      dbStatus,
+      dbLatencyMs: `${dbLatencyMs}ms`,
       timestamp: new Date().toISOString(),
     },
   });

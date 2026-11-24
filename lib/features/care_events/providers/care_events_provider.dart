@@ -12,7 +12,8 @@ import '../utils/care_format.dart';
 // ==========================================
 final careEventsProvider =
     AsyncNotifierProvider<CareEventsNotifier, List<PetEvent>>(
-        CareEventsNotifier.new);
+      CareEventsNotifier.new,
+    );
 
 class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
   /// Keys ("<eventId>:rsvp") of requests in flight, so double taps are ignored.
@@ -34,9 +35,11 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
 
   Future<List<PetEvent>> _fetchEvents() async {
     final data = await CareApi.get('/events');
-    final events = CareApi.extractList(data, ['events', 'items', 'results'])
-        .map(PetEvent.fromJson)
-        .toList();
+    final events = CareApi.extractList(data, [
+      'events',
+      'items',
+      'results',
+    ]).map(PetEvent.fromJson).toList();
     events.sort((a, b) {
       final da = a.date, db = b.date;
       if (da == null && db == null) return 0;
@@ -93,8 +96,7 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
         isBooked: !book,
         attendeeCount: _bump(e.attendeeCount, book ? -1 : 1),
       ),
-      request: () =>
-          CareApi.post('/events/$eventId/rsvp', {'isBooked': book}),
+      request: () => CareApi.post('/events/$eventId/rsvp', {'isBooked': book}),
     );
   }
 
@@ -122,9 +124,9 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
     if (!_pending.add(key)) return;
 
     List<PetEvent> patch(PetEvent Function(PetEvent) fn) => [
-          for (final e in state.value ?? const <PetEvent>[])
-            e.id == eventId ? fn(e) : e,
-        ];
+      for (final e in state.value ?? const <PetEvent>[])
+        e.id == eventId ? fn(e) : e,
+    ];
 
     state = AsyncData(patch(apply));
     try {
@@ -141,8 +143,9 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
 // ==========================================
 // 2. VETERINARIANS
 // ==========================================
-final careVetsProvider =
-    AsyncNotifierProvider<CareVetsNotifier, List<Vet>>(CareVetsNotifier.new);
+final careVetsProvider = AsyncNotifierProvider<CareVetsNotifier, List<Vet>>(
+  CareVetsNotifier.new,
+);
 
 final veterinariansProvider = careVetsProvider;
 
@@ -161,9 +164,11 @@ class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
 
   Future<List<Vet>> _fetchVets() async {
     final data = await CareApi.get('/veterinarians');
-    return CareApi.extractList(data, ['veterinarians', 'vets', 'items'])
-        .map(Vet.fromJson)
-        .toList();
+    return CareApi.extractList(data, [
+      'veterinarians',
+      'vets',
+      'items',
+    ]).map(Vet.fromJson).toList();
   }
 
   Future<void> addVeterinarian({
@@ -175,6 +180,7 @@ class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
     required String specialty,
     required String address,
     required int fee,
+    required bool isAcceptingBookings,
   }) async {
     await CareApi.post('/veterinarians', {
       'name': name,
@@ -185,6 +191,7 @@ class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
       'specialty': specialty,
       'address': address,
       'fee': fee,
+      'isAcceptingBookings': isAcceptingBookings,
     });
 
     try {
@@ -268,7 +275,8 @@ final myVetProfileProvider = FutureProvider<Vet?>((ref) async {
 // ==========================================
 final appointmentsProvider =
     AsyncNotifierProvider<AppointmentsNotifier, List<Appointment>>(
-        AppointmentsNotifier.new);
+      AppointmentsNotifier.new,
+    );
 
 class AppointmentsNotifier extends AsyncNotifier<List<Appointment>> {
   @override
@@ -280,9 +288,10 @@ class AppointmentsNotifier extends AsyncNotifier<List<Appointment>> {
 
   Future<List<Appointment>> _fetchAppointments() async {
     final data = await CareApi.get('/appointments');
-    final list = CareApi.extractList(data, ['appointments', 'items'])
-        .map(Appointment.fromJson)
-        .toList();
+    final list = CareApi.extractList(data, [
+      'appointments',
+      'items',
+    ]).map(Appointment.fromJson).toList();
 
     // Upcoming first (soonest on top), then history (most recent on top).
     list.sort((a, b) {
@@ -351,10 +360,9 @@ class AppointmentsNotifier extends AsyncNotifier<List<Appointment>> {
 
 /// Earliest vaccine due date (today or later) recorded by a vet, if any.
 final nextVaccineDueProvider = Provider<DateTime?>((ref) {
-  final appts = ref.watch(appointmentsProvider).maybeWhen(
-        data: (list) => list,
-        orElse: () => const <Appointment>[],
-      );
+  final appts = ref
+      .watch(appointmentsProvider)
+      .maybeWhen(data: (list) => list, orElse: () => const <Appointment>[]);
   final today = todayDate();
   DateTime? best;
   for (final a in appts) {

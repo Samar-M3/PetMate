@@ -80,7 +80,35 @@ try {
 
 export const firebaseAuth: Auth = getAuth(firebaseApp);
 export const firestore: Firestore = getFirestore(firebaseApp);
-firestore.settings({ ignoreUndefinedProperties: true });
+firestore.settings({ ignoreUndefinedProperties: true, preferRest: true });
+
+export const timedFirebase = async <T>(
+  operationName: string,
+  fn: () => Promise<T>,
+  timeoutMs = 5000
+): Promise<T> => {
+  const start = performance.now();
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`[Timeout] Firebase operation '${operationName}' exceeded ${timeoutMs}ms limit`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([fn(), timeoutPromise]);
+    const duration = (performance.now() - start).toFixed(1);
+    const flag = Number(duration) > 500 ? " ⚠️ [FIREBASE SLOW >500ms]" : "";
+    console.log(`[Firebase] ${operationName} finished in ${duration}ms${flag}`);
+    return result;
+  } catch (error: any) {
+    const duration = (performance.now() - start).toFixed(1);
+    console.error(`[Firebase] ❌ ${operationName} failed after ${duration}ms:`, error?.message || error);
+    throw error;
+  } finally {
+    clearTimeout(timer!);
+  }
+};
 
 let _messaging: Messaging | null = null;
 export const getMessagingInstance = (): Messaging => {

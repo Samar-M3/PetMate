@@ -106,7 +106,7 @@ class ChatMediaService {
   final ImagePicker _picker;
 
   ChatMediaService(this._chatRepository, {ImagePicker? picker})
-      : _picker = picker ?? ImagePicker();
+    : _picker = picker ?? ImagePicker();
 
   /// Picks multiple images from the device gallery (not file explorer).
   /// Uses pickMultiImage which opens the native gallery picker directly.
@@ -236,10 +236,12 @@ class ChatMediaService {
       );
     }
 
-    onProgress?.call(MediaUploadProgress(
-      status: MediaUploadStatus.preparing,
-      totalItems: mediaFiles.length,
-    ));
+    onProgress?.call(
+      MediaUploadProgress(
+        status: MediaUploadStatus.preparing,
+        totalItems: mediaFiles.length,
+      ),
+    );
 
     final uploadedItems = <Map<String, dynamic>>[];
     final clientMessageId =
@@ -248,12 +250,14 @@ class ChatMediaService {
     for (int i = 0; i < mediaFiles.length; i++) {
       final item = mediaFiles[i];
 
-      onProgress?.call(MediaUploadProgress(
-        status: MediaUploadStatus.uploading,
-        totalItems: mediaFiles.length,
-        currentItemIndex: i,
-        itemProgress: 0.1,
-      ));
+      onProgress?.call(
+        MediaUploadProgress(
+          status: MediaUploadStatus.uploading,
+          totalItems: mediaFiles.length,
+          currentItemIndex: i,
+          itemProgress: 0.1,
+        ),
+      );
 
       // 1. Request signature from backend
       final sigData = await _chatRepository.requestMediaSignature(
@@ -271,16 +275,17 @@ class ChatMediaService {
       final publicId = sigData['publicId'] as String;
       final resourceType = sigData['resourceType'] as String;
       final eager = sigData['eager'] as String? ?? '';
-      final allowedFormats = (sigData['allowedFormats'] as List<dynamic>?)
-              ?.join(',') ??
-          '';
+      final allowedFormats =
+          (sigData['allowedFormats'] as List<dynamic>?)?.join(',') ?? '';
 
-      onProgress?.call(MediaUploadProgress(
-        status: MediaUploadStatus.uploading,
-        totalItems: mediaFiles.length,
-        currentItemIndex: i,
-        itemProgress: 0.3,
-      ));
+      onProgress?.call(
+        MediaUploadProgress(
+          status: MediaUploadStatus.uploading,
+          totalItems: mediaFiles.length,
+          currentItemIndex: i,
+          itemProgress: 0.3,
+        ),
+      );
 
       // 2. Direct upload to Cloudinary using fromBytes (cross-platform safe)
       final uploadUri = Uri.parse(
@@ -327,8 +332,8 @@ class ChatMediaService {
       final width = (resJson['width'] as num?)?.toInt() ?? 0;
       final height = (resJson['height'] as num?)?.toInt() ?? 0;
       final bytes = (resJson['bytes'] as num?)?.toInt() ?? item.sizeBytes;
-      final duration = (resJson['duration'] as num?)?.toDouble() ??
-          item.durationSeconds;
+      final duration =
+          (resJson['duration'] as num?)?.toDouble() ?? item.durationSeconds;
 
       uploadedItems.add({
         'kind': item.isVideo ? 'video' : 'image',
@@ -341,21 +346,25 @@ class ChatMediaService {
         if (item.isVideo) 'thumbnailPublicId': fullPublicId,
       });
 
-      onProgress?.call(MediaUploadProgress(
-        status: MediaUploadStatus.uploading,
-        totalItems: mediaFiles.length,
-        currentItemIndex: i,
-        itemProgress: 1.0,
-      ));
+      onProgress?.call(
+        MediaUploadProgress(
+          status: MediaUploadStatus.uploading,
+          totalItems: mediaFiles.length,
+          currentItemIndex: i,
+          itemProgress: 1.0,
+        ),
+      );
     }
 
     // 3. Finalize: Call backend to create media message
-    onProgress?.call(MediaUploadProgress(
-      status: MediaUploadStatus.finalizing,
-      totalItems: mediaFiles.length,
-      currentItemIndex: mediaFiles.length,
-      itemProgress: 1.0,
-    ));
+    onProgress?.call(
+      MediaUploadProgress(
+        status: MediaUploadStatus.finalizing,
+        totalItems: mediaFiles.length,
+        currentItemIndex: mediaFiles.length,
+        itemProgress: 1.0,
+      ),
+    );
 
     await _chatRepository.createMediaMessage(
       conversationId,
@@ -365,12 +374,14 @@ class ChatMediaService {
       replyTo: replyTo,
     );
 
-    onProgress?.call(MediaUploadProgress(
-      status: MediaUploadStatus.completed,
-      totalItems: mediaFiles.length,
-      currentItemIndex: mediaFiles.length,
-      itemProgress: 1.0,
-    ));
+    onProgress?.call(
+      MediaUploadProgress(
+        status: MediaUploadStatus.completed,
+        totalItems: mediaFiles.length,
+        currentItemIndex: mediaFiles.length,
+        itemProgress: 1.0,
+      ),
+    );
   }
 }
 

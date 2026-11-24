@@ -50,18 +50,22 @@ export const bookAppointment = async (
 };
 
 export const updateStatus = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
     const { status, vetNotes, nextVaccineDue } = req.body;
     const appointment = await updateAppointmentStatus(
       id as string,
       status,
       vetNotes,
-      nextVaccineDue
+      nextVaccineDue,
+      { userId: req.user.id, role: req.user.role },
     );
     sendSuccess(res, {
       statusCode: 200,

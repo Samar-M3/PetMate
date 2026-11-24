@@ -259,20 +259,61 @@ export const getAuditLogs = async (page = 1, limit = 50) => {
 };
 
 export const getAdminStats = async () => {
-  const [roleCounts, totalPets, pendingApplications, totalUsers, totalEvents, totalVeterinarians] =
-    await Promise.all([
-      prisma.user.groupBy({
-        by: ["role"],
-        _count: { _all: true },
-      }),
-      prisma.pet.count(),
-      prisma.roleApplication.count({
-        where: { status: "PENDING" },
-      }),
-      prisma.user.count(),
-      prisma.event.count(),
-      prisma.veterinarian.count(),
-    ]);
+  const [
+    roleCounts,
+    totalPets,
+    pendingApplications,
+    totalUsers,
+    totalEvents,
+    totalVeterinarians,
+    totalOrders,
+    totalAppointments,
+    revenueAggregate,
+    recentUsers,
+    recentApplications,
+  ] = await Promise.all([
+    prisma.user.groupBy({
+      by: ["role"],
+      _count: { _all: true },
+    }),
+    prisma.pet.count(),
+    prisma.roleApplication.count({
+      where: { status: "PENDING" },
+    }),
+    prisma.user.count(),
+    prisma.event.count(),
+    prisma.veterinarian.count(),
+    prisma.order.count().catch(() => 0),
+    prisma.appointment.count().catch(() => 0),
+    prisma.order.aggregate({
+      where: { paymentStatus: "COMPLETED" },
+      _sum: { totalAmount: true },
+    }).catch(() => ({ _sum: { totalAmount: 0 } })),
+    prisma.user.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        profile: { select: { fullName: true, imageUrl: true } },
+        _count: { select: { pets: true } },
+      },
+    }),
+    prisma.roleApplication.findMany({
+      take: 5,
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phoneNumber: true,
+            profile: { select: { fullName: true, imageUrl: true } },
+            store: { select: { name: true, businessType: true } },
+          },
+        },
+      },
+    }),
+  ]);
 
   const usersByRole: Record<string, number> = {
     PET_OWNER: 0,
@@ -285,14 +326,22 @@ export const getAdminStats = async () => {
     usersByRole[group.role] = group._count._all;
   }
 
+  const totalRevenue = revenueAggregate._sum.totalAmount
+    ? Number(revenueAggregate._sum.totalAmount)
+    : 0;
+
   return {
     totalUsers,
     usersByRole,
     totalPets,
-    totalOrders: 0,
+    totalOrders,
+    totalAppointments,
+    totalRevenue,
     pendingApplications,
     totalEvents,
     totalVeterinarians,
+    recentUsers,
+    recentApplications,
   };
 };
 

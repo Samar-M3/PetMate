@@ -22,15 +22,21 @@ class EventFeed extends ConsumerWidget {
   });
 
   Future<void> _toggleBookmark(
-      BuildContext context, WidgetRef ref, PetEvent ev) async {
+    BuildContext context,
+    WidgetRef ref,
+    PetEvent ev,
+  ) async {
     try {
       await ref
           .read(careEventsProvider.notifier)
           .toggleBookmark(ev.id, !ev.isBookmarked);
     } catch (e) {
       if (context.mounted) {
-        showCareSnackBar(context, 'Could not update bookmark: $e',
-            isError: true);
+        showCareSnackBar(
+          context,
+          'Could not update bookmark: $e',
+          isError: true,
+        );
       }
     }
   }

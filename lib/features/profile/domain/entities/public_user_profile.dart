@@ -30,14 +30,14 @@ class PublicPetCardSummary {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'species': species,
-        'breed': breed,
-        'ageMonths': ageMonths,
-        'ageString': ageString,
-        'photoUrl': photoUrl,
-      };
+    'id': id,
+    'name': name,
+    'species': species,
+    'breed': breed,
+    'ageMonths': ageMonths,
+    'ageString': ageString,
+    'photoUrl': photoUrl,
+  };
 }
 
 class PublicUserProfile {
@@ -60,7 +60,8 @@ class PublicUserProfile {
   });
 
   factory PublicUserProfile.fromJson(Map<String, dynamic> json) {
-    final petsList = (json['pets'] as List<dynamic>?)
+    final petsList =
+        (json['pets'] as List<dynamic>?)
             ?.whereType<Map<String, dynamic>>()
             .map((p) => PublicPetCardSummary.fromJson(p))
             .toList() ??
@@ -78,12 +79,12 @@ class PublicUserProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'displayName': displayName,
-        'avatarUrl': avatarUrl,
-        'memberSince': memberSince,
-        'area': area,
-        'bio': bio,
-        'pets': pets.map((p) => p.toJson()).toList(),
-      };
+    'id': id,
+    'displayName': displayName,
+    'avatarUrl': avatarUrl,
+    'memberSince': memberSince,
+    'area': area,
+    'bio': bio,
+    'pets': pets.map((p) => p.toJson()).toList(),
+  };
 }

@@ -10,7 +10,10 @@ class MyAppointmentsScreen extends ConsumerWidget {
   const MyAppointmentsScreen({super.key});
 
   Future<void> _cancel(
-      BuildContext context, WidgetRef ref, Appointment item) async {
+    BuildContext context,
+    WidgetRef ref,
+    Appointment item,
+  ) async {
     final ok = await confirmCareAction(
       context,
       title: 'Cancel appointment?',
@@ -91,17 +94,22 @@ class MyAppointmentsScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text('${item.petName} • ${item.vetName}',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: CareTheme.charcoal)),
+                child: Text(
+                  '${item.petName} • ${item.vetName}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: CareTheme.charcoal,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: item.isUpcoming
                       ? CareTheme.sageGreen.withValues(alpha: 0.25)
@@ -111,28 +119,38 @@ class MyAppointmentsScreen extends ConsumerWidget {
                 child: Text(
                   item.status,
                   style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.deepOlive),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: CareTheme.deepOlive,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(item.clinicName,
-              style: const TextStyle(color: CareTheme.mutedText)),
-          Text('${item.date} at ${item.timeSlot}',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, color: CareTheme.charcoal)),
-          Text('Reason: ${item.reason}',
-              style:
-                  const TextStyle(fontSize: 13, color: CareTheme.mutedText)),
+          Text(
+            item.clinicName,
+            style: const TextStyle(color: CareTheme.mutedText),
+          ),
+          Text(
+            '${item.date} at ${item.timeSlot}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: CareTheme.charcoal,
+            ),
+          ),
+          Text(
+            'Reason: ${item.reason}',
+            style: const TextStyle(fontSize: 13, color: CareTheme.mutedText),
+          ),
           if (item.isUpcoming) ...[
             const SizedBox(height: 10),
             OutlinedButton(
               onPressed: () => _cancel(context, ref, item),
-              child: const Text('Cancel Appointment',
-                  style: TextStyle(color: CareTheme.terracotta)),
+              child: const Text(
+                'Cancel Appointment',
+                style: TextStyle(color: CareTheme.terracotta),
+              ),
             ),
           ],
         ],

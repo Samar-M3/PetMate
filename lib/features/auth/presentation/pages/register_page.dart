@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -127,6 +128,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'Phone number',
                     hintText: 'e.g. 9812345678',
@@ -139,12 +144,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     if (val == null || val.trim().isEmpty) {
                       return 'Please enter your phone number';
                     }
-                    final cleanPhone = val.replaceAll(
-                      RegExp(r'[\s\-\(\)]'),
-                      '',
-                    );
-                    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
-                      return 'Please enter a valid phone number';
+                    final cleanPhone = val.trim();
+                    if (!RegExp(r'^\d{10}$').hasMatch(cleanPhone)) {
+                      return 'Phone number must be exactly 10 digits';
                     }
                     return null;
                   },
@@ -167,8 +169,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     if (val == null || val.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!val.contains('@') || !val.contains('.')) {
-                      return 'Please enter a valid email';
+                    final emailRegex = RegExp(
+                      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                    );
+                    if (!emailRegex.hasMatch(val.trim())) {
+                      return 'Please enter a valid email address';
                     }
                     return null;
                   },
@@ -181,7 +186,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    hintText: 'At least 6 characters',
+                    hintText: 'Min 6 characters (letters & numbers)',
                     prefixIcon: const Icon(
                       Icons.lock_outline,
                       color: AppColors.primary,
@@ -206,6 +211,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     }
                     if (val.length < 6) {
                       return 'Password must be at least 6 characters';
+                    }
+                    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(val)) {
+                      return 'Password must contain at least one letter and one number';
                     }
                     return null;
                   },

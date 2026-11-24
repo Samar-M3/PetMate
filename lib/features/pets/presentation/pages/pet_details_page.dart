@@ -532,16 +532,18 @@ class _PetDetailsPageState extends ConsumerState<PetDetailsPage> {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: (pet.sex.toLowerCase() == 'female'
-                                    ? const Color(0xFFE91E63)
-                                    : const Color(0xFF2196F3))
-                                .withValues(alpha: 0.12),
+                            color:
+                                (pet.sex.toLowerCase() == 'female'
+                                        ? const Color(0xFFE91E63)
+                                        : const Color(0xFF2196F3))
+                                    .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: (pet.sex.toLowerCase() == 'female'
-                                      ? const Color(0xFFE91E63)
-                                      : const Color(0xFF2196F3))
-                                  .withValues(alpha: 0.3),
+                              color:
+                                  (pet.sex.toLowerCase() == 'female'
+                                          ? const Color(0xFFE91E63)
+                                          : const Color(0xFF2196F3))
+                                      .withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
@@ -858,7 +860,10 @@ class _PetDetailsPageState extends ConsumerState<PetDetailsPage> {
                   context.pop();
                   context.go('/');
                 },
-                icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white),
+                icon: const Icon(
+                  Icons.chat_bubble_rounded,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'Open Chat',
                   style: TextStyle(

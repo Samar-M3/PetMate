@@ -12,10 +12,12 @@ class NotificationStrings {
       'orders': 'Orders & Shop',
       'orders_desc': 'Order confirmations, shipping updates, and cart alerts',
       'system': 'System & Announcements',
-      'system_desc': 'Account status changes, role approvals, and safety alerts',
+      'system_desc':
+          'Account status changes, role approvals, and safety alerts',
       'display_privacy': 'Display & Privacy',
       'show_previews': 'Show Message Previews',
-      'show_previews_desc': 'Display sender name and message snippet in push notifications',
+      'show_previews_desc':
+          'Display sender name and message snippet in push notifications',
       'device_settings': 'Device & System Settings',
       'system_settings_title': 'Android System Notification Settings',
       'system_settings_desc': 'Configure system sound, vibration, lock screen visibility, and notification dots.',
@@ -23,7 +25,8 @@ class NotificationStrings {
       'permission_dialog_body': 'Enable push notifications to get alerted about new pet matches, messages from owners, and updates about your pets.',
       'permission_not_now': 'Not Now',
       'permission_enable': 'Enable Notifications',
-      'permission_denied_banner': 'Notifications are off. You might miss new messages and pet matches.',
+      'permission_denied_banner':
+          'Notifications are off. You might miss new messages and pet matches.',
       'permission_dismiss': 'Dismiss',
       'update_failed': 'Failed to update notification settings. Reverted.',
       'new_message': 'New message',
@@ -49,7 +52,8 @@ class NotificationStrings {
       'show_previews_desc': 'सूचनामा पठाउनेको नाम र सन्देशको अंश देखाउनुहोस्',
       'device_settings': 'उपकरण र प्रणाली सेटिङहरू',
       'system_settings_title': 'एन्ड्रोइड प्रणाली सूचना सेटिङहरू',
-      'system_settings_desc': 'ध्वनि, कम्पन, लक स्क्रिन र अन्य प्रणाली सेटिङहरू मिलाउनुहोस्।',
+      'system_settings_desc':
+          'ध्वनि, कम्पन, लक स्क्रिन र अन्य प्रणाली सेटिङहरू मिलाउनुहोस्।',
       'permission_dialog_title': 'सधैं जोडिनुहोस्',
       'permission_dialog_body': 'नयाँ पेट जोडी, च्याट सन्देशहरू र आफ्ना पेटका अद्यावधिकहरू पाउन सूचना सक्षम गर्नुहोस्।',
       'permission_not_now': 'अहिले होइन',

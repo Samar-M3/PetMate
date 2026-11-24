@@ -37,13 +37,14 @@ class Appointment {
       id: j['id'].toString(),
       petName: (j['petName'] ?? j['pet']?['name'] ?? 'My Pet').toString(),
       vetId: (j['vetId'] ?? vetNode?['id'] ?? '').toString(),
-      vetName: (vetNode?['name'] ??
-              j['vetName'] ??
-              vetNode?['user']?['profile']?['fullName'] ??
-              'Veterinarian')
+      vetName:
+          (vetNode?['name'] ??
+                  j['vetName'] ??
+                  vetNode?['user']?['profile']?['fullName'] ??
+                  'Veterinarian')
+              .toString(),
+      clinicName: (vetNode?['clinicName'] ?? j['clinicName'] ?? 'Clinic')
           .toString(),
-      clinicName:
-          (vetNode?['clinicName'] ?? j['clinicName'] ?? 'Clinic').toString(),
       date: displayCareDate((j['date'] ?? '').toString()),
       timeSlot: (j['timeSlot'] ?? '').toString(),
       reason: (j['reason'] ?? 'General Checkup').toString(),

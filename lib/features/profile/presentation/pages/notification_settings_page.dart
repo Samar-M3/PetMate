@@ -11,7 +11,9 @@ const _systemSettingsChannel = MethodChannel('petmate/system_settings');
 
 Future<bool> openSystemNotificationSettings() async {
   try {
-    final result = await _systemSettingsChannel.invokeMethod<bool>('openNotificationSettings');
+    final result = await _systemSettingsChannel.invokeMethod<bool>(
+      'openNotificationSettings',
+    );
     return result ?? false;
   } catch (_) {
     return false;
@@ -68,11 +70,11 @@ class NotificationPreferencesNotifier
   }
 }
 
-final notificationPreferencesProvider = AsyncNotifierProvider<
-    NotificationPreferencesNotifier,
-    NotificationPreferenceModel>(
-  NotificationPreferencesNotifier.new,
-);
+final notificationPreferencesProvider =
+    AsyncNotifierProvider<
+      NotificationPreferencesNotifier,
+      NotificationPreferenceModel
+    >(NotificationPreferencesNotifier.new);
 
 class NotificationSettingsPage extends ConsumerWidget {
   const NotificationSettingsPage({super.key});
@@ -106,7 +108,8 @@ class NotificationSettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => ref.invalidate(notificationPreferencesProvider),
+                onPressed: () =>
+                    ref.invalidate(notificationPreferencesProvider),
                 child: const Text('Retry'),
               ),
             ],
@@ -116,10 +119,18 @@ class NotificationSettingsPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           children: [
             // Section 1: Categories
-            _SectionHeader(title: NotificationStrings.get('alert_categories', locale: locale)),
+            _SectionHeader(
+              title: NotificationStrings.get(
+                'alert_categories',
+                locale: locale,
+              ),
+            ),
             _PreferenceTile(
               title: NotificationStrings.get('messages', locale: locale),
-              subtitle: NotificationStrings.get('messages_desc', locale: locale),
+              subtitle: NotificationStrings.get(
+                'messages_desc',
+                locale: locale,
+              ),
               icon: Icons.chat_bubble_outline_rounded,
               value: prefs.messages,
               semanticLabel: 'Toggle message notifications',
@@ -131,7 +142,10 @@ class NotificationSettingsPage extends ConsumerWidget {
             ),
             _PreferenceTile(
               title: NotificationStrings.get('requests', locale: locale),
-              subtitle: NotificationStrings.get('requests_desc', locale: locale),
+              subtitle: NotificationStrings.get(
+                'requests_desc',
+                locale: locale,
+              ),
               icon: Icons.swap_horiz_rounded,
               value: prefs.requests,
               semanticLabel: 'Toggle pet match request notifications',
@@ -181,10 +195,15 @@ class NotificationSettingsPage extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Section 2: Display & Privacy
-            _SectionHeader(title: NotificationStrings.get('display_privacy', locale: locale)),
+            _SectionHeader(
+              title: NotificationStrings.get('display_privacy', locale: locale),
+            ),
             _PreferenceTile(
               title: NotificationStrings.get('show_previews', locale: locale),
-              subtitle: NotificationStrings.get('show_previews_desc', locale: locale),
+              subtitle: NotificationStrings.get(
+                'show_previews_desc',
+                locale: locale,
+              ),
               icon: Icons.preview_rounded,
               value: prefs.showPreviews,
               semanticLabel: 'Toggle message preview in push notifications',
@@ -198,14 +217,18 @@ class NotificationSettingsPage extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Section 3: System Notification Settings
-            _SectionHeader(title: NotificationStrings.get('device_settings', locale: locale)),
+            _SectionHeader(
+              title: NotificationStrings.get('device_settings', locale: locale),
+            ),
             Card(
               margin: const EdgeInsets.only(top: 6),
               color: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+                side: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.5),
+                ),
               ),
               child: ListTile(
                 minVerticalPadding: 16,
@@ -223,7 +246,10 @@ class NotificationSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 title: Text(
-                  NotificationStrings.get('system_settings_title', locale: locale),
+                  NotificationStrings.get(
+                    'system_settings_title',
+                    locale: locale,
+                  ),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
@@ -233,8 +259,14 @@ class NotificationSettingsPage extends ConsumerWidget {
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    NotificationStrings.get('system_settings_desc', locale: locale),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    NotificationStrings.get(
+                      'system_settings_desc',
+                      locale: locale,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
                 trailing: const Icon(
@@ -310,7 +342,10 @@ class _PreferenceTile extends StatelessWidget {
         toggled: value,
         container: true,
         child: SwitchListTile.adaptive(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
           activeThumbColor: AppColors.primary,
           activeTrackColor: AppColors.primaryLight,
           secondary: Container(
@@ -332,7 +367,10 @@ class _PreferenceTile extends StatelessWidget {
           ),
           subtitle: Text(
             subtitle,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           value: value,
           onChanged: onChanged,

@@ -77,11 +77,11 @@ class ReplyToData {
   }
 
   Map<String, dynamic> toMap() => {
-        'messageId': messageId,
-        'senderUid': senderUid,
-        'type': type,
-        'preview': preview,
-      };
+    'messageId': messageId,
+    'senderUid': senderUid,
+    'type': type,
+    'preview': preview,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -126,15 +126,15 @@ class MediaItem {
   }
 
   Map<String, dynamic> toMap() => {
-        'kind': kind,
-        'publicId': publicId,
-        'format': format,
-        'bytes': bytes,
-        'width': width,
-        'height': height,
-        if (durationSeconds != null) 'durationSeconds': durationSeconds,
-        if (thumbnailPublicId != null) 'thumbnailPublicId': thumbnailPublicId,
-      };
+    'kind': kind,
+    'publicId': publicId,
+    'format': format,
+    'bytes': bytes,
+    'width': width,
+    'height': height,
+    if (durationSeconds != null) 'durationSeconds': durationSeconds,
+    if (thumbnailPublicId != null) 'thumbnailPublicId': thumbnailPublicId,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -182,9 +182,7 @@ class FirestoreConversation {
   String otherUid(String myUid) =>
       participantUids.firstWhere((u) => u != myUid, orElse: () => '');
 
-  factory FirestoreConversation.fromFirestore(
-    DocumentSnapshot snapshot,
-  ) {
+  factory FirestoreConversation.fromFirestore(DocumentSnapshot snapshot) {
     final data = (snapshot.data() as Map<String, dynamic>?) ?? {};
     final lastMsg = data['lastMessage'] as Map<String, dynamic>?;
     final rawUnread = data['unread'] as Map<String, dynamic>? ?? {};
@@ -218,7 +216,8 @@ class FirestoreConversation {
 
     return FirestoreConversation(
       matchId: snapshot.id,
-      participantUids: (data['participantUids'] as List<dynamic>?)
+      participantUids:
+          (data['participantUids'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -280,9 +279,7 @@ class FirestoreMessage {
   bool isVisiblyDeleted(String myUid) =>
       deletedForEveryone || deletedFor.contains(myUid);
 
-  factory FirestoreMessage.fromFirestore(
-    DocumentSnapshot doc,
-  ) {
+  factory FirestoreMessage.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
     final ts = data['createdAt'];
     DateTime dt = DateTime.now();

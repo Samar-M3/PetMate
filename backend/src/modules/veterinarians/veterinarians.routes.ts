@@ -12,6 +12,7 @@ import {
   authenticateFirebase,
   requireInitializedUser,
   requireRole,
+  requirePasswordSetupComplete,
   Role,
 } from "../../middleware/auth.middleware.ts";
 
@@ -19,8 +20,8 @@ const router = Router();
 
 // Public / User read
 router.get("/", getVeterinarians);
-router.get("/me", authenticateFirebase, requireInitializedUser, getMyVetProfile);
-router.patch("/:id/slots", authenticateFirebase, requireInitializedUser, updateVetSlots);
+router.get("/me", authenticateFirebase, requireInitializedUser, requirePasswordSetupComplete, getMyVetProfile);
+router.patch("/:id/slots", authenticateFirebase, requireInitializedUser, requirePasswordSetupComplete, requireRole(Role.VETERINARIAN), updateVetSlots);
 
 // Admin-only management
 router.post(

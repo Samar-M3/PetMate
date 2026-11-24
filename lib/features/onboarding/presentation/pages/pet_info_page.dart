@@ -305,8 +305,9 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   void _showSuccessDialog() {
-    final isOnboardingCompleted =
-        ref.read(authStateProvider).isOnboardingCompleted;
+    final isOnboardingCompleted = ref
+        .read(authStateProvider)
+        .isOnboardingCompleted;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -327,7 +328,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
           isOnboardingCompleted
               ? 'Your pet "${_nameController.text.trim()}" has been added successfully! You can add another pet now or return to your pets.'
               : 'Your pet "${_nameController.text.trim()}" has been added successfully. '
-                  'You can add another pet profile now or continue to set up your owner profile.',
+                    'You can add another pet profile now or continue to set up your owner profile.',
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         actions: [

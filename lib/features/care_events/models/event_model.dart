@@ -30,8 +30,8 @@ class PetEvent {
   });
 
   factory PetEvent.fromJson(Map<String, dynamic> j) {
-    final rawDate =
-        (j['fullDate'] ?? j['eventDate'] ?? j['date'] ?? '').toString();
+    final rawDate = (j['fullDate'] ?? j['eventDate'] ?? j['date'] ?? '')
+        .toString();
     final date = parseCareDate(rawDate);
 
     return PetEvent(
@@ -39,8 +39,12 @@ class PetEvent {
       title: (j['title'] ?? '').toString(),
       category: (j['category'] ?? 'OTHER').toString().toUpperCase(),
       // Derive from the real date when possible; older rows stored a fixed 'SUN'.
-      dayName: date != null ? weekdayShort(date) : (j['dayName'] ?? '').toString(),
-      dayNum: date != null ? date.day.toString() : (j['dayNum'] ?? '').toString(),
+      dayName: date != null
+          ? weekdayShort(date)
+          : (j['dayName'] ?? '').toString(),
+      dayNum: date != null
+          ? date.day.toString()
+          : (j['dayNum'] ?? '').toString(),
       fullDate: date != null ? formatCareDate(date) : rawDate,
       time: (j['time'] ?? '').toString(),
       location: (j['location'] ?? '').toString(),
@@ -51,11 +55,7 @@ class PetEvent {
     );
   }
 
-  PetEvent copyWith({
-    int? attendeeCount,
-    bool? isBookmarked,
-    bool? isBooked,
-  }) {
+  PetEvent copyWith({int? attendeeCount, bool? isBookmarked, bool? isBooked}) {
     return PetEvent(
       id: id,
       title: title,

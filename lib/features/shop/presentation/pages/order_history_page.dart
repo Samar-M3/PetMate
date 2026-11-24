@@ -12,7 +12,8 @@ class ShopOrderHistoryPage extends ConsumerStatefulWidget {
   const ShopOrderHistoryPage({super.key});
 
   @override
-  ConsumerState<ShopOrderHistoryPage> createState() => _ShopOrderHistoryPageState();
+  ConsumerState<ShopOrderHistoryPage> createState() =>
+      _ShopOrderHistoryPageState();
 }
 
 class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
@@ -104,87 +105,100 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
           // Orders List
           Expanded(
             child: ordersState.isLoading && ordersState.items.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : ordersState.error != null && ordersState.items.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
-                              const SizedBox(height: 12),
-                              Text(ordersState.error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () => ref.read(shopOrdersProvider.notifier).load(),
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            size: 48,
+                            color: AppColors.error,
                           ),
-                        ),
-                      )
-                    : filteredOrders.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.creamDark,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.receipt_long_outlined,
-                                      size: 48,
-                                      color: AppColors.textMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'No orders yet',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'When you purchase products, your order status and details will show up here.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                    onPressed: () => context.go('/shop'),
-                                    child: const Text('Start Shopping'),
-                                  ),
-                                ],
-                              ),
+                          const SizedBox(height: 12),
+                          Text(ordersState.error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () =>
+                                ref.read(shopOrdersProvider.notifier).load(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : filteredOrders.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.creamDark,
+                              shape: BoxShape.circle,
                             ),
-                          )
-                        : RefreshIndicator(
-                            color: AppColors.primary,
-                            onRefresh: () => ref.read(shopOrdersProvider.notifier).load(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: filteredOrders.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final order = filteredOrders[index];
-                                return _buildOrderCard(order);
-                              },
+                            child: const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: AppColors.textMuted,
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No orders yet',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'When you purchase products, your order status and details will show up here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => context.go('/shop'),
+                            child: const Text('Start Shopping'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () =>
+                        ref.read(shopOrdersProvider.notifier).load(),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredOrders.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final order = filteredOrders[index];
+                        return _buildOrderCard(order);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -205,7 +219,9 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
       selected: isSelected,
       selectedColor: AppColors.primary,
       backgroundColor: AppColors.cream,
-      side: BorderSide(color: isSelected ? AppColors.primary : AppColors.border),
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : AppColors.border,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       onSelected: (_) => setState(() => _selectedStatusFilter = value),
     );
@@ -213,7 +229,8 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
 
   Widget _buildOrderCard(ShopOrder order) {
     final statusColor = _statusColor(order.status);
-    final dateStr = DateFormat('MMM dd, yyyy • hh:mm a').format(order.createdAt);
+    final dateStr = DateFormat('MMM dd, yyyy • hh:mm a')
+        .format(order.createdAt);
 
     return Container(
       decoration: BoxDecoration(
@@ -242,7 +259,10 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
@@ -261,7 +281,10 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
               const SizedBox(height: 4),
               Text(
                 dateStr,
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 12),
               const Divider(color: AppColors.border, height: 1),
@@ -292,7 +315,11 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
                       child: Center(
                         child: Text(
                           '+${order.items.length - 3}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -303,7 +330,10 @@ class _ShopOrderHistoryPageState extends ConsumerState<ShopOrderHistoryPage> {
                     children: [
                       Text(
                         '${order.items.length} ${order.items.length == 1 ? "item" : "items"}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(

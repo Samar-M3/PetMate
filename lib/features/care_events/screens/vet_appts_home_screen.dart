@@ -18,21 +18,25 @@ class VetApptsHomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final upcomingCount = ref.watch(appointmentsProvider).maybeWhen(
+    final upcomingCount = ref
+        .watch(appointmentsProvider)
+        .maybeWhen(
           data: (list) => list.where((a) => a.isUpcoming).length,
           orElse: () => 0,
         );
     final nextVaccine = ref.watch(nextVaccineDueProvider);
 
-    final listed = ref.watch(veterinariansProvider).maybeWhen(
-          data: (vets) => vets
-              .where((v) => v.isVerified && v.isAcceptingBookings)
-              .toList(),
+    final listed = ref
+        .watch(veterinariansProvider)
+        .maybeWhen(
+          data: (vets) =>
+              vets.where((v) => v.isVerified && v.isAcceptingBookings).toList(),
           orElse: () => const <Vet>[],
         );
     final fees = listed.where((v) => v.fee > 0).map((v) => v.fee);
-    final startingFee =
-        fees.isEmpty ? null : fees.reduce((a, b) => a < b ? a : b);
+    final startingFee = fees.isEmpty
+        ? null
+        : fees.reduce((a, b) => a < b ? a : b);
     final rated = listed.where((v) => v.rating > 0).toList();
     final avgRating = rated.isEmpty
         ? null
@@ -60,16 +64,23 @@ class VetApptsHomeScreen extends ConsumerWidget {
                     backgroundColor: CareTheme.cardBg,
                     foregroundColor: CareTheme.charcoal,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
-                  icon: const Icon(Icons.medical_information_outlined,
-                      size: 18, color: CareTheme.deepOlive),
-                  label:
-                      const Text('Vet Portal', style: TextStyle(fontSize: 12)),
+                  icon: const Icon(
+                    Icons.medical_information_outlined,
+                    size: 18,
+                    color: CareTheme.deepOlive,
+                  ),
+                  label: const Text(
+                    'Vet Portal',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const VetAdminDashboard()),
+                      builder: (_) => const VetAdminDashboard(),
+                    ),
                   ),
                 ),
             ],

@@ -4,7 +4,14 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
 
 /// Actions available from the message menu.
-enum ChatMessageAction { reply, copy, selectMessages, deleteForMe, deleteForEveryone, report }
+enum ChatMessageAction {
+  reply,
+  copy,
+  selectMessages,
+  deleteForMe,
+  deleteForEveryone,
+  report,
+}
 
 /// Shows a bottom sheet menu for message actions.
 Future<ChatMessageAction?> showMessageActionMenu(
@@ -18,55 +25,67 @@ Future<ChatMessageAction?> showMessageActionMenu(
 
   // Reply (only in active conversations)
   if (!isEnded) {
-    actions.add(_MenuAction(
-      action: ChatMessageAction.reply,
-      icon: Icons.reply_rounded,
-      label: 'Reply',
-    ));
+    actions.add(
+      _MenuAction(
+        action: ChatMessageAction.reply,
+        icon: Icons.reply_rounded,
+        label: 'Reply',
+      ),
+    );
   }
 
   // Copy (text messages only)
   if (isTextMessage) {
-    actions.add(_MenuAction(
-      action: ChatMessageAction.copy,
-      icon: Icons.copy_rounded,
-      label: 'Copy',
-    ));
+    actions.add(
+      _MenuAction(
+        action: ChatMessageAction.copy,
+        icon: Icons.copy_rounded,
+        label: 'Copy',
+      ),
+    );
   }
 
   // Select messages
-  actions.add(_MenuAction(
-    action: ChatMessageAction.selectMessages,
-    icon: Icons.check_circle_outline_rounded,
-    label: 'Select messages',
-  ));
+  actions.add(
+    _MenuAction(
+      action: ChatMessageAction.selectMessages,
+      icon: Icons.check_circle_outline_rounded,
+      label: 'Select messages',
+    ),
+  );
 
   // Delete for me (always available)
-  actions.add(_MenuAction(
-    action: ChatMessageAction.deleteForMe,
-    icon: Icons.delete_outline_rounded,
-    label: 'Delete for me',
-    isDestructive: true,
-  ));
+  actions.add(
+    _MenuAction(
+      action: ChatMessageAction.deleteForMe,
+      icon: Icons.delete_outline_rounded,
+      label: 'Delete for me',
+      isDestructive: true,
+    ),
+  );
 
   // Delete for everyone (sender only, within window, active chat)
   if (isMine && canDeleteForEveryone && !isEnded) {
-    actions.add(_MenuAction(
-      action: ChatMessageAction.deleteForEveryone,
-      icon: Icons.delete_forever_rounded,
-      label: 'Delete for everyone',
-      isDestructive: true,
-    ));
+    actions.add(
+      _MenuAction(
+        action: ChatMessageAction.deleteForEveryone,
+        icon: Icons.delete_forever_rounded,
+        label: 'Delete for everyone',
+        isDestructive: true,
+      ),
+    );
   }
 
   // Report (other person's messages)
   if (!isMine) {
-    actions.add(_MenuAction(
-      action: ChatMessageAction.report,
-      icon: Icons.flag_outlined,
-      label: 'Report',
-      isDestructive: true,
-    ));
+    actions.add(
+      _MenuAction(
+        action: ChatMessageAction.report,
+        icon: Icons.flag_outlined,
+        label: 'Report',
+        isDestructive: true,
+      ),
+    );
   }
 
   // Haptic feedback
@@ -94,26 +113,28 @@ Future<ChatMessageAction?> showMessageActionMenu(
               ),
             ),
             const SizedBox(height: 8),
-            ...actions.map((a) => ListTile(
-                  leading: Icon(
-                    a.icon,
+            ...actions.map(
+              (a) => ListTile(
+                leading: Icon(
+                  a.icon,
+                  color: a.isDestructive
+                      ? AppColors.error
+                      : AppColors.textPrimary,
+                  size: 22,
+                ),
+                title: Text(
+                  a.label,
+                  style: TextStyle(
+                    fontSize: 15,
                     color: a.isDestructive
                         ? AppColors.error
                         : AppColors.textPrimary,
-                    size: 22,
                   ),
-                  title: Text(
-                    a.label,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: a.isDestructive
-                          ? AppColors.error
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                  onTap: () => Navigator.pop(ctx, a.action),
-                  minTileHeight: 48,
-                )),
+                ),
+                onTap: () => Navigator.pop(ctx, a.action),
+                minTileHeight: 48,
+              ),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -194,9 +215,16 @@ Future<ChatMessageAction?> showDesktopMessageMenu(
         value: ChatMessageAction.deleteForEveryone,
         child: Row(
           children: [
-            Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.error),
+            Icon(
+              Icons.delete_forever_rounded,
+              size: 18,
+              color: AppColors.error,
+            ),
             SizedBox(width: 8),
-            Text('Delete for everyone', style: TextStyle(color: AppColors.error)),
+            Text(
+              'Delete for everyone',
+              style: TextStyle(color: AppColors.error),
+            ),
           ],
         ),
       ),
@@ -234,9 +262,7 @@ Future<bool> showDeleteConfirmationDialog(
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(
-        isForEveryone ? 'Delete for everyone?' : 'Delete for you?',
-      ),
+      title: Text(isForEveryone ? 'Delete for everyone?' : 'Delete for you?'),
       content: Text(
         isForEveryone
             ? 'This message will be deleted for everyone in this chat. Media files will be permanently removed.'
@@ -248,14 +274,9 @@ Future<bool> showDeleteConfirmationDialog(
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
-          ),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text(
-            'Delete',
-            style: TextStyle(color: Colors.white),
-          ),
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
         ),
       ],
     ),

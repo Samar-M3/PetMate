@@ -33,7 +33,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       context.go('/onboarding/owner');
     } else {
       final destination = GoRouterState.of(context).uri.queryParameters['from'];
-      context.go(destination != null && destination.startsWith('/shop') ? destination : '/');
+      context.go(
+        destination != null && destination.startsWith('/shop')
+            ? destination
+            : '/',
+      );
     }
   }
 

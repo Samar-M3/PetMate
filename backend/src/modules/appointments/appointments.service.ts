@@ -1,4 +1,6 @@
 import prisma from "../../config/db.ts";
+import { Role } from "../../generated/prisma/client.ts";
+import { AppError } from "../../middleware/errorHandler.ts";
 
 export const listAppointments = async (userId: string, userRole: string, vetId?: string) => {
   if (userRole === "ADMIN") {
@@ -8,7 +10,11 @@ export const listAppointments = async (userId: string, userRole: string, vetId?:
     });
   }
   if (userRole === "VETERINARIAN" || vetId) {
-    const vet = vetId ? { id: vetId } : await prisma.veterinarian.findFirst({ where: { id: userId } });
+    const vet = vetId
+      ? { id: vetId }
+      : await prisma.veterinarian.findFirst({
+          where: { OR: [{ userId }, { id: userId }] },
+        });
     if (!vet) return [];
     return prisma.appointment.findMany({
       where: { vetId: vet.id },
@@ -48,12 +54,26 @@ export const updateAppointmentStatus = async (
   id: string,
   status: string,
   vetNotes?: string,
-  nextVaccineDue?: string
+  nextVaccineDue?: string,
+  actor?: { userId: string; role: Role },
 ) => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id },
+    include: { vet: { select: { userId: true } } },
+  });
+  if (!appointment) throw new AppError("Appointment not found", 404);
+  if (
+    actor?.role === Role.VETERINARIAN &&
+    appointment.vet.userId !== actor.userId &&
+    !(appointment.vet.userId === null && appointment.vetId === actor.userId)
+  ) {
+    throw new AppError("You can only update appointments assigned to you", 403);
+  }
+
   return prisma.appointment.update({
     where: { id },
     data: {
-      status,
+      status: status as any,
       ...(vetNotes !== undefined && { vetNotes }),
       ...(nextVaccineDue !== undefined && { nextVaccineDue }),
     },

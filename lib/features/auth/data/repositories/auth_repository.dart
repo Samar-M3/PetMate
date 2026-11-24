@@ -61,6 +61,16 @@ class AuthRepository {
     return UserModel.fromJson(response['user'] as Map<String, dynamic>);
   }
 
+  Future<UserModel> completeInitialVeterinarianPassword(
+    String newPassword,
+  ) async {
+    final response = await apiClient.post(
+      '/users/me/initial-password',
+      body: {'newPassword': newPassword},
+    );
+    return UserModel.fromJson(response['user'] as Map<String, dynamic>);
+  }
+
   Future<OnboardingStatusResult> getOnboardingStatus() async {
     final response = await apiClient.get('/users/onboarding-status');
     return OnboardingStatusResult.fromJson(response as Map<String, dynamic>);

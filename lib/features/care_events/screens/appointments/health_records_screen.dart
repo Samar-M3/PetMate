@@ -32,18 +32,24 @@ class HealthRecordsScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.vaccines_rounded,
-                      color: Colors.white, size: 32),
+                  const Icon(
+                    Icons.vaccines_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Upcoming Vaccination',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
+                        const Text(
+                          'Upcoming Vaccination',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         Text(
                           nextVaccine == null
                               ? 'No vaccinations due. Your vet will add dates after a visit.'
@@ -57,11 +63,14 @@ class HealthRecordsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Past Clinic Notes',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Past Clinic Notes',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: apptsAsync.when(
@@ -75,7 +84,9 @@ class HealthRecordsScreen extends ConsumerWidget {
                       .where((a) => a.status == Appointment.completed)
                       .toList();
                   if (completed.isEmpty) {
-                    return const CareMessage('No completed clinic records yet.');
+                    return const CareMessage(
+                      'No completed clinic records yet.',
+                    );
                   }
                   return ListView.builder(
                     itemCount: completed.length,
@@ -103,15 +114,22 @@ class HealthRecordsScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${rec.petName} • ${rec.reason} (${rec.date})',
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-          Text('Vet: ${rec.vetName}',
-              style:
-                  const TextStyle(fontSize: 12, color: CareTheme.mutedText)),
+          Text(
+            '${rec.petName} • ${rec.reason} (${rec.date})',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: CareTheme.charcoal,
+            ),
+          ),
+          Text(
+            'Vet: ${rec.vetName}',
+            style: const TextStyle(fontSize: 12, color: CareTheme.mutedText),
+          ),
           const SizedBox(height: 8),
-          Text(rec.vetNotes ?? 'No notes added.',
-              style: const TextStyle(color: CareTheme.charcoal)),
+          Text(
+            rec.vetNotes ?? 'No notes added.',
+            style: const TextStyle(color: CareTheme.charcoal),
+          ),
         ],
       ),
     );

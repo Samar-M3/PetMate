@@ -65,7 +65,11 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   Future<void> _confirmBooking() async {
     final pet = _petController.text.trim();
     if (pet.isEmpty) {
-      showCareSnackBar(context, 'Please enter your pet\'s name.', isError: true);
+      showCareSnackBar(
+        context,
+        'Please enter your pet\'s name.',
+        isError: true,
+      );
       return;
     }
     final slot = _selectedSlot;
@@ -76,7 +80,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(appointmentsProvider.notifier).bookAppointment(
+      await ref
+          .read(appointmentsProvider.notifier)
+          .bookAppointment(
             petName: pet,
             vetId: widget.vet.id,
             date: formatCareDate(_selectedDate),
@@ -120,11 +126,14 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(vet.name,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: CareTheme.charcoal)),
+                  Text(
+                    vet.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: CareTheme.charcoal,
+                    ),
+                  ),
                   Text(
                     vet.address.isEmpty
                         ? vet.clinicName
@@ -134,10 +143,12 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                   if (vet.fee > 0) ...[
                     const SizedBox(height: 6),
                     Text(
-                        'Consultation Fee: ${formatFee(vet.fee)} (Pay at Clinic)',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: CareTheme.deepOlive)),
+                      'Consultation Fee: ${formatFee(vet.fee)} (Pay at Clinic)',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: CareTheme.deepOlive,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -156,7 +167,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               spacing: 10,
               children: _dates.map((date) {
                 return ChoiceChip(
-                  label: Text('${weekdayShort(date)} • ${monthShort(date)} ${date.day}'),
+                  label: Text(
+                    '${weekdayShort(date)} • ${monthShort(date)} ${date.day}',
+                  ),
                   selected: isSameDay(_selectedDate, date),
                   selectedColor: CareTheme.sageGreen,
                   onSelected: (_) => setState(() {
@@ -171,8 +184,10 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
             const SizedBox(height: 20),
             _label('Available Time Slots'),
             if (vet.availableSlots.isEmpty)
-              const Text('This clinic has no open slots right now.',
-                  style: TextStyle(color: CareTheme.mutedText))
+              const Text(
+                'This clinic has no open slots right now.',
+                style: TextStyle(color: CareTheme.mutedText),
+              )
             else
               Wrap(
                 spacing: 10,
@@ -186,8 +201,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                     labelStyle: TextStyle(
                       color: selected ? Colors.white : CareTheme.charcoal,
                     ),
-                    onSelected:
-                        bookable ? (_) => setState(() => _selectedSlot = slot) : null,
+                    onSelected: bookable
+                        ? (_) => setState(() => _selectedSlot = slot)
+                        : null,
                   );
                 }).toList(),
               ),
@@ -197,8 +213,9 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               controller: _reasonController,
               textCapitalization: TextCapitalization.sentences,
               maxLength: 200,
-              decoration:
-                  _inputDecoration('e.g., Vaccination, routine checkup, skin allergy...'),
+              decoration: _inputDecoration(
+                'e.g., Vaccination, routine checkup, skin allergy...',
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -209,7 +226,8 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                   backgroundColor: CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: (_submitting || _selectedSlot == null)
                     ? null
@@ -219,11 +237,17 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5),
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
                       )
-                    : const Text('Confirm Clinic Appointment',
+                    : const Text(
+                        'Confirm Clinic Appointment',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -233,19 +257,23 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   }
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: CareTheme.charcoal)),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        color: CareTheme.charcoal,
+      ),
+    ),
+  );
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: CareTheme.cardBg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-      );
+    hintText: hint,
+    filled: true,
+    fillColor: CareTheme.cardBg,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide.none,
+    ),
+  );
 }

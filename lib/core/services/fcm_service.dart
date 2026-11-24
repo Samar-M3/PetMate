@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -19,8 +20,8 @@ import 'storage_service.dart';
 
 final activeConversationProvider =
     NotifierProvider<ActiveConversationNotifier, String?>(
-  ActiveConversationNotifier.new,
-);
+      ActiveConversationNotifier.new,
+    );
 
 class ActiveConversationNotifier extends Notifier<String?> {
   @override
@@ -36,9 +37,7 @@ class ActiveConversationNotifier extends Notifier<String?> {
 // -----------------------------------------------------------------------------
 
 final pendingNotificationRouteProvider =
-    NotifierProvider<PendingRouteNotifier, String?>(
-  PendingRouteNotifier.new,
-);
+    NotifierProvider<PendingRouteNotifier, String?>(PendingRouteNotifier.new);
 
 class PendingRouteNotifier extends Notifier<String?> {
   @override
@@ -74,7 +73,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 final fcmServiceProvider = Provider<FcmService>((ref) {
   final repo = ref.watch(notificationRepositoryProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  return FcmService(ref, repo, prefs);
+  final service = FcmService(ref, repo, prefs);
+  ref.onDispose(() => unawaited(service.dispose()));
+  return service;
 });
 
 class FcmService {
@@ -87,13 +88,22 @@ class FcmService {
 
   static const String _prefKeyLastToken = 'fcm_last_registered_token';
   static const String _prefKeyPermissionPrompted = 'fcm_permission_prompted';
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+  Future<void>? _initializeFuture;
+  Future<void>? _syncTokenFuture;
+  bool _disposed = false;
 
   FcmService(this._ref, this._repo, this._prefs);
 
   /// Initializes local notifications, channels, and FCM listeners.
-  Future<void> initialize() async {
+  Future<void> initialize() => _initializeFuture ??= _initialize();
+
+  Future<void> _initialize() async {
+    if (kIsWeb || _disposed) return; // Skip unsupported or disposed services.
     // 1. Android notification initialization
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
@@ -113,8 +123,10 @@ class FcmService {
     );
 
     // 2. Create notification channels on Android
-    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
@@ -151,23 +163,29 @@ class FcmService {
     }
 
     // 3. Foreground message listener
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _handleForegroundMessage(message);
-    });
+    _subscriptions.add(
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        _handleForegroundMessage(message);
+      }),
+    );
 
     // 4. Background-to-foreground tap handler
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      final route = message.data['route'] as String?;
-      if (route != null) {
-        handleNotificationTap(route);
-      }
-    });
+    _subscriptions.add(
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        final route = message.data['route'] as String?;
+        if (route != null) {
+          handleNotificationTap(route);
+        }
+      }),
+    );
 
     // 5. Token refresh listener
     // ignore: deprecated_member_use
-    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-      syncToken(force: true);
-    });
+    _subscriptions.add(
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        syncToken(force: true);
+      }),
+    );
 
     // 6. Check for cold start initial message
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -191,7 +209,9 @@ class FcmService {
         activeConv != null &&
         conversationId == activeConv) {
       if (kDebugMode) {
-        debugPrint('[FCM Foreground] Suppressed push for active chat: $conversationId');
+        debugPrint(
+          '[FCM Foreground] Suppressed push for active chat: $conversationId',
+        );
       }
       return;
     }
@@ -259,7 +279,13 @@ class FcmService {
   }
 
   /// Synchronizes the FCM device token with the backend.
-  Future<void> syncToken({bool force = false}) async {
+  Future<void> syncToken({bool force = false}) =>
+      _syncTokenFuture ??= _syncToken(force).whenComplete(() {
+        _syncTokenFuture = null;
+      });
+
+  Future<void> _syncToken(bool force) async {
+    if (kIsWeb || _disposed) return; // Skip unsupported or disposed services.
     try {
       // ignore: deprecated_member_use
       final token = await FirebaseMessaging.instance.getToken();
@@ -287,6 +313,15 @@ class FcmService {
     }
   }
 
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    _subscriptions.clear();
+  }
+
   /// Removes the device token from the backend and deletes it locally on logout.
   Future<void> deleteTokenOnLogout() async {
     try {
@@ -312,6 +347,7 @@ class FcmService {
   /// Prompts for notification permission with an explanation dialog.
   /// Triggered after the first match or when the first chat opens (never at launch).
   Future<void> checkAndPromptPermission(BuildContext context) async {
+    if (kIsWeb) return;
     final alreadyPrompted = _prefs.getBool(_prefKeyPermissionPrompted) ?? false;
     if (alreadyPrompted) return;
 
@@ -343,18 +379,27 @@ class FcmService {
         ),
         content: const Text(
           'Enable push notifications to get alerted about new pet matches, messages from owners, and updates about your pets.',
-          style: TextStyle(fontSize: 14, color: AppColors.textPrimary, height: 1.4),
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textPrimary,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Not Now', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Not Now',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Enable Notifications'),
@@ -366,13 +411,11 @@ class FcmService {
     await _prefs.setBool(_prefKeyPermissionPrompted, true);
 
     if (shouldRequest == true) {
-      final updatedSettings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      final updatedSettings = await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
 
-      if (updatedSettings.authorizationStatus == AuthorizationStatus.authorized) {
+      if (updatedSettings.authorizationStatus ==
+          AuthorizationStatus.authorized) {
         await syncToken();
       } else if (context.mounted) {
         showPermissionDeniedBanner(context);
@@ -385,7 +428,10 @@ class FcmService {
     ScaffoldMessenger.of(context).showMaterialBanner(
       MaterialBanner(
         backgroundColor: const Color(0xFFFFF4E5),
-        leading: const Icon(Icons.notifications_off_rounded, color: AppColors.terracotta),
+        leading: const Icon(
+          Icons.notifications_off_rounded,
+          color: AppColors.terracotta,
+        ),
         content: const Text(
           'Notifications are off. You might miss new messages and pet matches.',
           style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
@@ -395,7 +441,10 @@ class FcmService {
             onPressed: () {
               ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
             },
-            child: const Text('Dismiss', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'Dismiss',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
         ],
       ),
