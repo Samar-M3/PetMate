@@ -338,6 +338,35 @@ class _ProfileBottomSheetState extends ConsumerState<ProfileBottomSheet> {
           ),
           const SizedBox(height: 10),
 
+          // Notification Settings
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: AppColors.textSecondary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () {
+              final router = GoRouter.of(context);
+              Navigator.of(context).pop();
+              router.push('/settings/notifications');
+            },
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: AppColors.textPrimary,
+              size: 18,
+            ),
+            label: const Text(
+              'Notification Settings',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
           // Log Out
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(

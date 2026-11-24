@@ -62,6 +62,13 @@ enum ProductStatus {
   INACTIVE
 }
 
+enum AppointmentStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum StoreStatus {
   PENDING
   APPROVED
@@ -102,8 +109,14 @@ model User {
   blocksGiven         UserBlock[]             @relation("BlocksGiven")
   blocksReceived      UserBlock[]             @relation("BlocksReceived")
   chatReports         ChatReport[]
+<<<<<<< HEAD
   eventRsvps          EventRsvp[]
   eventBookmarks      EventBookmark[]
+=======
+  deviceTokens        DeviceToken[]
+  notificationPreference NotificationPreference?
+  appointments        Appointment[]
+>>>>>>> f9a1712c8c12b37047c7edb77032226044a73fb3
 
   @@map("users")
 }
@@ -421,7 +434,32 @@ model Veterinarian {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
+  appointments        Appointment[]
+
   @@map("veterinarians")
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  userId          String            @map("user_id")
+  vetId           String            @map("vet_id")
+  petName         String            @map("pet_name")
+  date            String
+  timeSlot        String            @map("time_slot")
+  reason          String            @default("General Checkup")
+  status          AppointmentStatus @default(UPCOMING)
+  vetNotes        String?           @map("vet_notes")
+  nextVaccineDue  String?           @map("next_vaccine_due")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vet             Veterinarian      @relation(fields: [vetId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([vetId, status])
+  @@index([date, timeSlot])
+  @@map("appointments")
 }
 
 model Store {
@@ -710,4 +748,41 @@ model WishlistItem {
   @@unique([wishlistId, productId])
   @@index([productId])
   @@map("wishlist_items")
+<<<<<<< HEAD
 }
+=======
+}
+
+model DeviceToken {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  token       String   @unique
+  platform    String   @default("android")
+  appVersion  String?  @map("app_version")
+  locale      String   @default("en")
+  createdAt   DateTime @default(now()) @map("created_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model NotificationPreference {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  messages     Boolean  @default(true)
+  requests     Boolean  @default(true)
+  matches      Boolean  @default(true)
+  orders       Boolean  @default(true)
+  system       Boolean  @default(true)
+  showPreviews Boolean  @default(true) @map("show_previews")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+>>>>>>> f9a1712c8c12b37047c7edb77032226044a73fb3
