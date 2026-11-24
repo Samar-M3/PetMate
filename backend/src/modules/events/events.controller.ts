@@ -1,15 +1,25 @@
 import type { Request, Response, NextFunction } from "express";
-import { listEvents, createEvent, deleteEvent, updateEventBookmark, updateEventRsvp } from "./events.service.ts";
+import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
+import {
+  listEvents,
+  createEvent,
+  deleteEvent,
+  updateEventBookmark,
+  updateEventRsvp,
+  parseEventFlag,
+} from "./events.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
 export const getEvents = async (
-  _req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const events = await listEvents();
+    // `requireInitializedUser` is not used for reads: guests may browse, but
+    // only an authenticated user's own rows are used for the state flags.
+    const events = await listEvents(req.user?.id);
     sendSuccess(res, {
       statusCode: 200,
       message: "Events retrieved successfully",
@@ -21,14 +31,25 @@ export const getEvents = async (
 };
 
 export const bookmarkEvent = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { id } = req.params;
-    const { isBookmarked } = req.body;
-    const event = await updateEventBookmark(id as string, !!isBookmarked);
+    if (!req.user) {
+      return next(new AppError("User not authenticated", 401));
+    }
+
+    const isBookmarked = parseEventFlag(req.body?.isBookmarked);
+    if (isBookmarked === null) {
+      return next(new AppError("isBookmarked must be a boolean", 400));
+    }
+
+    const event = await updateEventBookmark(
+      req.user.id,
+      req.params.id as string,
+      isBookmarked
+    );
     sendSuccess(res, {
       statusCode: 200,
       message: "Event bookmark updated successfully",
@@ -40,17 +61,28 @@ export const bookmarkEvent = async (
 };
 
 export const rsvpEvent = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { id } = req.params;
-    const { isBooked } = req.body;
-    const event = await updateEventRsvp(id as string, !!isBooked);
+    if (!req.user) {
+      return next(new AppError("User not authenticated", 401));
+    }
+
+    const isBooked = parseEventFlag(req.body?.isBooked);
+    if (isBooked === null) {
+      return next(new AppError("isBooked must be a boolean", 400));
+    }
+
+    const event = await updateEventRsvp(
+      req.user.id,
+      req.params.id as string,
+      isBooked
+    );
     sendSuccess(res, {
       statusCode: 200,
-      message: "Event RSVP updated successfully",
+      message: "Event RSVP/booking functionality successfully updated",
       data: { event },
     });
   } catch (error) {

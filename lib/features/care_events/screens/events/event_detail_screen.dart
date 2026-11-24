@@ -74,25 +74,42 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     // Always read the live copy so booking/bookmark changes show instantly.
-    final event = ref
-        .watch(careEventsProvider)
-        .maybeWhen<PetEvent?>(
-          data: (list) {
-            for (final e in list) {
-              if (e.id == widget.eventId) return e;
-            }
-            return null;
-          },
-          orElse: () => null,
-        );
+    final eventsAsync = ref.watch(careEventsProvider);
 
-    if (event == null) {
+    if (eventsAsync.isLoading && eventsAsync.value == null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Event Details'),
+        body: const CareLoading(),
+      );
+    }
+    if (eventsAsync.hasError && eventsAsync.value == null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Event Details'),
+        body: CareErrorRetry(
+          error: eventsAsync.error ?? 'Could not load the event.',
+          onRetry: () => ref.invalidate(careEventsProvider),
+        ),
+      );
+    }
+
+    PetEvent? found;
+    for (final e in eventsAsync.value ?? const <PetEvent>[]) {
+      if (e.id == widget.eventId) {
+        found = e;
+        break;
+      }
+    }
+
+    if (found == null) {
       return Scaffold(
         backgroundColor: CareTheme.background,
         appBar: careAppBar('Event Details'),
         body: const CareMessage('This event is no longer available.'),
       );
     }
+    final event = found;
 
     final ended = event.isPast && !event.isBooked;
 

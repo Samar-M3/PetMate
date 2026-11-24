@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/presentation/providers/auth_provider.dart';
 import '../models/appointment_model.dart';
 import '../models/event_model.dart';
 import '../models/vet_model.dart';
@@ -16,11 +17,21 @@ final careEventsProvider =
     );
 
 class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
-  /// Keys ("<eventId>:rsvp") of requests in flight, so double taps are ignored.
+  /// Keys ("`<eventId>:rsvp`") of requests in flight, so double taps are ignored.
   final Set<String> _pending = {};
 
+  /// The account the currently loaded flags belong to. Watching the uid in
+  /// [build] makes Riverpod rebuild/refetch when the user signs in, out, or
+  /// switches accounts, so nobody sees another user's bookmarks or spots.
   @override
-  Future<List<PetEvent>> build() => _fetchEvents();
+  Future<List<PetEvent>> build() {
+    _userId = ref.watch(
+      authStateProvider.select((s) => s.firebaseUser?.uid),
+    );
+    return _fetchEvents();
+  }
+
+  String? _userId;
 
   /// Full reload with a loading state (used by the admin shell).
   Future<void> loadEvents() async {
@@ -88,6 +99,7 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
     return _mutate(
       eventId,
       'rsvp',
+      authMessage: 'Please sign in to book an event spot.',
       apply: (e) => e.copyWith(
         isBooked: book,
         attendeeCount: _bump(e.attendeeCount, book ? 1 : -1),
@@ -104,6 +116,7 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
     return _mutate(
       eventId,
       'bookmark',
+      authMessage: 'Please sign in to bookmark events.',
       apply: (e) => e.copyWith(isBookmarked: bookmark),
       revert: (e) => e.copyWith(isBookmarked: !bookmark),
       request: () =>
@@ -116,11 +129,16 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
   Future<void> _mutate(
     String eventId,
     String action, {
+    required String authMessage,
     required PetEvent Function(PetEvent) apply,
     required PetEvent Function(PetEvent) revert,
     required Future<dynamic> Function() request,
   }) async {
-    final key = '$eventId:$action';
+    final uid = _userId ??
+        ref.read(authStateProvider.select((s) => s.firebaseUser?.uid));
+    if (uid == null) throw CareApiException(authMessage);
+
+    final key = '$uid:$eventId:$action';
     if (!_pending.add(key)) return;
 
     List<PetEvent> patch(PetEvent Function(PetEvent) fn) => [
@@ -130,13 +148,34 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
 
     state = AsyncData(patch(apply));
     try {
-      await request();
+      final response = await request();
+      _applyServerState(eventId, response);
     } catch (_) {
       state = AsyncData(patch(revert));
       rethrow;
     } finally {
       _pending.remove(key);
     }
+  }
+
+  /// Replaces the optimistic values with the authoritative state returned by
+  /// the backend (`{ event: ... }`). This prevents the UI from drifting when
+  /// the server rejects a booking or another device changed the same event.
+  void _applyServerState(String eventId, dynamic response) {
+    final map = CareApi.extractMap(response, ['event']);
+    if (map == null || state.value == null) return;
+    final server = PetEvent.fromJson(map);
+
+    state = AsyncData([
+      for (final e in state.value!)
+        e.id == eventId
+            ? e.copyWith(
+                attendeeCount: server.attendeeCount,
+                isBooked: server.isBooked,
+                isBookmarked: server.isBookmarked,
+              )
+            : e,
+    ]);
   }
 }
 

@@ -76,9 +76,27 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
 
       try {
         const verifyStart = performance.now();
-        decodedToken = await timedFirebase("verifyIdToken", () =>
-          firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false)
-        );
+        try {
+          decodedToken = await timedFirebase("verifyIdToken", () =>
+            firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false)
+          );
+        } catch (checkErr: any) {
+          if (
+            options.checkRevoked &&
+            (
+              checkErr.message?.includes("invalid_grant") ||
+              checkErr.message?.includes("Credential") ||
+              checkErr.message?.includes("OAuth2")
+            )
+          ) {
+            console.warn(
+              "Credential-based revocation verification failed. Falling back to standard public-key verification."
+            );
+            decodedToken = await firebaseAuth.verifyIdToken(token, false);
+          } else {
+            throw checkErr;
+          }
+        }
         const verifyMs = (performance.now() - verifyStart).toFixed(1);
         if (Number(verifyMs) > 300) {
           console.log(`[AuthMiddleware] verifyIdToken took ${verifyMs}ms`);

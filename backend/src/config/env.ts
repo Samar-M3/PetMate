@@ -31,6 +31,21 @@ function required(name: string): string {
   return value;
 }
 
+function cleanClientEmail(email?: string): string | undefined {
+  if (!email) return undefined;
+  let cleaned = email.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  if (cleaned.endsWith("\\")) {
+    cleaned = cleaned.slice(0, -1).trim();
+  }
+  return cleaned || undefined;
+}
+
 function parsePrivateKey(key?: string): string | undefined {
   if (!key) return undefined;
   let cleaned = key.trim();
@@ -51,7 +66,7 @@ const env: EnvironmentConfig = {
   NODE_ENV: process.env.NODE_ENV || "development",
 
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || "petmate-d7a43",
-  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+  FIREBASE_CLIENT_EMAIL: cleanClientEmail(process.env.FIREBASE_CLIENT_EMAIL),
   FIREBASE_PRIVATE_KEY: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
   FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL || "https://petmate-d7a43-default-rtdb.asia-southeast1.firebasedatabase.app/",
   FIREBASE_SERVICE_ACCOUNT_PATH: process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
