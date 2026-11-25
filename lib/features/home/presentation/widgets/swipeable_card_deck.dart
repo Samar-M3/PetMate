@@ -42,7 +42,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 240),
     );
 
     _animController.addListener(() {
@@ -74,12 +74,12 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void swipeRightProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(500, 20), 0.35);
+    _animateCardOut(const Offset(500, 20), 0.28);
   }
 
   void swipeLeftProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(-500, 20), -0.35);
+    _animateCardOut(const Offset(-500, 20), -0.28);
   }
 
   void _animateCardOut(Offset targetOffset, double targetRotation) {
@@ -102,14 +102,15 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void _animateCardBack() {
     _isAnimatingOut = false;
+    // Calm ease-out return without springy bounce
     _slideAnimation = Tween<Offset>(begin: _dragOffset, end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
 
     _rotateAnimation = Tween<double>(begin: _dragOffset.dx / 1000, end: 0.0)
         .animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
 
     _animController.forward(from: 0.0);
@@ -129,9 +130,9 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     final velocityX = details.velocity.pixelsPerSecond.dx;
 
     if (_dragOffset.dx > threshold || velocityX > 750) {
-      _animateCardOut(Offset(screenWidth * 1.4, _dragOffset.dy), 0.3);
+      _animateCardOut(Offset(screenWidth * 1.4, _dragOffset.dy), 0.26);
     } else if (_dragOffset.dx < -threshold || velocityX < -750) {
-      _animateCardOut(Offset(-screenWidth * 1.4, _dragOffset.dy), -0.3);
+      _animateCardOut(Offset(-screenWidth * 1.4, _dragOffset.dy), -0.26);
     } else {
       _animateCardBack();
     }
@@ -164,44 +165,44 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
         return Stack(
           alignment: Alignment.center,
           children: [
-            // 0. Base card deck background / decorative placeholder base
+            // 0. Base card deck background
             if (nextPet == null)
               Container(
                 width: constraints.maxWidth * 0.96,
                 height: constraints.maxHeight * 0.96,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(28),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: AppColors.border.withValues(alpha: 0.8),
-                    width: 1.5,
+                    color: AppColors.border,
+                    width: 1.0,
                   ),
                 ),
                 child: Center(
                   child: Icon(
                     Icons.pets_rounded,
-                    size: 64,
-                    color: AppColors.primary.withValues(alpha: 0.15),
+                    size: 48,
+                    color: AppColors.textMuted.withValues(alpha: 0.3),
                   ),
                 ),
               ),
 
-            // 1. Fourth Card in Stack (deepest background card)
+            // 1. Fourth Card in Stack
             if (fourthPet != null)
               _buildDeckBackground(
                 screenWidth: screenWidth,
                 card: RepaintBoundary(
                   child: PetProfileCard(pet: fourthPet, swipeProgress: 0.0),
                 ),
-                scale: 0.86,
-                scaleRange: 0.06,
-                horizontalOffset: 20,
-                verticalOffset: 26,
-                opacity: 0.38,
-                opacityRange: 0.32,
-                shadowAlpha: 0.05,
-                shadowBlur: 12,
-                shadowOffset: const Offset(0, 8),
+                scale: 0.88,
+                scaleRange: 0.05,
+                horizontalOffset: 16,
+                verticalOffset: 22,
+                opacity: 0.40,
+                opacityRange: 0.25,
+                shadowAlpha: 0.03,
+                shadowBlur: 10,
+                shadowOffset: const Offset(0, 6),
               ),
 
             // 2. Third Card in Stack
@@ -211,36 +212,36 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                 card: RepaintBoundary(
                   child: PetProfileCard(pet: thirdPet, swipeProgress: 0.0),
                 ),
-                scale: 0.90,
-                scaleRange: 0.05,
-                horizontalOffset: 14,
-                verticalOffset: 19,
-                opacity: 0.52,
-                opacityRange: 0.30,
-                shadowAlpha: 0.06,
-                shadowBlur: 14,
-                shadowOffset: const Offset(0, 10),
+                scale: 0.92,
+                scaleRange: 0.04,
+                horizontalOffset: 10,
+                verticalOffset: 15,
+                opacity: 0.55,
+                opacityRange: 0.25,
+                shadowAlpha: 0.04,
+                shadowBlur: 12,
+                shadowOffset: const Offset(0, 8),
               ),
 
-            // 3. Next Card in Stack (peeking directly underneath active card)
+            // 3. Next Card in Stack
             if (nextPet != null)
               _buildDeckBackground(
                 screenWidth: screenWidth,
                 card: RepaintBoundary(
                   child: PetProfileCard(pet: nextPet, swipeProgress: 0.0),
                 ),
-                scale: 0.93,
-                scaleRange: 0.07,
-                horizontalOffset: 8,
-                verticalOffset: 11,
-                opacity: 0.75,
-                opacityRange: 0.25,
-                shadowAlpha: 0.08,
-                shadowBlur: 16,
-                shadowOffset: const Offset(0, 8),
+                scale: 0.95,
+                scaleRange: 0.05,
+                horizontalOffset: 6,
+                verticalOffset: 8,
+                opacity: 0.80,
+                opacityRange: 0.20,
+                shadowAlpha: 0.06,
+                shadowBlur: 14,
+                shadowOffset: const Offset(0, 6),
               ),
 
-            // 3. Active Front Card with dynamic drag feedback
+            // 4. Active Front Card with dynamic drag feedback
             ValueListenableBuilder<Offset>(
               valueListenable: _dragOffsetListenable,
               builder: (context, dragOffset, _) {
@@ -256,7 +257,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                     child: Transform.rotate(
                       angle: (_isAnimatingOut)
                           ? _rotateAnimation.value
-                          : (dragOffset.dx / 1000) * 0.7,
+                          : (dragOffset.dx / 1000) * 0.55,
                       child: RepaintBoundary(
                         child: PetProfileCard(
                           pet: currentPet,
@@ -319,7 +320,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                 opacity: opacity + (opacityRange * swipeRatio),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: shadowAlpha),
@@ -343,16 +344,16 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
       child: SingleChildScrollView(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -361,33 +362,33 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary.withValues(alpha: 0.10),
                 ),
                 child: const Icon(
-                  Icons.check_circle_outline,
-                  size: 48,
+                  Icons.check_rounded,
+                  size: 32,
                   color: AppColors.primary,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               const Text(
-                'All Caught Up!',
+                'All Caught Up',
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'You have reviewed all available pet profiles in your area for now.',
+                'You have reviewed all available pet profiles in your area for now',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   height: 1.4,
                   color: AppColors.textSecondary,
                 ),
@@ -397,21 +398,21 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.terracotta,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
+                    horizontal: 22,
+                    vertical: 12,
                   ),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 3,
                 ),
                 onPressed: widget.onReset,
-                icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
                 label: const Text(
                   'Explore Again',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                     color: Colors.white,
                   ),
                 ),

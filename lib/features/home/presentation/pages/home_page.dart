@@ -109,7 +109,8 @@ class _HomePageState extends ConsumerState<HomePage>
             // 2. Active Pet Switcher (if user has several pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
               Container(
-                height: 42,
+                height: 38,
+                margin: const EdgeInsets.only(bottom: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
@@ -118,44 +119,56 @@ class _HomePageState extends ConsumerState<HomePage>
                   itemBuilder: (context, index) {
                     final pet = userPets[index];
                     final isSelected = pet.id == discoveryState.activePetId;
-                    return ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.pets, size: 14),
-                          const SizedBox(width: 5),
-                          Text(pet.name),
-                        ],
+                    return InkWell(
+                      onTap: () => discoveryNotifier.setActivePet(pet.id),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.terracotta
+                                : AppColors.border,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 13,
+                              color: isSelected
+                                  ? AppColors.terracotta
+                                  : AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              pet.name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.terracotta
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      selected: isSelected,
-                      selectedColor: AppColors.terracotta.withValues(
-                        alpha: 0.18,
-                      ),
-                      backgroundColor: Colors.white,
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        color: isSelected
-                            ? AppColors.terracotta
-                            : AppColors.textSecondary,
-                      ),
-                      side: BorderSide(
-                        color: isSelected
-                            ? AppColors.terracotta
-                            : AppColors.border,
-                        width: 1.2,
-                      ),
-                      onSelected: (_) {
-                        discoveryNotifier.setActivePet(pet.id);
-                      },
                     );
                   },
                 ),
               ),
 
-            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading - Task D)
+            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
             Expanded(
               child: IndexedStack(
                 index: _selectedNavIndex,
@@ -174,7 +187,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       ? const ChatsPage()
                       : const SizedBox.shrink(),
 
-                  // Tab 2: Events (Your Events Screen)
+                  // Tab 2: Events (Events Screen)
                   _visitedNavTabs.contains(2)
                       ? const EventsHomeScreen()
                       : const SizedBox.shrink(),
@@ -184,7 +197,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       ? const ShopHomePage()
                       : const SizedBox.shrink(),
 
-                  // Tab 4: Vet Appointments (Your Vet Appts Screen)
+                  // Tab 4: Vet Appointments (Vet Appts Screen)
                   _visitedNavTabs.contains(4)
                       ? const VetApptsHomeScreen()
                       : const SizedBox.shrink(),
@@ -234,15 +247,15 @@ class _HomePageState extends ConsumerState<HomePage>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 90,
-                height: 90,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.terracotta.withValues(alpha: 0.12),
+                  color: AppColors.terracotta.withValues(alpha: 0.10),
                 ),
                 child: const Icon(
                   Icons.pets,
-                  size: 48,
+                  size: 36,
                   color: AppColors.terracotta,
                 ),
               ),
@@ -250,17 +263,17 @@ class _HomePageState extends ConsumerState<HomePage>
               const Text(
                 'Add a Pet to Start',
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'You don\'t have any pets registered yet. Add your pet\'s profile to discover friends and playdates nearby!',
+                'Add your pet profile to discover compatible playdates and friends nearby',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   height: 1.4,
                   color: AppColors.textSecondary,
                 ),
@@ -270,23 +283,23 @@ class _HomePageState extends ConsumerState<HomePage>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.terracotta,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
+                    horizontal: 22,
+                    vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 3,
+                  elevation: 0,
                 ),
                 onPressed: () {
                   context.push('/onboarding/pet');
                 },
-                icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                icon: const Icon(Icons.add, color: Colors.white, size: 18),
                 label: const Text(
-                  'Add My Pet',
+                  'Add Pet',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                     color: Colors.white,
                   ),
                 ),
@@ -306,34 +319,34 @@ class _HomePageState extends ConsumerState<HomePage>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 90,
-                height: 90,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary.withValues(alpha: 0.10),
                 ),
                 child: const Icon(
-                  Icons.visibility_off_rounded,
-                  size: 46,
+                  Icons.visibility_off_outlined,
+                  size: 36,
                   color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
-                'Turn on a pet to start swiping',
+                'Activate a Pet Profile',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const Text(
-                'None of your pet profiles are currently active in discovery decks. Activate a pet to meet friends nearby!',
+                'None of your pet profiles are currently active in discovery decks. Activate a pet to meet friends nearby',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   height: 1.4,
                   color: AppColors.textSecondary,
                 ),
@@ -343,23 +356,23 @@ class _HomePageState extends ConsumerState<HomePage>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
+                    horizontal: 22,
+                    vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 3,
+                  elevation: 0,
                 ),
                 onPressed: () {
                   context.push('/my-pets');
                 },
-                icon: const Icon(Icons.settings, color: Colors.white, size: 18),
+                icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 18),
                 label: const Text(
-                  'Manage My Pets',
+                  'Manage Pets',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                     color: Colors.white,
                   ),
                 ),
@@ -376,13 +389,20 @@ class _HomePageState extends ConsumerState<HomePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: AppColors.terracotta),
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.terracotta,
+              ),
+            ),
             SizedBox(height: 16),
             Text(
               'Finding nearby pets...',
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -401,15 +421,15 @@ class _HomePageState extends ConsumerState<HomePage>
             children: [
               const Icon(
                 Icons.wifi_off_rounded,
-                size: 54,
-                color: AppColors.error,
+                size: 44,
+                color: AppColors.textMuted,
               ),
               const SizedBox(height: 16),
               const Text(
-                'Oops!',
+                'Unable to Load Pets',
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
@@ -418,7 +438,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 discoveryState.errorMessage!,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -430,18 +450,20 @@ class _HomePageState extends ConsumerState<HomePage>
                     horizontal: 20,
                     vertical: 12,
                   ),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 onPressed: () {
                   discoveryNotifier.resetDeck();
                 },
-                icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
                 label: const Text(
                   'Try Again',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                     color: Colors.white,
                   ),
                 ),

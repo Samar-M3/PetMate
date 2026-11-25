@@ -19,43 +19,48 @@ class PetMateBottomNavBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: const Border(
+          top: BorderSide(color: AppColors.border, width: 1.0),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            spreadRadius: 2,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+              _buildNavItem(index: 0, icon: Icons.pets_outlined, activeIcon: Icons.pets, label: 'Discover'),
               _buildNavItem(
                 index: 1,
-                icon: Icons.chat_bubble_rounded,
+                icon: Icons.chat_bubble_outline_rounded,
+                activeIcon: Icons.chat_bubble_rounded,
                 label: 'Chats',
                 badgeCount: pendingRequestsCount,
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.calendar_month_rounded,
+                icon: Icons.calendar_today_outlined,
+                activeIcon: Icons.calendar_month_rounded,
                 label: 'Events',
               ),
               _buildNavItem(
                 index: 3,
-                icon: Icons.shopping_bag_rounded,
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront_rounded,
                 label: 'Shop',
               ),
               _buildNavItem(
                 index: 4,
-                icon: Icons.medical_services_rounded,
+                icon: Icons.medical_services_outlined,
+                activeIcon: Icons.medical_services_rounded,
                 label: 'Vet Appts',
               ),
             ],
@@ -68,41 +73,41 @@ class PetMateBottomNavBar extends StatelessWidget {
   Widget _buildNavItem({
     required int index,
     required IconData icon,
+    required IconData activeIcon,
     required String label,
     int badgeCount = 0,
   }) {
     final isSelected = selectedIndex == index;
-    final color = isSelected ? AppColors.terracotta : AppColors.textMuted;
+    final color = isSelected ? AppColors.terracotta : AppColors.textSecondary;
 
     return InkWell(
       onTap: () => onItemSelected(index),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.terracotta.withValues(alpha: 0.12)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
+            Badge(
+              isLabelVisible: badgeCount > 0,
+              label: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
-              child: Badge(
-                isLabelVisible: badgeCount > 0,
-                label: Text(
-                  badgeCount > 99 ? '99+' : '$badgeCount',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              backgroundColor: AppColors.terracotta,
+              child: SizedBox(
+                height: 28,
+                child: Center(
+                  child: Icon(
+                    isSelected ? activeIcon : icon,
+                    size: 22,
+                    color: color,
                   ),
                 ),
-                backgroundColor: AppColors.terracotta,
-                child: Icon(icon, size: 22, color: color),
               ),
             ),
             const SizedBox(height: 2),
@@ -110,9 +115,9 @@ class PetMateBottomNavBar extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: color,
-                letterSpacing: -0.2,
+                letterSpacing: -0.1,
               ),
             ),
           ],

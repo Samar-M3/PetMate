@@ -27,17 +27,17 @@ class _ActionButtonsState extends State<ActionButtons> {
     final isEnabled = widget.enabled;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
       child: AnimatedOpacity(
-        opacity: isEnabled ? 1.0 : 0.45,
-        duration: const Duration(milliseconds: 200),
+        opacity: isEnabled ? 1.0 : 0.4,
+        duration: const Duration(milliseconds: 160),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // 1. PASS BUTTON (X icon, Clean Tactile Surface with Crimson Accent)
+            // 1. PASS BUTTON (Quiet, tactile surface with clean semantic accent)
             GestureDetector(
               onTapDown: (_) {
-                if (isEnabled) setState(() => _passScale = 0.86);
+                if (isEnabled) setState(() => _passScale = 0.94);
               },
               onTapUp: (_) {
                 if (isEnabled) {
@@ -50,47 +50,41 @@ class _ActionButtonsState extends State<ActionButtons> {
               },
               child: AnimatedScale(
                 scale: _passScale,
-                duration: const Duration(milliseconds: 140),
-                curve: Curves.easeOutBack,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOutCubic,
                 child: Container(
-                  width: 64,
-                  height: 64,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white,
                     border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.8),
-                      width: 1.5,
+                      color: AppColors.border,
+                      width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 6),
-                      ),
-                      BoxShadow(
-                        color: AppColors.error.withValues(alpha: 0.08),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 10,
-                        offset: const Offset(0, 2),
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
                   child: const Center(
                     child: Icon(
                       Icons.close_rounded,
-                      color: Color(0xFFFF4757),
-                      size: 32,
+                      color: AppColors.error,
+                      size: 26,
                     ),
                   ),
                 ),
               ),
             ),
 
-            // 2. LIKE BUTTON (Hero Heart icon, Radiant Sunset Gradient)
+            // 2. LIKE BUTTON (Terracotta accent with clear contrast, no neon glow)
             GestureDetector(
               onTapDown: (_) {
-                if (isEnabled) setState(() => _likeScale = 0.88);
+                if (isEnabled) setState(() => _likeScale = 0.94);
               },
               onTapUp: (_) {
                 if (isEnabled) {
@@ -103,37 +97,23 @@ class _ActionButtonsState extends State<ActionButtons> {
               },
               child: AnimatedScale(
                 scale: _likeScale,
-                duration: const Duration(milliseconds: 140),
-                curve: Curves.easeOutBack,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOutCubic,
                 child: Container(
-                  width: 68,
-                  height: 68,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFFF5E62),
-                        Color(0xFFE56345),
-                        AppColors.terracotta,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppColors.terracotta,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      width: 2.0,
+                      color: AppColors.terracottaDark.withValues(alpha: 0.25),
+                      width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF5E62).withValues(alpha: 0.40),
-                        blurRadius: 18,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 8),
-                      ),
-                      BoxShadow(
-                        color: AppColors.terracottaDark.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -141,14 +121,7 @@ class _ActionButtonsState extends State<ActionButtons> {
                     child: Icon(
                       Icons.favorite_rounded,
                       color: Colors.white,
-                      size: 34,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black26,
-                          offset: Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
+                      size: 28,
                     ),
                   ),
                 ),
