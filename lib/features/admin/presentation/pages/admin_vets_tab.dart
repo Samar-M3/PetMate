@@ -62,6 +62,42 @@ class AdminVetsTab extends ConsumerWidget {
     }
   }
 
+  Future<void> _deleteVet(BuildContext context, WidgetRef ref, Vet vet) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Veterinarian?'),
+        content: Text(
+          'Are you sure you want to delete Dr. ${vet.name}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(veterinariansProvider.notifier).deleteVeterinarian(vet.id);
+      _snack(context, 'Veterinarian deleted!');
+    } catch (e) {
+      _snack(context, 'Failed to delete veterinarian: $e', error: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vetsAsync = ref.watch(veterinariansProvider);
@@ -179,12 +215,24 @@ class AdminVetsTab extends ConsumerWidget {
                   ),
                 ),
               ),
-              IconButton(
-                tooltip: 'Edit veterinarian',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.edit_rounded,
-                    size: 20, color: AppColors.primary),
-                onPressed: () => _editVet(context, ref, vet),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Edit veterinarian',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_rounded,
+                        size: 20, color: AppColors.primary),
+                    onPressed: () => _editVet(context, ref, vet),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete veterinarian',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_rounded,
+                        size: 20, color: AppColors.error),
+                    onPressed: () => _deleteVet(context, ref, vet),
+                  ),
+                ],
               ),
             ],
           ),

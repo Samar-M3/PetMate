@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getEvents, addEvent, removeEvent, bookmarkEvent, rsvpEvent } from "./events.controller.ts";
+import { getEvents, addEvent, removeEvent, editEvent, bookmarkEvent, rsvpEvent } from "./events.controller.ts";
 import {
   authenticateAdmin,
   authenticateFirebase,
@@ -33,6 +33,14 @@ router.delete(
   requireInitializedUser,
   requireRole(Role.ADMIN),
   removeEvent
+);
+
+router.patch(
+  "/:id",
+  authenticateAdmin,
+  requireInitializedUser,
+  requireRole(Role.ADMIN),
+  editEvent
 );
 
 export default router;

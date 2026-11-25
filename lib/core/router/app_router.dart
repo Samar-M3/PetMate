@@ -28,9 +28,10 @@ import '../../features/shop/presentation/pages/product_details_page.dart';
 import '../../features/shop/presentation/pages/shop_home_page.dart';
 import '../../features/shop/presentation/pages/shop_listing_page.dart';
 import '../../features/shop/presentation/pages/wishlist_page.dart';
-import '../../features/vet/presentation/pages/vet_shell.dart';
 import '../../features/chat/presentation/pages/chat_route_page.dart';
 import '../../features/profile/presentation/pages/notification_settings_page.dart';
+import '../../features/care_events/screens/vet_login_screen.dart';
+import '../../features/care_events/screens/vet_home_screen.dart';
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -48,20 +49,23 @@ class RouterNotifier extends ChangeNotifier {
 
     final isAuthPage = location == '/login' ||
         location == '/register' ||
-        location == '/seller/register';
+        location == '/seller/register' ||
+        location == '/vet-login';
     final isSplashPage = location == '/splash';
     final isPublicShopPage = location == '/shop' ||
         location == '/shop/products' ||
         location.startsWith('/shop/product/');
+    // Vet portal pages (login is public, home is protected by screen)
+    final isVetPortalPage = location == '/vet-login' || location == '/vet-home';
 
     // 1. Initial unknown state -> show splash screen, do not redirect to /login
     if (authState.isUnknown) {
       return isSplashPage ? null : '/splash';
     }
 
-    // 2. Unauthenticated -> allow public shop pages, else force /login
+    // 2. Unauthenticated -> allow public shop pages, vet portal pages, else force /login
     if (authState.isUnauthenticated) {
-      if (isAuthPage || isPublicShopPage) return null;
+      if (isAuthPage || isPublicShopPage || isVetPortalPage) return null;
       return '/login';
     }
 
@@ -167,7 +171,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OwnerInfoPage(),
       ),
       GoRoute(path: '/admin', builder: (context, state) => const AdminShell()),
-      GoRoute(path: '/vet', builder: (context, state) => const VetShell()),
+      GoRoute(path: '/vet', builder: (context, state) => const VetHomeScreen()),
+      GoRoute(path: '/vet-login', builder: (context, state) => const VetLoginScreen()),
+      GoRoute(
+        path: '/vet-home',
+        builder: (context, state) => const VetHomeScreen(),
+      ),
       GoRoute(
         path: '/seller/register',
         builder: (context, state) => const SellerRegistrationPage(),

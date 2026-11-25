@@ -3,6 +3,7 @@ import {
   getAppointments,
   bookAppointment,
   updateStatus,
+  getBookedSlotsHandler,
 } from "./appointments.controller.ts";
 import {
   authenticateFirebase,
@@ -17,5 +18,6 @@ router.use(requireInitializedUser);
 router.get("/", getAppointments);
 router.post("/", bookAppointment);
 router.patch("/:id/status", updateStatus);
+router.get("/booked-slots", getBookedSlotsHandler);
 
 export default router;

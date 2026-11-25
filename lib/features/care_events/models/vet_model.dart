@@ -45,8 +45,8 @@ class Vet {
       address: (j['address'] ?? '').toString(),
       rating: (j['rating'] as num?)?.toDouble() ?? 0,
       fee: (j['fee'] as num?)?.toInt() ?? 0,
-      isVerified: j['isVerified'] != false,
-      isAcceptingBookings: j['isAcceptingBookings'] != false,
+      isVerified: j['isVerified'] == true,
+      isAcceptingBookings: j['isAcceptingBookings'] == true,
       availableSlots: slots,
       email: (j['email'] ?? j['user']?['email'])?.toString(),
     );

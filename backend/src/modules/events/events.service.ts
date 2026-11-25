@@ -153,3 +153,22 @@ export const createEvent = async (data: {
 export const deleteEvent = async (id: string) => {
   return prisma.event.delete({ where: { id } });
 };
+
+export const updateEvent = async (
+  id: string,
+  data: {
+    title?: string;
+    category?: string;
+    dayName?: string;
+    dayNum?: string;
+    fullDate?: string;
+    time?: string;
+    location?: string;
+    description?: string;
+  }
+) => {
+  return prisma.event.update({
+    where: { id },
+    data,
+  });
+};

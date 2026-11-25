@@ -31,61 +31,51 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.cream,
+      appBar: AppBar(
+        backgroundColor: AppColors.cream,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Playdate Requests',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Section Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Playdate Requests',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        requestsState.pendingCount == 1
-                            ? '1 pet parent waiting to connect'
-                            : '${requestsState.pendingCount} pet parents waiting to connect',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+            // Pending Count Badge
+            if (requestsState.pendingCount > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                  if (requestsState.pendingCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.terracotta.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${requestsState.pendingCount} Pending',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.terracotta,
-                        ),
-                      ),
+                  decoration: BoxDecoration(
+                    color: AppColors.terracotta.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    requestsState.pendingCount == 1
+                        ? '1 pet parent waiting to connect'
+                        : '${requestsState.pendingCount} pet parents waiting to connect',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.terracotta,
                     ),
-                ],
+                  ),
+                ),
               ),
-            ),
             const Divider(height: 1, color: AppColors.border),
 
             // Content Area

@@ -5,7 +5,7 @@ class AppConfig {
   static const String appVersion = '1.0.0';
 
   // Laptop local LAN IP for physical device testing over Wi-Fi
-  static const String defaultLanIp = '192.168.1.29';
+  static const String defaultLanIp = 'localhost';
 
   // Backend host:
   // - Web / Windows desktop -> localhost

@@ -90,6 +90,48 @@ class CareEventsNotifier extends AsyncNotifier<List<PetEvent>> {
     }
   }
 
+  /// Admin: Update an existing event (`PATCH /events/:id`).
+  Future<void> updateEvent(
+    String eventId, {
+    required String title,
+    required String category,
+    required String fullDate,
+    required String time,
+    required String location,
+    required String description,
+  }) async {
+    final date = parseCareDate(fullDate);
+    if (date == null) {
+      throw const CareApiException('Enter the date like "Dec 05, 2026".');
+    }
+
+    await CareApi.patch('/events/$eventId', {
+      'title': title,
+      'category': category,
+      'dayName': weekdayShort(date),
+      'dayNum': date.day.toString(),
+      'fullDate': formatCareDate(date),
+      'time': time,
+      'location': location,
+      'description': description,
+    });
+
+    try {
+      await refresh();
+    } catch (_) {
+      // The event was updated; a failed refresh must not report a failure.
+    }
+  }
+
+  /// Admin: Delete an event (`DELETE /events/:id`).
+  Future<void> deleteEvent(String eventId) async {
+    await CareApi.delete('/events/$eventId');
+    state = AsyncData([
+      for (final e in state.value ?? const <PetEvent>[])
+        if (e.id != eventId) e,
+    ]);
+  }
+
   /// Book (`true`) or cancel (`false`) a spot. Updates the UI immediately and
   /// rolls back if the server rejects it. Throws [CareApiException] on failure.
   Future<void> toggleRsvp(String eventId, bool book) {
@@ -233,6 +275,32 @@ class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
     }
   }
 
+  /// Vet login with email and password
+  Future<Vet?> vetLogin(String email, String password) async {
+    try {
+      final data = await CareApi.post('/veterinarians/login', {
+        'email': email,
+        'password': password,
+      });
+      
+      final map = CareApi.extractMap(data, ['veterinarian', 'vet']);
+      if (map == null) return null;
+      
+      final vet = Vet.fromJson(map);
+      
+      // Store the custom token and sign into Firebase Auth for authenticated vet requests
+      final customToken = data is Map ? (data['data']?['customToken'] ?? data['customToken']) as String? : null;
+      if (customToken != null) {
+        ref.read(vetAuthTokenProvider.notifier).setToken(customToken);
+        await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      }
+      
+      return vet;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Admin edit of an existing doctor (`PATCH /veterinarians/:id`).
   Future<void> updateVeterinarian(
     String vetId, {
@@ -278,6 +346,27 @@ class CareVetsNotifier extends AsyncNotifier<List<Vet>> {
     ]);
     ref.invalidate(myVetProfileProvider);
   }
+
+  /// Change veterinarian password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await CareApi.patch('/veterinarians/me/password', {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  /// Delete a veterinarian
+  Future<void> deleteVeterinarian(String vetId) async {
+    await CareApi.delete('/veterinarians/$vetId');
+    state = AsyncData([
+      for (final v in state.value ?? const <Vet>[])
+        if (v.id != vetId) v,
+    ]);
+    ref.invalidate(myVetProfileProvider);
+  }
 }
 
 /// The clinic profile of the signed-in veterinarian (null if none is linked).
@@ -301,6 +390,29 @@ final myVetProfileProvider = FutureProvider<Vet?>((ref) async {
   }
   return null;
 });
+
+/// Currently logged-in veterinarian (from custom token login)
+/// This is used for the vet portal session
+class CurrentVetNotifier extends Notifier<Vet?> {
+  @override
+  Vet? build() => null;
+
+  void setVet(Vet? vet) => state = vet;
+}
+
+final currentVetProvider =
+    NotifierProvider<CurrentVetNotifier, Vet?>(CurrentVetNotifier.new);
+
+/// Custom token for vet authentication
+class VetAuthTokenNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void setToken(String? token) => state = token;
+}
+
+final vetAuthTokenProvider =
+    NotifierProvider<VetAuthTokenNotifier, String?>(VetAuthTokenNotifier.new);
 
 // ==========================================
 // 3. APPOINTMENTS

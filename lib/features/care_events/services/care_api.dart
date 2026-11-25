@@ -34,6 +34,8 @@ class CareApi {
   static Future<dynamic> patch(String path, [Map<String, dynamic>? body]) =>
       _send('PATCH', path, body);
 
+  static Future<dynamic> delete(String path) => _send('DELETE', path);
+
   static Future<Map<String, String>> _headers({bool forceRefresh = false}) async {
     String? token;
     try {
@@ -60,6 +62,8 @@ class CareApi {
     }
 
     final uri = Uri.parse('$baseUrl$path');
+    debugPrint('[CareApi] 🚀 $method $uri');
+    debugPrint('[CareApi] 📤 Body: ${body != null ? jsonEncode(body) : 'null'}');
     final headers = await _headers(forceRefresh: tokenRefreshed);
     final encoded = body == null ? null : jsonEncode(body);
 
@@ -73,6 +77,9 @@ class CareApi {
         case 'PATCH':
           res = await http.patch(uri, headers: headers, body: encoded)
               .timeout(_timeout);
+          break;
+        case 'DELETE':
+          res = await http.delete(uri, headers: headers).timeout(_timeout);
           break;
         default:
           res = await http.get(uri, headers: headers).timeout(_timeout);
@@ -93,6 +100,8 @@ class CareApi {
         decoded = null;
       }
     }
+
+    debugPrint('[CareApi] 📥 Response: ${res.statusCode} ${res.body}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) return decoded;
 

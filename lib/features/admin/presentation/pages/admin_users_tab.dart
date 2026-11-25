@@ -6,6 +6,8 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/admin_user_model.dart';
 import '../providers/admin_provider.dart';
 import '../widgets/user_role_dialog.dart';
+import 'package:petmatee/features/care_events/models/vet_model.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 class AdminUsersTab extends ConsumerStatefulWidget {
   const AdminUsersTab({super.key});
@@ -366,13 +368,14 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
   Widget _buildUserCard(AdminUserModel user, String currentAdminId) {
     final isMe = user.id == currentAdminId;
     final roleColor = _getRoleBadgeColor(user.role);
+    final isVetRecord = user.isVeterinarianRecord;
 
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _promptRoleChange(user, currentAdminId),
+        onTap: isVetRecord ? null : () => _promptRoleChange(user, currentAdminId),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -434,7 +437,28 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (isMe) ...[
+                            if (isVetRecord) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'VET RECORD',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ] else if (isMe) ...[
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -459,13 +483,54 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          user.email ?? user.phoneNumber ?? 'No contact info',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+                        // Show veterinarian-specific info for vet records
+                        if (isVetRecord) ...[
+                          if (user.clinicName != null) ...[
+                            Text(
+                              'Clinic: ${user.clinicName}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (user.specialty != null) ...[
+                            Text(
+                              'Specialty: ${user.specialty}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (user.address != null) ...[
+                            Text(
+                              'Address: ${user.address}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (user.fee != null) ...[
+                            Text(
+                              'Fee: ₹${user.fee}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          Text(
+                            user.email ?? user.phoneNumber ?? 'No contact info',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -521,7 +586,9 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${user.petsCount} pet${user.petsCount == 1 ? '' : 's'}',
+                        isVetRecord
+                            ? '${user.isAcceptingBookings == true ? "Accepting bookings" : "Not accepting bookings"}'
+                            : '${user.petsCount} pet${user.petsCount == 1 ? '' : 's'}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textMuted,
@@ -531,35 +598,61 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                   ),
                   Row(
                     children: [
-                      OutlinedButton(
-                        onPressed: () =>
-                            _promptRoleChange(user, currentAdminId),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
+                      if (!isVetRecord) ...[
+                        OutlinedButton(
+                          onPressed: () =>
+                              _promptRoleChange(user, currentAdminId),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            side: const BorderSide(color: AppColors.border),
                           ),
-                          visualDensity: VisualDensity.compact,
-                          side: const BorderSide(color: AppColors.border),
+                          child:
+                              const Text('Role', style: TextStyle(fontSize: 12)),
                         ),
-                        child:
-                            const Text('Role', style: TextStyle(fontSize: 12)),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          user.isActive
-                              ? Icons.block_rounded
-                              : Icons.check_circle_outline_rounded,
-                          color: user.isActive
-                              ? AppColors.error
-                              : AppColors.success,
-                          size: 20,
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(
+                            user.isActive
+                                ? Icons.block_rounded
+                                : Icons.check_circle_outline_rounded,
+                            color: user.isActive
+                                ? AppColors.error
+                                : AppColors.success,
+                            size: 20,
+                          ),
+                          tooltip: user.isActive ? 'Suspend' : 'Reactivate',
+                          onPressed: () =>
+                              _promptStatusToggle(user, currentAdminId),
                         ),
-                        tooltip: user.isActive ? 'Suspend' : 'Reactivate',
-                        onPressed: () =>
-                            _promptStatusToggle(user, currentAdminId),
-                      ),
+                      ] else ...[
+                        // For vet records, show a button to edit in Manage Vets tab
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            // Navigate to Manage Vets tab
+                            // This would need a callback or navigation
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Use "Manage Vets" tab to edit veterinarian details'),
+                                backgroundColor: AppColors.info,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.medical_services_rounded, size: 16),
+                          label: const Text('Manage Vets', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            side: const BorderSide(color: AppColors.success),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

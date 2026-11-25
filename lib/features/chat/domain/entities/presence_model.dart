@@ -16,7 +16,7 @@ class UserPresence {
 
     final connections = data['connections'];
     final bool hasConnections = connections is Map && connections.isNotEmpty;
-    final visible = data['visible'] != false;
+    final visible = data['visible'] == true;
 
     DateTime? lastOnlineDate;
     final lastOnlineRaw = data['lastOnline'];

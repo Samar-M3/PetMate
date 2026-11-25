@@ -420,6 +420,8 @@ model EventBookmark {
 model Veterinarian {
   id                  String   @id @default(uuid())
   name                String
+  email               String?  @unique @map("email")
+  passwordHash        String?  @map("password_hash")
   clinicName          String   @map("clinic_name")
   specialty           String
   address             String

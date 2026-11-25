@@ -6,6 +6,7 @@ import {
   updateVeterinarian,
   updateVetSlots,
   removeVeterinarian,
+  vetLogin,
 } from "./veterinarians.controller.ts";
 import {
   authenticateAdmin,
@@ -21,6 +22,9 @@ const router = Router();
 router.get("/", getVeterinarians);
 router.get("/me", authenticateFirebase, requireInitializedUser, getMyVetProfile);
 router.patch("/:id/slots", authenticateFirebase, requireInitializedUser, updateVetSlots);
+
+// Vet login (public)
+router.post("/login", vetLogin);
 
 // Admin-only management
 router.post(

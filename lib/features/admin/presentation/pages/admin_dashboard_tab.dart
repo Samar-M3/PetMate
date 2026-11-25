@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../providers/admin_provider.dart';
@@ -25,11 +24,6 @@ class AdminDashboardTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(adminStatsProvider);
-    // Prefer the live vet list; fall back to what /admin/stats reports.
-    final vetListCount = ref.watch(careVetsProvider).maybeWhen(
-      data: (vets) => vets.length,
-      orElse: () => null,
-    );
 
     return statsAsync.when(
       loading: () => const Center(
@@ -40,6 +34,10 @@ class AdminDashboardTab extends ConsumerWidget {
         onRetry: () => ref.read(adminStatsProvider.notifier).refresh(),
       ),
       data: (stats) {
+        // Use the admin stats as the single source of truth for veterinarian count.
+        // This correctly counts all veterinarians from the Veterinarian table (not users with VETERINARIAN role).
+        final vetCount = stats.safeTotalVeterinarians;
+
         return RefreshIndicator(
           color: AppColors.primary,
           onRefresh: () async =>
@@ -100,14 +98,9 @@ class AdminDashboardTab extends ConsumerWidget {
                                   subtitle: 'Community care',
                                 );
                               case 3:
-                                final vets = vetListCount ??
-                                    (stats.safeTotalVeterinarians > 0
-                                        ? stats.safeTotalVeterinarians
-                                        : (stats.usersByRole['VETERINARIAN'] ??
-                                        0));
                                 return StatCard(
                                   title: 'Veterinarians',
-                                  value: vets.toString(),
+                                  value: vetCount.toString(),
                                   icon: Icons.medical_services_rounded,
                                   iconColor: AppColors.success,
                                   subtitle: 'Trusted doctors',
@@ -174,6 +167,7 @@ class AdminDashboardTab extends ConsumerWidget {
                     const SizedBox(height: 10),
                     _RoleBreakdownCard(
                       usersByRole: stats.usersByRole,
+                      vetCount: stats.safeTotalVeterinarians,
                       onRoleTap: onRoleTap,
                     ),
                     const SizedBox(height: 20),
@@ -293,8 +287,9 @@ class _WelcomeBanner extends StatelessWidget {
 // ── Role Breakdown Card ──
 class _RoleBreakdownCard extends StatelessWidget {
   final Map<String, int> usersByRole;
+  final int vetCount; // Correct count from Veterinarian table
   final void Function(String role)? onRoleTap;
-  const _RoleBreakdownCard({required this.usersByRole, this.onRoleTap});
+  const _RoleBreakdownCard({required this.usersByRole, required this.vetCount, this.onRoleTap});
 
   static const _roles = [
     ('Pet Owners', 'PET_OWNER', Icons.favorite_rounded, AppColors.terracotta),
@@ -327,7 +322,8 @@ class _RoleBreakdownCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: _RoleRow(
                     title: _roles[i].$1,
-                    count: usersByRole[_roles[i].$2] ?? 0,
+                    // Use correct vet count from Veterinarian table for Veterinarians role
+                    count: _roles[i].$2 == 'VETERINARIAN' ? vetCount : (usersByRole[_roles[i].$2] ?? 0),
                     icon: _roles[i].$3,
                     color: _roles[i].$4,
                   ),
