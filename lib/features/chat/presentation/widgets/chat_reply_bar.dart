@@ -123,9 +123,7 @@ class QuotedReplyBlock extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: isDeleted
-                    ? AppColors.textMuted
-                    : AppColors.primary,
+                color: isDeleted ? AppColors.textMuted : AppColors.primary,
               ),
             ),
             const SizedBox(height: 2),

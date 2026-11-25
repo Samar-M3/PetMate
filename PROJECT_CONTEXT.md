@@ -80,6 +80,8 @@ Capabilities:
 
 Veterinarian accounts must be verified by an administrator before accepting appointments.
 
+Administrators create veterinarian login accounts with a temporary password. On first login, the veterinarian must set a new password before using veterinarian features; the temporary password cannot be reused.
+
 ### 3.4 Administrator
 
 Responsible for managing and monitoring the platform.

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 import '../../providers/care_events_provider.dart';
+import '../../widgets/care_ui.dart';
 
 class ManageScheduleScreen extends ConsumerStatefulWidget {
   final Vet vet;
@@ -14,10 +16,7 @@ class ManageScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
-  late List<String> _slots;
-  bool _saving = false;
-
-  final List<String> _allPossibleSlots = [
+  static const List<String> _allPossibleSlots = [
     '09:30 AM',
     '11:00 AM',
     '01:00 PM',
@@ -26,10 +25,13 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
     '06:00 PM',
   ];
 
+  late final Set<String> _slots;
+  bool _saving = false;
+
   @override
   void initState() {
     super.initState();
-    _slots = List<String>.from(widget.vet.availableSlots);
+    _slots = widget.vet.availableSlots.toSet();
   }
 
   Future<void> _saveSlots() async {
@@ -37,18 +39,13 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
     try {
       await ref
           .read(veterinariansProvider.notifier)
-          .updateSlots(widget.vet.id, _slots);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clinic time slots updated!')),
-        );
-        Navigator.pop(context);
-      }
+          .updateSlots(widget.vet.id, _slots.toList());
+      if (!mounted) return;
+      showCareSnackBar(context, 'Clinic time slots updated!');
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update slots: $e')),
-        );
+        showCareSnackBar(context, 'Failed to update slots: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -59,46 +56,46 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: CareTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareTheme.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Clinic Time Slots',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
-      ),
+      appBar: careAppBar('Clinic Time Slots'),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Toggle Active In-Clinic Slots',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Toggle Active In-Clinic Slots',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: _allPossibleSlots.map((slot) {
-                final active = _slots.contains(slot);
                 return FilterChip(
                   label: Text(slot),
-                  selected: active,
+                  selected: _slots.contains(slot),
                   selectedColor: CareTheme.sageGreen,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _slots.add(slot);
-                      } else {
-                        _slots.remove(slot);
-                      }
-                    });
-                  },
+                  onSelected: (selected) => setState(() {
+                    if (selected) {
+                      _slots.add(slot);
+                    } else {
+                      _slots.remove(slot);
+                    }
+                  }),
                 );
               }).toList(),
             ),
+            if (_slots.isEmpty) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'With no slots selected, pet owners cannot book this clinic.',
+                style: TextStyle(color: CareTheme.mutedText),
+              ),
+            ],
             const Spacer(),
             SizedBox(
               width: double.infinity,
@@ -108,14 +105,26 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
                   backgroundColor: CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: _saving ? null : _saveSlots,
                 child: _saving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Save Clinic Schedule',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : const Text(
+                        'Save Clinic Schedule',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],

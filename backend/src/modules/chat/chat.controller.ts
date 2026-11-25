@@ -12,11 +12,9 @@ import {
   validateMediaItems,
   generateDeliveryUrls,
   runMediaRetention,
+  notifyChatMessage,
 } from "./chat.service.ts";
 
-// ---------------------------------------------------------------------------
-// Report (existing – kept verbatim)
-// ---------------------------------------------------------------------------
 
 export const reportChatController = async (
   req: AuthenticatedRequest,
@@ -86,9 +84,7 @@ export const reportChatController = async (
   }
 };
 
-// ---------------------------------------------------------------------------
-// POST /:conversationId/media/signature
-// ---------------------------------------------------------------------------
+
 
 export const signatureController = async (
   req: AuthenticatedRequest,
@@ -367,6 +363,43 @@ export const mediaUrlsController = async (
     await verifyParticipant(conversationId, req.user.id);
     const urls = await generateDeliveryUrls(conversationId, targets);
     sendSuccess(res, { data: urls });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const notifyChatMessageController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const rawConvId = req.params.conversationId;
+    const conversationId = Array.isArray(rawConvId) ? rawConvId[0] : rawConvId;
+    if (!conversationId) {
+      return next(new AppError("conversationId parameter is required", 400));
+    }
+
+    const { messageId } = req.body;
+    if (!messageId || typeof messageId !== "string") {
+      return next(new AppError("messageId string is required in request body", 400));
+    }
+
+    if (!req.user || !req.firebaseUid) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const result = await notifyChatMessage(
+      conversationId,
+      messageId.trim(),
+      req.user.id,
+      req.firebaseUid
+    );
+
+    sendSuccess(res, {
+      message: result.notified ? "Push notification sent" : result.reason || "Notification skipped",
+      data: result,
+    });
   } catch (error) {
     next(error);
   }

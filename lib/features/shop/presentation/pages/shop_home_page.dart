@@ -148,7 +148,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
           // Order History Icon
           IconButton(
             tooltip: 'My Orders',
-            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.receipt_long_outlined,
+              color: AppColors.textPrimary,
+            ),
             onPressed: () {
               if (!auth.isAuthenticated) {
                 promptShopLogin(context);
@@ -163,7 +166,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
             children: [
               IconButton(
                 tooltip: 'Wishlist',
-                icon: const Icon(Icons.favorite_border_rounded, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.favorite_border_rounded,
+                  color: AppColors.textPrimary,
+                ),
                 onPressed: () {
                   if (!auth.isAuthenticated) {
                     promptShopLogin(context);
@@ -182,7 +188,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                       color: AppColors.terracotta,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
                     child: Text(
                       '${wishlistState.items.length}',
                       textAlign: TextAlign.center,
@@ -202,7 +211,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
             children: [
               IconButton(
                 tooltip: 'Cart',
-                icon: const Icon(Icons.shopping_bag_outlined, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: AppColors.textPrimary,
+                ),
                 onPressed: () => context.push('/shop/cart'),
               ),
               if (cartState.totalCount > 0)
@@ -215,7 +227,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
                     child: Text(
                       '${cartState.totalCount}',
                       textAlign: TextAlign.center,
@@ -249,8 +264,15 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                   onSubmitted: _onSearchSubmit,
                   decoration: InputDecoration(
                     hintText: 'Search food, toys, beds, grooming...',
-                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 21),
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.textSecondary,
+                      size: 21,
+                    ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 18),
@@ -260,12 +282,20 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                             },
                           )
                         : IconButton(
-                            icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 20),
-                            onPressed: () => _onSearchSubmit(_searchController.text),
+                            icon: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                _onSearchSubmit(_searchController.text),
                           ),
                     filled: true,
                     fillColor: AppColors.inputFill,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(color: AppColors.border),
@@ -276,7 +306,10 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                   onChanged: (_) => setState(() {}),
@@ -307,18 +340,30 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                       final isSelected = _selectedPetType == pet;
                       return ChoiceChip(
                         label: Text(
-                          pet == 'All' ? '🐾 All Pets' : pet == 'Dogs' ? '🐶 Dogs' : pet == 'Cats' ? '🐱 Cats' : pet == 'Birds' ? '🦜 Birds' : '🐰 Small Pets',
+                          pet == 'All'
+                              ? '🐾 All Pets'
+                              : pet == 'Dogs'
+                              ? '🐶 Dogs'
+                              : pet == 'Cats'
+                              ? '🐱 Cats'
+                              : pet == 'Birds'
+                              ? '🦜 Birds'
+                              : '🐰 Small Pets',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
                           ),
                         ),
                         selected: isSelected,
                         selectedColor: AppColors.primary,
                         backgroundColor: Colors.white,
                         side: BorderSide(
-                          color: isSelected ? AppColors.primary : AppColors.border,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -360,7 +405,11 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                             ),
                           ),
                           SizedBox(width: 2),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 12,
+                            color: AppColors.primary,
+                          ),
                         ],
                       ),
                     ),

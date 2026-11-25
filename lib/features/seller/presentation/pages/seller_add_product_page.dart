@@ -109,11 +109,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         final flat = <Map<String, dynamic>>[];
         for (final cat in catList) {
           if (cat is Map<String, dynamic>) {
-            flat.add({
-              'id': cat['id'],
-              'name': cat['name'],
-              'isChild': false,
-            });
+            flat.add({'id': cat['id'], 'name': cat['name'], 'isChild': false});
             final children = cat['children'] as List? ?? [];
             for (final child in children) {
               if (child is Map<String, dynamic>) {
@@ -294,8 +290,11 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
 
   Future<void> _submitProduct({required bool publish}) async {
     if (!_formKey.currentState!.validate()) {
-      _scrollController.animateTo(0,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
       return;
     }
 
@@ -478,7 +477,10 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         elevation: 0,
         scrolledUnderElevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => context.go('/seller'),
         ),
         title: const Text(
@@ -578,8 +580,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                       _buildTextField(
                         controller: _descriptionController,
                         label: 'Full Description',
-                        hint:
-                            'Detailed product description including benefits, ingredients, usage...',
+                        hint: 'Detailed product description including benefits, ingredients, usage...',
                         maxLines: 5,
                       ),
                     ],
@@ -618,7 +619,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                               hint: '0.00',
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                      decimal: true),
+                                    decimal: true,
+                                  ),
                               validator: (v) {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Price is required';
@@ -662,7 +664,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -670,8 +674,11 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.local_offer_rounded,
-                                  size: 14, color: AppColors.success),
+                              const Icon(
+                                Icons.local_offer_rounded,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '$discountPct% discount',
@@ -691,7 +698,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         label: 'Cost Price (optional, internal)',
                         hint: '0.00',
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                          decimal: true,
+                        ),
                       ),
                     ],
                   ),
@@ -751,7 +759,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                               hint: 'e.g. 2.5',
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                      decimal: true),
+                                    decimal: true,
+                                  ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -775,13 +784,17 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         value: _selectedPetType,
                         decoration: _inputDecoration('Pet Type'),
                         items: _petTypes
-                            .map((t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t, style: const TextStyle(fontSize: 14)),
-                                ))
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(
+                                  t,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            )
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedPetType = v),
+                        onChanged: (v) => setState(() => _selectedPetType = v),
                       ),
                       const SizedBox(height: 14),
                       _buildTextField(
@@ -798,7 +811,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         title: const Text(
                           'Featured Product',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         subtitle: const Text(
                           'Featured products appear in the homepage spotlight',
@@ -831,13 +846,16 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.save_outlined, size: 18),
                           label: const Text(
                             'Save as Draft',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -869,7 +887,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           label: const Text(
                             'Publish Product',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),

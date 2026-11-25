@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../data/models/connection_request_model.dart';
 import '../providers/requests_provider.dart';
@@ -470,6 +471,9 @@ class _RequestsPageState extends ConsumerState<RequestsPage> {
                       notifier.accept(
                         request.id,
                         onAccepted: (result) {
+                          ref
+                              .read(fcmServiceProvider)
+                              .checkAndPromptPermission(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(

@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { getEvents, addEvent, removeEvent } from "./events.controller.ts";
+import { getEvents, addEvent, removeEvent, bookmarkEvent, rsvpEvent } from "./events.controller.ts";
 import {
   authenticateAdmin,
+  authenticateFirebase,
+  authenticateOptionalFirebase,
   requireInitializedUser,
   requireRole,
   Role,
@@ -10,7 +12,11 @@ import {
 const router = Router();
 
 // Public / User read
-router.get("/", getEvents);
+router.get("/", authenticateOptionalFirebase, getEvents);
+
+// User actions
+router.post("/:id/bookmark", authenticateFirebase, requireInitializedUser, bookmarkEvent);
+router.post("/:id/rsvp", authenticateFirebase, requireInitializedUser, rsvpEvent);
 
 // Admin-only management
 router.post(

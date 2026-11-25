@@ -1,65 +1,138 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/app_theme.dart';
 import '../../models/event_model.dart';
 import '../../providers/care_events_provider.dart';
+import '../../widgets/care_ui.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
-  final PetEvent event;
-  const EventDetailScreen({super.key, required this.event});
+  final String eventId;
+
+  /// Pass either the id, or an event (only its id is used; live data comes from the provider).
+  EventDetailScreen({super.key, String? eventId, PetEvent? event})
+    : assert(eventId != null || event != null),
+      eventId = eventId ?? event!.id;
 
   @override
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
 }
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
-  late bool _isBooked;
-  late int _attendeeCount;
-  bool _loading = false;
+  bool _busy = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _isBooked = widget.event.isBooked;
-    _attendeeCount = widget.event.attendeeCount;
-  }
+  Future<void> _toggleBooking(PetEvent event) async {
+    final book = !event.isBooked;
+    if (!book) {
+      final ok = await confirmCareAction(
+        context,
+        title: 'Cancel your spot?',
+        message: 'Your pass for "${event.title}" will be released.',
+        confirmLabel: 'Cancel spot',
+      );
+      if (!ok || !mounted) return;
+    }
 
-  Future<void> _toggleBooking() async {
-    setState(() => _loading = true);
-    final nextBooked = !_isBooked;
+    setState(() => _busy = true);
     try {
-      await ref
-          .read(careEventsProvider.notifier)
-          .toggleRsvp(widget.event.id, nextBooked);
-      setState(() {
-        _isBooked = nextBooked;
-        _attendeeCount += nextBooked ? 1 : -1;
-      });
+      await ref.read(careEventsProvider.notifier).toggleRsvp(event.id, book);
+      if (mounted) {
+        showCareSnackBar(
+          context,
+          book ? 'Spot booked! See it in My Passes.' : 'Spot cancelled.',
+        );
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update RSVP: $e')),
+        showCareSnackBar(
+          context,
+          'Could not update your booking: $e',
+          isError: true,
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _toggleBookmark(PetEvent event) async {
+    try {
+      await ref
+          .read(careEventsProvider.notifier)
+          .toggleBookmark(event.id, !event.isBookmarked);
+    } catch (e) {
+      if (mounted) {
+        showCareSnackBar(
+          context,
+          'Could not update bookmark: $e',
+          isError: true,
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final e = widget.event;
+    // Always read the live copy so booking/bookmark changes show instantly.
+    final eventsAsync = ref.watch(careEventsProvider);
+
+    if (eventsAsync.isLoading && eventsAsync.value == null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Event Details'),
+        body: const CareLoading(),
+      );
+    }
+    if (eventsAsync.hasError && eventsAsync.value == null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Event Details'),
+        body: CareErrorRetry(
+          error: eventsAsync.error ?? 'Could not load the event.',
+          onRetry: () => ref.invalidate(careEventsProvider),
+        ),
+      );
+    }
+
+    PetEvent? found;
+    for (final e in eventsAsync.value ?? const <PetEvent>[]) {
+      if (e.id == widget.eventId) {
+        found = e;
+        break;
+      }
+    }
+
+    if (found == null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Event Details'),
+        body: const CareMessage('This event is no longer available.'),
+      );
+    }
+    final event = found;
+
+    final ended = event.isPast && !event.isBooked;
+
     return Scaffold(
       backgroundColor: CareTheme.background,
-      appBar: AppBar(
-        backgroundColor: CareTheme.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: CareTheme.charcoal),
-        title: const Text('Event Details',
-            style: TextStyle(
-                color: CareTheme.charcoal, fontWeight: FontWeight.bold)),
+      appBar: careAppBar(
+        'Event Details',
+        actions: [
+          IconButton(
+            tooltip: event.isBookmarked ? 'Remove bookmark' : 'Bookmark event',
+            onPressed: () => _toggleBookmark(event),
+            icon: Icon(
+              event.isBookmarked
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: event.isBookmarked
+                  ? CareTheme.terracotta
+                  : CareTheme.charcoal,
+            ),
+          ),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,62 +147,99 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(e.category,
-                      style: const TextStyle(
-                          color: Colors.white70, fontWeight: FontWeight.bold)),
+                  Text(
+                    event.category,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(e.title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    event.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  Text('${e.fullDate} • ${e.time}',
-                      style: const TextStyle(color: Colors.white)),
-                  Text(e.location,
-                      style: const TextStyle(color: Colors.white)),
+                  Text(
+                    '${event.fullDate} • ${event.time}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    event.location,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text('About this Event',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'About this Event',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(e.description,
-                style: const TextStyle(
-                    fontSize: 14, height: 1.5, color: CareTheme.charcoal)),
+            Text(
+              event.description,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 16),
-            Text('+$_attendeeCount pet parents going',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: CareTheme.deepOlive)),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  _isBooked ? CareTheme.deepOlive : CareTheme.terracotta,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                onPressed: _loading ? null : _toggleBooking,
-                child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                  _isBooked
-                      ? 'Spot Booked (Tap to Cancel)'
-                      : 'Book Event Spot',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+            Text(
+              '+${event.attendeeCount} pet parents going',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: CareTheme.deepOlive,
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: event.isBooked
+                  ? CareTheme.deepOlive
+                  : CareTheme.terracotta,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: (_busy || ended) ? null : () => _toggleBooking(event),
+            child: _busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Text(
+                    ended
+                        ? 'Event has ended'
+                        : event.isBooked
+                        ? 'Spot Booked (Tap to Cancel)'
+                        : 'Book Event Spot',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
         ),
       ),
     );

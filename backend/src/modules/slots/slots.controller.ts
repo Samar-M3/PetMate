@@ -42,8 +42,11 @@ export const postCheckout = async (
     }
 
     const { quantity, gateway } = req.body;
-    if (!quantity || typeof quantity !== "number") {
-      return next(new AppError("Field 'quantity' (number) is required", 400));
+    if (quantity !== 1) {
+      return next(new AppError("Exactly one additional active pet slot can be purchased", 400));
+    }
+    if (gateway !== undefined && gateway !== "esewa" && gateway !== "fonepay") {
+      return next(new AppError("Payment method must be 'esewa' or 'fonepay'", 400));
     }
 
     const checkoutData = await initiateSlotCheckout({
@@ -78,6 +81,7 @@ export const postVerifyPayment = async (
     }
 
     const result = await verifyAndGrantSlots({
+      userId: req.user.id,
       paymentId: paymentId.trim(),
       transactionId: typeof transactionId === "string" ? transactionId.trim() : undefined,
       gatewayPayload,

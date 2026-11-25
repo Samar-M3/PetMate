@@ -11,12 +11,7 @@ class ProfileBottomSheet extends ConsumerStatefulWidget {
   const ProfileBottomSheet({super.key});
 
   static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const ProfileBottomSheet(),
-    );
+    context.push('/profile');
   }
 
   @override
@@ -243,7 +238,8 @@ class _ProfileBottomSheetState extends ConsumerState<ProfileBottomSheet> {
                           children: [
                             AppNetworkImage(
                               imageUrl:
-                                  pet.effectiveImageUrl ?? pet.profilePictureUrl,
+                                  pet.effectiveImageUrl ??
+                                  pet.profilePictureUrl,
                               width: 44,
                               height: 44,
                               shape: BoxShape.circle,
@@ -332,6 +328,35 @@ class _ProfileBottomSheetState extends ConsumerState<ProfileBottomSheet> {
                   : 'Seller Hub & Application Status',
               style: const TextStyle(
                 color: AppColors.terracotta,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Notification Settings
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: AppColors.textSecondary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () {
+              final router = GoRouter.of(context);
+              Navigator.of(context).pop();
+              router.push('/settings/notifications');
+            },
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: AppColors.textPrimary,
+              size: 18,
+            ),
+            label: const Text(
+              'Notification Settings',
+              style: TextStyle(
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),

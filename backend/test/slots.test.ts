@@ -5,9 +5,9 @@ import { getSlotPaymentProvider } from "../src/modules/slots/slots.payment.ts";
 
 describe("Slots & Payments Module", () => {
   test("matching config limits slots correctly", () => {
-    assert.equal(matchingConfig.MAX_PAID_SLOTS, 5);
+    assert.equal(matchingConfig.MAX_PAID_SLOTS, 1);
     assert.equal(matchingConfig.SLOT_DURATION_DAYS, 30);
-    assert.ok(matchingConfig.SLOT_PRICE_NPR > 0);
+    assert.equal(matchingConfig.SLOT_PRICE_NPR, 100);
   });
 
   test("getSlotPaymentProvider returns provider conforming to SlotPaymentProvider interface", async () => {
@@ -16,15 +16,16 @@ describe("Slots & Payments Module", () => {
 
     const init = await esewaProvider.initiatePayment({
       paymentId: "test-pay-1",
-      amount: 500,
+      amount: 100,
       userId: "user-1",
       description: "Slot purchase",
     });
 
     assert.equal(init.paymentId, "test-pay-1");
-    assert.equal(init.amount, 500);
+    assert.equal(init.amount, 100);
     assert.ok(init.transactionId.startsWith("txn_"));
-    assert.ok(init.paymentUrl.includes("esewa"));
+    assert.ok(init.paymentUrl.startsWith("mock://esewa/"));
+    assert.equal(init.params.mode, "mock");
 
     const verify = await esewaProvider.verifyPayment({
       paymentId: "test-pay-1",
@@ -34,17 +35,22 @@ describe("Slots & Payments Module", () => {
     assert.equal(verify.transactionId, init.transactionId);
   });
 
-  test("khalti provider returns khalti initiation url", async () => {
-    const khaltiProvider = getSlotPaymentProvider("khalti");
-    assert.equal(khaltiProvider.name, "khalti");
+  test("fonepay provider returns a mocked payment initialization", async () => {
+    const fonepayProvider = getSlotPaymentProvider("fonepay");
+    assert.equal(fonepayProvider.name, "fonepay");
 
-    const init = await khaltiProvider.initiatePayment({
+    const init = await fonepayProvider.initiatePayment({
       paymentId: "test-pay-2",
-      amount: 1000,
+      amount: 100,
       userId: "user-2",
-      description: "Khalti slot purchase",
+      description: "Fonepay slot purchase",
     });
 
-    assert.ok(init.paymentUrl.includes("khalti"));
+    assert.ok(init.paymentUrl.startsWith("mock://fonepay/"));
+    const verify = await fonepayProvider.verifyPayment({
+      paymentId: "test-pay-2",
+      transactionId: init.transactionId,
+    });
+    assert.equal(verify.success, true);
   });
 });

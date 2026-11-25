@@ -43,46 +43,59 @@ export interface ReplyToInput {
   preview: string;
 }
 
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`[Timeout] ${label} exceeded ${ms}ms limit`));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+};
+
 export const ensureConversation = async (
   matchId: string,
   participantUids: [string, string]
 ): Promise<void> => {
   try {
-    const docRef = firestore.collection("conversations").doc(matchId);
-    const existing = await docRef.get();
+    await withTimeout(
+      (async () => {
+        const docRef = firestore.collection("conversations").doc(matchId);
+        const existing = await docRef.get();
 
-    if (!existing.exists) {
-      const initialUnread: Record<string, number> = {};
-      initialUnread[participantUids[0]] = 0;
-      initialUnread[participantUids[1]] = 0;
+        if (!existing.exists) {
+          const initialUnread: Record<string, number> = {};
+          initialUnread[participantUids[0]] = 0;
+          initialUnread[participantUids[1]] = 0;
 
-      await docRef.set({
-        matchId,
-        participantUids,
-        status: "ACTIVE",
-        createdAt: FieldValue.serverTimestamp(),
-        lastMessageAt: FieldValue.serverTimestamp(),
-        unread: initialUnread,
-        lastRead: {},
-        deliveredAt: {},
-        seenAt: {},
-      });
-    } else {
-      const data = existing.data();
-      const patch: Record<string, any> = {
-        matchId,
-        participantUids,
-      };
-      if (!data?.status) {
-        patch.status = "ACTIVE";
-      }
-      await docRef.set(patch, { merge: true });
-    }
+          await docRef.set({
+            matchId,
+            participantUids,
+            status: "ACTIVE",
+            createdAt: FieldValue.serverTimestamp(),
+            lastMessageAt: FieldValue.serverTimestamp(),
+            unread: initialUnread,
+            lastRead: {},
+            deliveredAt: {},
+            seenAt: {},
+          });
+        } else {
+          const data = existing.data();
+          if (data?.status !== "ACTIVE") {
+            await docRef.set({ status: "ACTIVE" }, { merge: true });
+          }
+        }
 
-    // Mirror to RTDB
-    await syncConversationMembersAndContacts(matchId, participantUids);
-  } catch (error) {
-    console.error(`[FirestoreService] Failed to ensure conversation for match ${matchId}:`, error);
+        // Always ensure RTDB conversationMembers & contacts are mirrored in background (non-blocking)
+        syncConversationMembersAndContacts(matchId, participantUids).catch((err) =>
+          console.warn(`[RTDB] Background sync warning for ${matchId}:`, err)
+        );
+      })(),
+      5000,
+      `ensureConversation(${matchId})`
+    );
+  } catch (error: any) {
+    console.error(`[FirestoreService] ⚠️ ensureConversation for match ${matchId}: ${error.message}`);
   }
 };
 

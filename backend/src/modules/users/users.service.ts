@@ -1,5 +1,7 @@
 import prisma from "../../config/db.ts";
-import { MatchStatus } from "../../generated/prisma/client.ts";
+import bcrypt from "bcryptjs";
+import { firebaseAuth } from "../../config/firebase.ts";
+import { MatchStatus, Role } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import { uploadImage, deleteImage } from "../../services/image.service.ts";
 import { checkPetProfileCompleteness } from "../pets/pets.service.ts";
@@ -30,6 +32,55 @@ export const initializeUserRecord = async (
   });
 
   return user;
+};
+
+export const completeInitialVeterinarianPassword = async (
+  firebaseUid: string,
+  newPassword: string,
+) => {
+  const user = await prisma.user.findUnique({
+    where: { firebaseUid },
+    include: { passwordSetup: true },
+  });
+
+  if (!user) throw new AppError("User not found", 404);
+  if (user.role !== Role.VETERINARIAN) {
+    throw new AppError("Only veterinarian accounts can use first-login password setup", 403);
+  }
+  if (!user.mustChangePassword) return getUserDetails(user.id);
+  if (!user.passwordSetup) {
+    throw new AppError("Temporary password setup record is missing; contact an administrator", 409);
+  }
+
+  if (await bcrypt.compare(newPassword, user.passwordSetup.temporaryPasswordHash)) {
+    throw new AppError("Choose a password different from the temporary password", 400);
+  }
+
+  try {
+    await firebaseAuth.updateUser(firebaseUid, { password: newPassword });
+  } catch (error: any) {
+    if (error?.code === "auth/user-not-found") {
+      throw new AppError("Authentication account was not found", 404);
+    }
+    if (error?.code === "auth/invalid-password") {
+      throw new AppError("New password does not meet Firebase requirements", 400);
+    }
+    throw new AppError("Could not update the authentication password", 502);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.updateMany({
+      where: { id: user.id, mustChangePassword: true },
+      data: { mustChangePassword: false },
+    });
+    if (updated.count !== 1) {
+      throw new AppError("First-login password setup has already been completed", 409);
+    }
+
+    await tx.veterinarianPasswordSetup.deleteMany({ where: { userId: user.id } });
+  });
+
+  return getUserDetails(user.id);
 };
 
 export const getUserDetails = async (userId: string) => {

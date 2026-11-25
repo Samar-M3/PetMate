@@ -51,7 +51,10 @@ export const getActivationSummary = async (userId: string) => {
     }),
   ]);
 
-  const paidSlotsCount = entitlements.length;
+  const paidSlotsCount = Math.min(
+    entitlements.length,
+    matchingConfig.MAX_PAID_SLOTS
+  );
   const allowedActive = matchingConfig.FREE_ACTIVE_PETS + paidSlotsCount;
   const activeCount = activePets.length;
 
@@ -72,7 +75,7 @@ export const getActivationSummary = async (userId: string) => {
       0,
       matchingConfig.MAX_PAID_SLOTS - paidSlotsCount
     ),
-    paidSlots: entitlements.map((e) => ({
+    paidSlots: entitlements.slice(0, matchingConfig.MAX_PAID_SLOTS).map((e) => ({
       id: e.id,
       startsAt: e.startsAt,
       expiresAt: e.expiresAt,
@@ -161,10 +164,12 @@ export const initiateSlotCheckout = async ({
 };
 
 export const verifyAndGrantSlots = async ({
+  userId,
   paymentId,
   transactionId,
   gatewayPayload,
 }: {
+  userId: string;
   paymentId: string;
   transactionId?: string;
   gatewayPayload?: any;
@@ -176,6 +181,9 @@ export const verifyAndGrantSlots = async ({
   });
 
   if (!payment) {
+    throw new AppError("Payment record not found", 404);
+  }
+  if (payment.userId !== userId) {
     throw new AppError("Payment record not found", 404);
   }
 
@@ -212,6 +220,17 @@ export const verifyAndGrantSlots = async ({
   );
 
   return await prisma.$transaction(async (tx) => {
+    const activeEntitlements = await tx.activeSlotEntitlement.count({
+      where: {
+        ownerId: payment.userId,
+        status: EntitlementStatus.ACTIVE,
+        expiresAt: { gt: now },
+      },
+    });
+    if (activeEntitlements + payment.quantity > matchingConfig.MAX_PAID_SLOTS) {
+      throw new AppError("The active pet slot limit has already been reached", 409);
+    }
+
     // Update payment status to COMPLETED
     await tx.slotPayment.update({
       where: { id: paymentId },

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:petmatee/features/care_events/screens/events_home_screen.dart';
+import 'package:petmatee/features/care_events/screens/vet_appts_home_screen.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../care_events/screens/events_home_screen.dart';
-import '../../../care_events/screens/vet_appts_home_screen.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/discovery_provider.dart';
@@ -13,7 +13,6 @@ import '../providers/requests_provider.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
-import '../widgets/profile_bottom_sheet.dart';
 import '../widgets/swipeable_card_deck.dart';
 import '../../../shop/presentation/pages/shop_home_page.dart';
 
@@ -27,6 +26,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   int _selectedNavIndex = 0;
+  final Set<int> _visitedNavTabs = {0};
   final GlobalKey<SwipeableCardDeckState> _deckKey =
       GlobalKey<SwipeableCardDeckState>();
 
@@ -36,7 +36,6 @@ class _HomePageState extends ConsumerState<HomePage>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(requestsProvider.notifier).loadRequests();
-      ref.read(authStateProvider.notifier).refreshUserProfile();
     });
   }
 
@@ -64,15 +63,6 @@ class _HomePageState extends ConsumerState<HomePage>
     final discoveryNotifier = ref.read(discoveryProvider.notifier);
     final requestsState = ref.watch(requestsProvider);
 
-    // If onboarding status says user has pets but user.pets in state is empty, auto-refresh
-    if ((authState.onboardingStatus?.hasPets ?? false) &&
-        allUserPets.isEmpty &&
-        !authState.isLoading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(authStateProvider.notifier).refreshUserProfile();
-      });
-    }
-
     // Auto-initialize feed for user's primary active pet
     if (userPets.isNotEmpty &&
         (discoveryState.activePetId == null ||
@@ -98,7 +88,9 @@ class _HomePageState extends ConsumerState<HomePage>
             duration: const Duration(seconds: 3),
           ),
         );
-        ref.read(discoveryProvider.notifier).clearSnackbar();
+        Future.microtask(() {
+          if (mounted) ref.read(discoveryProvider.notifier).clearSnackbar();
+        });
       }
     });
 
@@ -112,7 +104,7 @@ class _HomePageState extends ConsumerState<HomePage>
           children: [
             // 1. Top Header Section (PetMate logo & user avatar)
             if (_selectedNavIndex != 3)
-              HomeHeader(onProfileTap: () => ProfileBottomSheet.show(context)),
+              HomeHeader(onProfileTap: () => context.push('/profile')),
 
             // 2. Active Pet Switcher (if user has several pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
@@ -163,7 +155,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ),
 
-            // 3. Main Content Area (Discovery Deck or Tab View)
+            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading - Task D)
             Expanded(
               child: IndexedStack(
                 index: _selectedNavIndex,
@@ -178,16 +170,24 @@ class _HomePageState extends ConsumerState<HomePage>
                   ),
 
                   // Tab 1: Chats & Matches (with Requests in top right)
-                  const ChatsPage(),
+                  _visitedNavTabs.contains(1)
+                      ? const ChatsPage()
+                      : const SizedBox.shrink(),
 
                   // Tab 2: Events (Your Events Screen)
-                  const EventsHomeScreen(),
+                  _visitedNavTabs.contains(2)
+                      ? const EventsHomeScreen()
+                      : const SizedBox.shrink(),
 
                   // Tab 3: Shop
-                  const ShopHomePage(),
+                  _visitedNavTabs.contains(3)
+                      ? const ShopHomePage()
+                      : const SizedBox.shrink(),
 
                   // Tab 4: Vet Appointments (Your Vet Appts Screen)
-                  const VetApptsHomeScreen(),
+                  _visitedNavTabs.contains(4)
+                      ? const VetApptsHomeScreen()
+                      : const SizedBox.shrink(),
                 ],
               ),
             ),
@@ -195,10 +195,12 @@ class _HomePageState extends ConsumerState<HomePage>
             // 4. Fixed Bottom Navigation Bar
             PetMateBottomNavBar(
               selectedIndex: _selectedNavIndex,
-              pendingRequestsCount: requestsState.pendingCount + unreadChatsCount,
+              pendingRequestsCount:
+                  requestsState.pendingCount + unreadChatsCount,
               onItemSelected: (index) {
                 setState(() {
                   _selectedNavIndex = index;
+                  _visitedNavTabs.add(index);
                 });
                 if (index == 1) {
                   ref

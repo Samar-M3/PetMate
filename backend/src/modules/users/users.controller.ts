@@ -1,5 +1,6 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
+import { invalidateUserCacheById } from "../../middleware/auth.middleware.ts";
 import {
   initializeUserRecord,
   getUserDetails,
@@ -9,7 +10,13 @@ import {
   getOnboardingStatus,
   submitRoleApplication,
   blockUser,
+  completeInitialVeterinarianPassword,
 } from "./users.service.ts";
+import {
+  validateInitializeUser,
+  validateUpdateOwnerProfile,
+} from "./users.validation.ts";
+import { validateInitialVeterinarianPassword } from "../veterinarians/veterinarians.validation.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
@@ -28,7 +35,8 @@ export const initializeUser = async (
       return next(new AppError("Role cannot be set or updated through this endpoint", 403));
     }
 
-    const { phoneNumber } = req.body || {};
+    const validatedData = validateInitializeUser(req.body || {});
+    const phoneNumber = validatedData.phoneNumber;
     const email = req.firebaseUser?.email;
 
     const user = await initializeUserRecord(req.firebaseUid, email, phoneNumber);
@@ -60,6 +68,33 @@ export const getMe = async (
     sendSuccess(res, {
       statusCode: 200,
       message: "User profile fetched successfully",
+      data: { user },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changeInitialVeterinarianPassword = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.firebaseUid || !req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const newPassword = validateInitialVeterinarianPassword(req.body);
+    const user = await completeInitialVeterinarianPassword(
+      req.firebaseUid,
+      newPassword,
+    );
+    invalidateUserCacheById(user.id);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Password updated successfully",
       data: { user },
     });
   } catch (error) {
@@ -128,6 +163,8 @@ export const updateMe = async (
       }
     }
 
+    const validatedBody = validateUpdateOwnerProfile(req.body || {});
+
     const {
       fullName,
       profilePictureUrl,
@@ -138,7 +175,7 @@ export const updateMe = async (
       bio,
       phoneNumber,
       onboardingCompleted,
-    } = req.body || {};
+    } = validatedBody as any;
 
     const user = await updateOwnerProfile(req.user.id, {
       fullName,

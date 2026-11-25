@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { firebaseAuth } from "../config/firebase.ts";
+import { firebaseAuth, timedFirebase } from "../config/firebase.ts";
 import prisma from "../config/db.ts";
 import { AppError } from "./errorHandler.ts";
 import type { DecodedIdToken } from "firebase-admin/auth";
@@ -27,6 +27,31 @@ declare global {
   }
 }
 
+// In-memory cache for user records to eliminate redundant remote DB queries on every authenticated request
+interface CachedUserEntry {
+  user: AuthenticatedUser;
+  expiresAt: number;
+}
+const userCache = new Map<string, CachedUserEntry>();
+const USER_CACHE_TTL_MS = 45000; // 45 seconds TTL
+
+export const invalidateUserCache = (firebaseUid?: string): void => {
+  if (firebaseUid) {
+    userCache.delete(firebaseUid);
+  } else {
+    userCache.clear();
+  }
+};
+
+export const invalidateUserCacheById = (userId: string): void => {
+  for (const [uid, entry] of userCache.entries()) {
+    if (entry.user.id === userId) {
+      userCache.delete(uid);
+      break;
+    }
+  }
+};
+
 /**
  * Verifies Firebase ID token and loads the PostgreSQL user record.
  * Rejects deactivated accounts with 403.
@@ -50,7 +75,32 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
       let decodedToken: DecodedIdToken;
 
       try {
-        decodedToken = await firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false);
+        const verifyStart = performance.now();
+        try {
+          decodedToken = await timedFirebase("verifyIdToken", () =>
+            firebaseAuth.verifyIdToken(token, options.checkRevoked ?? false)
+          );
+        } catch (checkErr: any) {
+          if (
+            options.checkRevoked &&
+            (
+              checkErr.message?.includes("invalid_grant") ||
+              checkErr.message?.includes("Credential") ||
+              checkErr.message?.includes("OAuth2")
+            )
+          ) {
+            console.warn(
+              "Credential-based revocation verification failed. Falling back to standard public-key verification."
+            );
+            decodedToken = await firebaseAuth.verifyIdToken(token, false);
+          } else {
+            throw checkErr;
+          }
+        }
+        const verifyMs = (performance.now() - verifyStart).toFixed(1);
+        if (Number(verifyMs) > 300) {
+          console.log(`[AuthMiddleware] verifyIdToken took ${verifyMs}ms`);
+        }
       } catch (err: any) {
         return next(
           new AppError(
@@ -63,11 +113,29 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
       req.firebaseUid = decodedToken.uid;
       req.firebaseUser = decodedToken;
 
-      // Load PostgreSQL user — role comes from DB on every request
-      const user = await prisma.user.findUnique({
-        where: { firebaseUid: decodedToken.uid },
-        include: { profile: true },
-      });
+      // User lookup: check in-memory cache first to eliminate DB round-trip on frequent requests
+      const cached = userCache.get(decodedToken.uid);
+      let user: AuthenticatedUser | null = null;
+
+      if (cached && cached.expiresAt > Date.now()) {
+        user = cached.user;
+      } else {
+        const lookupStart = performance.now();
+        user = await prisma.user.findUnique({
+          where: { firebaseUid: decodedToken.uid },
+          include: { profile: true },
+        });
+        const lookupMs = (performance.now() - lookupStart).toFixed(1);
+        if (Number(lookupMs) > 200) {
+          console.log(`[AuthMiddleware] ⚠️ User lookup took ${lookupMs}ms for UID: ${decodedToken.uid}`);
+        }
+        if (user) {
+          userCache.set(decodedToken.uid, {
+            user,
+            expiresAt: Date.now() + USER_CACHE_TTL_MS,
+          });
+        }
+      }
 
       if (user) {
         if (!user.isActive) {
@@ -156,6 +224,17 @@ export const requireInitializedUser = (
     return next(
       new AppError("Account has been deactivated. Please contact support.", 403)
     );
+  }
+  next();
+};
+
+export const requirePasswordSetupComplete = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (req.user?.role === Role.VETERINARIAN && req.user.mustChangePassword) {
+    return next(new AppError("PASSWORD_SETUP_REQUIRED: Set a new password to continue", 403));
   }
   next();
 };

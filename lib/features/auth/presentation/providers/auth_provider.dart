@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
+import '../../../../core/services/fcm_service.dart';
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
@@ -102,7 +103,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       await _authService.reloadUser();
       final currentFbUser = _authService.currentUser;
       if (currentFbUser != null) {
-        await _syncBackendProfile(currentFbUser, silent: true);
+        await _syncBackendProfile(currentFbUser, isBackground: true);
       }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-disabled' || e.code == 'user-not-found') {
@@ -132,12 +133,41 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     await _syncBackendProfile(fbUser);
   }
 
+  Future<void>? _inFlightSyncFuture;
+
   Future<void> _syncBackendProfile(
     User fbUser, {
     int retryCount = 0,
-    bool silent = false,
+    bool isBackground = false,
   }) async {
-    if (!silent) {
+    if (_inFlightSyncFuture != null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthNotifier] 🔀 Awaiting existing in-flight backend profile sync',
+        );
+      }
+      return _inFlightSyncFuture!;
+    }
+
+    final future = _doSyncBackendProfile(
+      fbUser,
+      retryCount: retryCount,
+      isBackground: isBackground,
+    );
+    _inFlightSyncFuture = future;
+    try {
+      await future;
+    } finally {
+      _inFlightSyncFuture = null;
+    }
+  }
+
+  Future<void> _doSyncBackendProfile(
+    User fbUser, {
+    int retryCount = 0,
+    bool isBackground = false,
+  }) async {
+    if (!isBackground) {
       state = state.copyWith(isLoading: true, errorMessage: null);
     }
 
@@ -158,6 +188,11 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         onboardingStatus: status,
         errorMessage: null,
       );
+
+      // Sync FCM device token with backend now that user is fully authenticated
+      try {
+        ref.read(fcmServiceProvider).syncToken();
+      } catch (_) {}
     } on AuthException catch (e) {
       if (kDebugMode) {
         debugPrint('[AuthNotifier] 401 Unauthorized during profile sync: $e');
@@ -216,6 +251,15 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     _isCleaningUp = true;
 
     try {
+      // 0. Remove device token from backend and local FCM storage before signing out
+      try {
+        await ref.read(fcmServiceProvider).deleteTokenOnLogout();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] FCM token cleanup error on logout: $e');
+        }
+      }
+
       // 1. Sign out of Firebase & Google
       try {
         await _authService.signOut();
@@ -444,15 +488,14 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
   Future<void> refreshUserProfile() async {
     final fbUser = _authService.currentUser;
     if (fbUser == null) return;
-    try {
-      final userDetails = await _repository.getMe();
-      final status = await _repository.getOnboardingStatus();
-      state = state.copyWith(user: userDetails, onboardingStatus: status);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[AuthNotifier] refreshUserProfile failed: $e');
-      }
-    }
+    await _syncBackendProfile(fbUser, isBackground: true);
+  }
+
+  Future<void> completeInitialVeterinarianPassword(String newPassword) async {
+    final updatedUser = await _repository.completeInitialVeterinarianPassword(
+      newPassword,
+    );
+    state = state.copyWith(user: updatedUser, errorMessage: null);
   }
 
   Future<void> logout() async {

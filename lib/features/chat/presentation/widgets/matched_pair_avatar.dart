@@ -9,8 +9,6 @@ class MatchedPairAvatar extends StatelessWidget {
   final String? ownerImageUrl;
   final String ownerName;
   final double size;
-  final bool showOnlineIndicator;
-  final bool isOnline;
 
   const MatchedPairAvatar({
     super.key,
@@ -19,8 +17,6 @@ class MatchedPairAvatar extends StatelessWidget {
     required this.ownerImageUrl,
     required this.ownerName,
     this.size = 58,
-    this.showOnlineIndicator = false,
-    this.isOnline = true,
   });
 
   @override
@@ -110,21 +106,6 @@ class MatchedPairAvatar extends StatelessWidget {
             ),
           ),
 
-          // 3. Online status badge (optional)
-          if (showOnlineIndicator && isOnline)
-            Positioned(
-              right: 1,
-              bottom: 1,
-              child: Container(
-                width: 11,
-                height: 11,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF25D366), // WhatsApp / Active green
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
         ],
       ),
     );

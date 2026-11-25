@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -220,8 +222,9 @@ class _SellerRegistrationPageState
       privacyAccepted: _privacyAccepted,
     );
 
-    final success =
-        await ref.read(sellerProvider.notifier).registerSeller(request);
+    final success = await ref
+        .read(sellerProvider.notifier)
+        .registerSeller(request);
 
     if (mounted) {
       if (success) {
@@ -235,13 +238,11 @@ class _SellerRegistrationPageState
         );
         context.go('/seller/status');
       } else {
-        final error = ref.read(sellerProvider).errorMessage ??
+        final error =
+            ref.read(sellerProvider).errorMessage ??
             'Registration failed. Please check your information.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text(error), backgroundColor: AppColors.error),
         );
       }
     }
@@ -259,7 +260,11 @@ class _SellerRegistrationPageState
         elevation: 0,
         scrolledUnderElevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -358,17 +363,21 @@ class _SellerRegistrationPageState
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           decoration: _inputDecoration(
                             label: 'Phone Number *',
-                            hint: '98XXXXXXXX',
+                            hint: '98XXXXXXXX (10 digits)',
                             icon: Icons.phone_outlined,
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Phone number is required';
                             }
-                            if (value.trim().length < 7) {
-                              return 'Enter a valid phone number';
+                            if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) {
+                              return 'Phone number must be exactly 10 digits';
                             }
                             return null;
                           },
@@ -380,7 +389,7 @@ class _SellerRegistrationPageState
                           textInputAction: TextInputAction.next,
                           decoration: _inputDecoration(
                             label: 'Password *',
-                            hint: 'Min 6 characters',
+                            hint: 'Min 6 characters (letters & numbers)',
                             icon: Icons.lock_outline_rounded,
                             suffixIcon: IconButton(
                               icon: Icon(
@@ -403,6 +412,10 @@ class _SellerRegistrationPageState
                             }
                             if (value.length < 6) {
                               return 'Password must be at least 6 characters';
+                            }
+                            if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)')
+                                .hasMatch(value)) {
+                              return 'Password must contain at least one letter and one number';
                             }
                             return null;
                           },
@@ -449,7 +462,8 @@ class _SellerRegistrationPageState
                     // Section B: Business Information
                     _buildSectionCard(
                       title: 'B. Business Information',
-                      subtitle: 'Store details displayed on PetMate marketplace',
+                      subtitle:
+                          'Store details displayed on PetMate marketplace',
                       icon: Icons.storefront_outlined,
                       children: [
                         TextFormField(
@@ -483,13 +497,15 @@ class _SellerRegistrationPageState
                         _buildBusinessTypeChoice(
                           type: 'INDIVIDUAL',
                           title: 'Individual Seller',
-                          subtitle: 'Home breeder, pet accessories, or hobbyist',
+                          subtitle:
+                              'Home breeder, pet accessories, or hobbyist',
                         ),
                         const SizedBox(height: 8),
                         _buildBusinessTypeChoice(
                           type: 'REGISTERED_BUSINESS',
                           title: 'Registered Business',
-                          subtitle: 'Registered company, clinic, PAN or VAT entity',
+                          subtitle:
+                              'Registered company, clinic, PAN or VAT entity',
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
@@ -574,7 +590,8 @@ class _SellerRegistrationPageState
                     // Section C: Verification Documents
                     _buildSectionCard(
                       title: 'C. Verification Documents',
-                      subtitle: 'Ensure trust and safety on the PetMate marketplace',
+                      subtitle:
+                          'Ensure trust and safety on the PetMate marketplace',
                       icon: Icons.verified_user_outlined,
                       children: [
                         _buildDocumentUploader(
@@ -586,9 +603,8 @@ class _SellerRegistrationPageState
                           docUrl: _registrationDocUrl,
                           docName: _registrationDocName,
                           isUploading: _isUploadingRegDoc,
-                          onPick: () => _pickAndUploadDocument(
-                            isRegistrationDoc: true,
-                          ),
+                          onPick: () =>
+                              _pickAndUploadDocument(isRegistrationDoc: true),
                           onClear: () {
                             setState(() {
                               _registrationDocUrl = null;
@@ -599,15 +615,13 @@ class _SellerRegistrationPageState
                         const SizedBox(height: 14),
                         _buildDocumentUploader(
                           title: 'Identity Verification Document',
-                          subtitle:
-                              'Recommended: Citizenship, National ID, or Passport',
+                          subtitle: 'Recommended: Citizenship, National ID, or Passport',
                           isRequired: false,
                           docUrl: _identityDocUrl,
                           docName: _identityDocName,
                           isUploading: _isUploadingIdDoc,
-                          onPick: () => _pickAndUploadDocument(
-                            isRegistrationDoc: false,
-                          ),
+                          onPick: () =>
+                              _pickAndUploadDocument(isRegistrationDoc: false),
                           onClear: () {
                             setState(() {
                               _identityDocUrl = null;
@@ -651,7 +665,8 @@ class _SellerRegistrationPageState
                                 const SizedBox(width: 8),
                                 const Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'I agree to the Seller Terms of Service *',
@@ -704,7 +719,8 @@ class _SellerRegistrationPageState
                                 const SizedBox(width: 8),
                                 const Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'I accept the PetMate Privacy Policy *',
@@ -947,9 +963,7 @@ class _SellerRegistrationPageState
         child: Row(
           children: [
             Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 20,
               color: isSelected ? AppColors.terracotta : AppColors.textMuted,
             ),
@@ -1113,7 +1127,11 @@ class _SellerRegistrationPageState
                 IconButton(
                   onPressed: onClear,
                   tooltip: 'Remove',
-                  icon: const Icon(Icons.close, size: 18, color: AppColors.error),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppColors.error,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   visualDensity: VisualDensity.compact,

@@ -417,11 +417,7 @@ class OwnerProfilePage extends ConsumerWidget {
             ),
             child: const Column(
               children: [
-                Icon(
-                  Icons.pets_outlined,
-                  size: 40,
-                  color: AppColors.textMuted,
-                ),
+                Icon(Icons.pets_outlined, size: 40, color: AppColors.textMuted),
                 SizedBox(height: 12),
                 Text(
                   'No active pets available',
@@ -435,7 +431,10 @@ class OwnerProfilePage extends ConsumerWidget {
                 Text(
                   'This owner doesn\'t currently have any active pets in the discovery feed.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),

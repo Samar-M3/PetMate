@@ -119,9 +119,7 @@ class SellerRepository {
       final data = response['data'] as Map<String, dynamic>? ?? response;
       return SellerStoreModel.fromJson(data);
     }
-    throw ApiException(
-      message: 'Failed to parse resubmission response',
-    );
+    throw ApiException(message: 'Failed to parse resubmission response');
   }
 
   /// Request a password reset email link
@@ -146,8 +144,6 @@ class SellerRepository {
       final data = response['data'] as Map<String, dynamic>? ?? response;
       return SellerDashboardData.fromJson(data);
     }
-    throw ApiException(
-      message: 'Failed to retrieve seller dashboard',
-    );
+    throw ApiException(message: 'Failed to retrieve seller dashboard');
   }
 }

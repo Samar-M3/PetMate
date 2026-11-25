@@ -24,12 +24,12 @@ class MatchPetInfo {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'breed': breed,
-        'species': species,
-        'imageUrl': imageUrl,
-      };
+    'id': id,
+    'name': name,
+    'breed': breed,
+    'species': species,
+    'imageUrl': imageUrl,
+  };
 }
 
 class MatchOwnerInfo {
@@ -55,11 +55,11 @@ class MatchOwnerInfo {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'imageUrl': imageUrl,
-        'location': location,
-      };
+    'id': id,
+    'name': name,
+    'imageUrl': imageUrl,
+    'location': location,
+  };
 }
 
 class MatchConversationModel {
@@ -71,7 +71,6 @@ class MatchConversationModel {
   final String? lastMessage;
   final DateTime? lastMessageTime;
   final int unreadCount;
-  final bool isOnline;
   final String? otherFirebaseUid;
 
   const MatchConversationModel({
@@ -83,7 +82,6 @@ class MatchConversationModel {
     this.lastMessage,
     this.lastMessageTime,
     this.unreadCount = 0,
-    this.isOnline = true,
     this.otherFirebaseUid,
   });
 
@@ -114,7 +112,6 @@ class MatchConversationModel {
       lastMessage: json['lastMessage'] as String? ?? '🐾 Matched! Say hello 👋',
       lastMessageTime: lastMsgDate ?? matchedDate,
       unreadCount: json['unreadCount'] as int? ?? 0,
-      isOnline: json['isOnline'] as bool? ?? true,
       otherFirebaseUid: json['otherFirebaseUid'] as String?,
     );
   }
@@ -123,7 +120,6 @@ class MatchConversationModel {
     String? lastMessage,
     DateTime? lastMessageTime,
     int? unreadCount,
-    bool? isOnline,
     String? otherFirebaseUid,
   }) {
     return MatchConversationModel(
@@ -135,7 +131,6 @@ class MatchConversationModel {
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageTime: lastMessageTime ?? this.lastMessageTime,
       unreadCount: unreadCount ?? this.unreadCount,
-      isOnline: isOnline ?? this.isOnline,
       otherFirebaseUid: otherFirebaseUid ?? this.otherFirebaseUid,
     );
   }

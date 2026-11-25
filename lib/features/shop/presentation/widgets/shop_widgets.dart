@@ -64,6 +64,12 @@ class ShopImage extends StatelessWidget {
         url!,
         height: height,
         width: width,
+        cacheWidth: width == null
+            ? null
+            : (width! * MediaQuery.devicePixelRatioOf(context)).round(),
+        cacheHeight: height == null
+            ? null
+            : (height! * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -238,11 +244,7 @@ class ShopProductCard extends ConsumerWidget {
   final ShopProduct product;
   final VoidCallback? onTap;
 
-  const ShopProductCard({
-    super.key,
-    required this.product,
-    this.onTap,
-  });
+  const ShopProductCard({super.key, required this.product, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,7 +284,9 @@ class ShopProductCard extends ConsumerWidget {
                     color: AppColors.cream,
                     child: ShopImage(
                       url: product.images.firstOrNull,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                   ),
                   // Out of stock overlay
@@ -309,18 +313,24 @@ class ShopProductCard extends ConsumerWidget {
                       ),
                     ),
                   // Discount badge
-                  if (product.discountPercentage != null && product.discountPercentage! > 0)
+                  if (product.discountPercentage != null &&
+                      product.discountPercentage! > 0)
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.terracotta,
                           borderRadius: BorderRadius.circular(6),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.terracotta.withValues(alpha: 0.3),
+                              color: AppColors.terracotta.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
@@ -352,17 +362,25 @@ class ShopProductCard extends ConsumerWidget {
                             return;
                           }
                           if (isWishlisted) {
-                            await ref.read(shopWishlistProvider.notifier).remove(wishlistItem.id);
+                            await ref
+                                .read(shopWishlistProvider.notifier)
+                                .remove(wishlistItem.id);
                           } else {
-                            await ref.read(shopWishlistProvider.notifier).add(product.id);
+                            await ref
+                                .read(shopWishlistProvider.notifier)
+                                .add(product.id);
                           }
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(6),
                           child: Icon(
-                            isWishlisted ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            isWishlisted
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
                             size: 16,
-                            color: isWishlisted ? AppColors.terracotta : AppColors.textSecondary,
+                            color: isWishlisted
+                                ? AppColors.terracotta
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -412,7 +430,11 @@ class ShopProductCard extends ConsumerWidget {
                           )
                         else
                           const Spacer(),
-                        const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 13,
+                          color: Colors.amber,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${product.rating}',
@@ -550,10 +572,14 @@ class ShopProductCard extends ConsumerWidget {
                                 }
                                 final messenger = ScaffoldMessenger.of(context);
                                 try {
-                                  await ref.read(shopCartProvider.notifier).add(product.id);
+                                  await ref
+                                      .read(shopCartProvider.notifier)
+                                      .add(product.id);
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text('${product.name} added to cart!'),
+                                      content: Text(
+                                        '${product.name} added to cart!',
+                                      ),
                                       backgroundColor: AppColors.success,
                                       duration: const Duration(seconds: 2),
                                     ),
@@ -581,8 +607,8 @@ class ShopProductCard extends ConsumerWidget {
                               !product.hasStock
                                   ? 'Out of Stock'
                                   : product.variants.isNotEmpty
-                                      ? 'Options'
-                                      : 'Add to Cart',
+                                  ? 'Options'
+                                  : 'Add to Cart',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -670,7 +696,11 @@ class ShopSection extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: 2),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 12,
+                          color: AppColors.primary,
+                        ),
                       ],
                     ),
                   ),
@@ -709,7 +739,10 @@ class ShopSection extends StatelessWidget {
                   children: [
                     Text(
                       'Could not load $title.',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     TextButton(onPressed: onRetry, child: const Text('Retry')),
                   ],
@@ -719,7 +752,10 @@ class ShopSection extends StatelessWidget {
                   ? const Center(
                       child: Text(
                         'No products available yet.',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     )
                   : ListView.separated(
@@ -752,10 +788,7 @@ class ShopPromoBanner extends StatelessWidget {
       height: 155,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.primaryDark,
-            AppColors.primary,
-          ],
+          colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -806,7 +839,10 @@ class ShopPromoBanner extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.terracotta,
                           borderRadius: BorderRadius.circular(20),
@@ -847,7 +883,10 @@ class ShopPromoBanner extends StatelessWidget {
                         onTap: onShopNow,
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
