@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../domain/entities/user_role.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -27,6 +28,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   void _handleNavigation(String? nextStep) {
     if (!mounted) return;
+    final role = ref.read(authStateProvider).user?.role;
+    if (role == UserRole.veterinarian) {
+      context.go('/vet');
+      return;
+    }
     if (nextStep == 'PET_INFO') {
       context.go('/onboarding/pet');
     } else if (nextStep == 'OWNER_INFO') {

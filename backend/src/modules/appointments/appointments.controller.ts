@@ -4,6 +4,7 @@ import {
   listAppointments,
   createAppointment,
   updateAppointmentStatus,
+  getBookedSlots,
 } from "./appointments.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
@@ -71,6 +72,27 @@ export const updateStatus = async (
       statusCode: 200,
       message: "Appointment status updated successfully",
       data: { appointment },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBookedSlotsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { vetId, date } = req.query;
+    if (!vetId || !date) {
+      return next(new AppError("vetId and date are required", 400));
+    }
+    const bookedSlots = await getBookedSlots(vetId as string, date as string);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Booked slots retrieved successfully",
+      data: { bookedSlots },
     });
   } catch (error) {
     next(error);

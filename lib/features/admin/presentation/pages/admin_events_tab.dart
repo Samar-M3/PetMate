@@ -17,14 +17,24 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
   String _searchQuery = '';
   String _selectedCategory = 'ALL';
 
-  final List<String> _categories = [
+  // Base categories (without 'OTHER', with '+New' for custom)
+  final List<String> _baseCategories = [
     'ALL',
     'MEETUP',
     'AGILITY',
     'WORKSHOP',
     'ADOPTION',
-    'OTHER',
   ];
+
+  // Runtime categories (base + any custom ones added)
+  List<String> _categories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = List.from(_baseCategories);
+    _categories.add('+New');
+  }
 
   @override
   void dispose() {
@@ -32,13 +42,22 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
     super.dispose();
   }
 
-  void _showAddEventDialog() {
-    final titleCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
-    final timeCtrl = TextEditingController(text: '10:00 AM - 01:00 PM');
-    final descCtrl = TextEditingController();
-    final dateCtrl = TextEditingController(text: 'Dec 05, 2026');
-    String chosenCat = 'MEETUP';
+  void _showAddEventDialog({PetEvent? eventToEdit}) {
+    final isEditing = eventToEdit != null;
+    final titleCtrl = TextEditingController(text: eventToEdit?.title ?? '');
+    final locationCtrl = TextEditingController(text: eventToEdit?.location ?? '');
+    final timeCtrl = TextEditingController(text: eventToEdit?.time ?? '10:00 AM - 01:00 PM');
+    final descCtrl = TextEditingController(text: eventToEdit?.description ?? '');
+    final dateCtrl = TextEditingController(text: eventToEdit?.fullDate ?? 'Dec 05, 2026');
+    String chosenCat = eventToEdit?.category ?? 'MEETUP';
+
+    // Custom category controller for when "+New" is selected
+    final customCatCtrl = TextEditingController();
+    bool isCustomCategory = !_baseCategories.contains(chosenCat) && chosenCat != 'ALL';
+
+    if (isCustomCategory) {
+      customCatCtrl.text = chosenCat;
+    }
 
     showDialog(
       context: context,
@@ -59,9 +78,9 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Create Community Event',
-                          style: TextStyle(
+                        Text(
+                          isEditing ? 'Edit Community Event' : 'Create Community Event',
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: AdminColors.textPrimary,
@@ -89,37 +108,76 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                       ),
                     ),
                     const SizedBox(height: 6),
+                    // Category selection with +New option
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children:
-                          [
-                            'MEETUP',
-                            'AGILITY',
-                            'WORKSHOP',
-                            'ADOPTION',
-                            'OTHER',
-                          ].map((cat) {
-                            final isSel = chosenCat == cat;
-                            return ChoiceChip(
-                              label: Text(cat),
-                              selected: isSel,
-                              selectedColor: AdminColors.primary,
-                              backgroundColor: AdminColors.background,
-                              labelStyle: TextStyle(
+                      children: _categories.map((cat) {
+                        if (cat == '+New') {
+                          return ActionChip(
+                            avatar: const Icon(
+                              Icons.add_rounded,
+                              size: 16,
+                              color: AdminColors.primary,
+                            ),
+                            label: const Text(
+                              'New Category',
+                              style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: isSel
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: isSel
-                                    ? Colors.white
-                                    : AdminColors.textSecondary,
+                                color: AdminColors.primary,
+                                fontWeight: FontWeight.bold,
                               ),
-                              onSelected: (_) =>
-                                  setDialogState(() => chosenCat = cat),
-                            );
-                          }).toList(),
+                            ),
+                            backgroundColor: AdminColors.primary.withValues(alpha: 0.1),
+                            side: const BorderSide(color: AdminColors.primary),
+                            onPressed: () async {
+                              final newCat = await _promptNewCategory(context);
+                              if (newCat != null && newCat.isNotEmpty) {
+                                final formatted = newCat.toUpperCase().trim();
+                                if (!_categories.contains(formatted)) {
+                                  setState(() {
+                                    _categories.insert(_categories.length - 1, formatted);
+                                  });
+                                }
+                                setDialogState(() {
+                                  chosenCat = formatted;
+                                  isCustomCategory = true;
+                                  customCatCtrl.text = formatted;
+                                });
+                              }
+                            },
+                          );
+                        }
+                        final isSel = chosenCat == cat;
+                        return ChoiceChip(
+                          label: Text(cat),
+                          selected: isSel,
+                          selectedColor: AdminColors.primary,
+                          backgroundColor: AdminColors.background,
+                          labelStyle: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSel
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: isSel
+                                ? Colors.white
+                                : AdminColors.textSecondary,
+                          ),
+                          onSelected: (_) => setDialogState(() {
+                            chosenCat = cat;
+                            isCustomCategory = false;
+                          }),
+                        );
+                      }).toList(),
                     ),
+                    // Custom category input field (shown when +New is selected or editing custom category)
+                    if (isCustomCategory) ...[
+                      const SizedBox(height: 12),
+                      _field(
+                        customCatCtrl,
+                        'Custom Category Name',
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _field(dateCtrl, 'Date * (e.g. Dec 05, 2026)'),
                     const SizedBox(height: 12),
@@ -149,25 +207,47 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                                 locationCtrl.text.trim().isEmpty) {
                               return;
                             }
+                            // Use custom category if provided
+                            final finalCategory = isCustomCategory
+                                ? customCatCtrl.text.trim().toUpperCase()
+                                : chosenCat;
                             Navigator.pop(ctx);
                             try {
-                              await ref
-                                  .read(careEventsProvider.notifier)
-                                  .addEvent(
-                                    title: titleCtrl.text.trim(),
-                                    category: chosenCat,
-                                    fullDate: dateCtrl.text.trim(),
-                                    time: timeCtrl.text.trim(),
-                                    location: locationCtrl.text.trim(),
-                                    description: descCtrl.text.trim().isEmpty
-                                        ? 'Join fellow pet parents for this exciting event!'
-                                        : descCtrl.text.trim(),
-                                  );
+                              if (isEditing) {
+                                await ref
+                                    .read(careEventsProvider.notifier)
+                                    .updateEvent(
+                                      eventToEdit.id,
+                                      title: titleCtrl.text.trim(),
+                                      category: finalCategory,
+                                      fullDate: dateCtrl.text.trim(),
+                                      time: timeCtrl.text.trim(),
+                                      location: locationCtrl.text.trim(),
+                                      description: descCtrl.text.trim().isEmpty
+                                          ? 'Join fellow pet parents for this exciting event!'
+                                          : descCtrl.text.trim(),
+                                    );
+                              } else {
+                                await ref
+                                    .read(careEventsProvider.notifier)
+                                    .addEvent(
+                                      title: titleCtrl.text.trim(),
+                                      category: finalCategory,
+                                      fullDate: dateCtrl.text.trim(),
+                                      time: timeCtrl.text.trim(),
+                                      location: locationCtrl.text.trim(),
+                                      description: descCtrl.text.trim().isEmpty
+                                          ? 'Join fellow pet parents for this exciting event!'
+                                          : descCtrl.text.trim(),
+                                    );
+                              }
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'Community event created successfully!',
+                                      isEditing
+                                          ? 'Community event updated successfully!'
+                                          : 'Community event created successfully!',
                                     ),
                                     backgroundColor: AdminColors.success,
                                   ),
@@ -177,7 +257,8 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to create event: $e'),
+                                    content: Text(
+                                        isEditing ? 'Failed to update event: $e' : 'Failed to create event: $e'),
                                     backgroundColor: AdminColors.error,
                                   ),
                                 );
@@ -192,7 +273,7 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text('Create Event'),
+                          child: Text(isEditing ? 'Save Changes' : 'Create Event'),
                         ),
                       ],
                     ),
@@ -202,6 +283,50 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Prompt for new category name
+  Future<String?> _promptNewCategory(BuildContext context) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'New Category',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: 'e.g. Charity, Training',
+            filled: true,
+            fillColor: AdminColors.background,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AdminColors.border),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }
@@ -492,7 +617,7 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(24),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final ev = filtered[index];
                       return _buildEventCard(ev);
@@ -667,11 +792,91 @@ class _AdminEventsTabState extends ConsumerState<AdminEventsTab> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
+                const SizedBox(height: 12),
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.edit_rounded,
+                        size: 18,
+                        color: AdminColors.primary,
+                      ),
+                      tooltip: 'Edit Event',
+                      onPressed: () => _showAddEventDialog(eventToEdit: ev),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_rounded,
+                        size: 18,
+                        color: AdminColors.error,
+                      ),
+                      tooltip: 'Delete Event',
+                      onPressed: () => _deleteEvent(ev),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _deleteEvent(PetEvent ev) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Event?'),
+        content: Text(
+          'Are you sure you want to delete "${ev.title}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(careEventsProvider.notifier).deleteEvent(ev.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Event deleted!'),
+            backgroundColor: AdminColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete event: $e'),
+            backgroundColor: AdminColors.error,
+          ),
+        );
+      }
+    }
   }
 }

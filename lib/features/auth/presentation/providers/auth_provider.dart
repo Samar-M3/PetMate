@@ -9,9 +9,11 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../care_events/providers/care_events_provider.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../domain/entities/user_role.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -313,8 +315,39 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
 
       // Profile is synced via stream or fallback
       await _syncBackendProfile(cred.user!);
+
+      if (state.user?.role == UserRole.veterinarian) {
+        try {
+          final vet = await ref.read(myVetProfileProvider.future);
+          if (vet != null) {
+            ref.read(currentVetProvider.notifier).setVet(vet);
+          }
+        } catch (_) {}
+      }
+
       return state.onboardingStatus?.nextStep ?? 'PET_INFO';
     } on FirebaseAuthException catch (e) {
+      // If Firebase email/password fails, check if this is a veterinarian created by Admin
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        try {
+          final vet = await ref
+              .read(careVetsProvider.notifier)
+              .vetLogin(email, password);
+          if (vet != null) {
+            ref.read(currentVetProvider.notifier).setVet(vet);
+            final currentFbUser = FirebaseAuth.instance.currentUser;
+            if (currentFbUser != null) {
+              await _syncBackendProfile(currentFbUser);
+            }
+            return 'COMPLETED';
+          }
+        } catch (_) {
+          // Vet login failed, continue to standard error message
+        }
+      }
+
       String msg = 'Authentication failed. Please check your credentials.';
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||

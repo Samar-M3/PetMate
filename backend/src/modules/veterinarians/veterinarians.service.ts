@@ -21,6 +21,41 @@ export const findVetByUser = async (userId?: string) => {
   return null;
 };
 
+export const verifyVetPassword = async (vetId: string, password: string): Promise<boolean> => {
+  const vet = await prisma.veterinarian.findUnique({ where: { id: vetId } });
+  if (!vet || !vet.passwordHash) return false;
+  return bcrypt.compare(password, vet.passwordHash);
+};
+
+export const findVetByEmail = async (email: string) => {
+  return prisma.veterinarian.findFirst({ where: { email } });
+};
+
+export const ensureVetUser = async (vet: { id: string; email: string | null; name: string }) => {
+  return prisma.user.upsert({
+    where: { firebaseUid: vet.id },
+    update: {
+      role: "VETERINARIAN",
+      isActive: true,
+      onboardingCompleted: true,
+      ...(vet.email ? { email: vet.email } : {}),
+    },
+    create: {
+      id: vet.id,
+      firebaseUid: vet.id,
+      email: vet.email,
+      role: "VETERINARIAN",
+      isActive: true,
+      onboardingCompleted: true,
+      profile: {
+        create: {
+          fullName: vet.name,
+        },
+      },
+    },
+  });
+};
+
 export const createVeterinarianAccount = async (
   actorId: string,
   data: CreateVeterinarianAccountInput,

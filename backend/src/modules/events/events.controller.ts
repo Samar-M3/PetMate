@@ -4,6 +4,7 @@ import {
   listEvents,
   createEvent,
   deleteEvent,
+  updateEvent,
   updateEventBookmark,
   updateEventRsvp,
   parseEventFlag,
@@ -129,6 +130,36 @@ export const removeEvent = async (
       statusCode: 200,
       message: "Event deleted successfully",
       data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const editEvent = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, category, dayName, dayNum, fullDate, time, location, description } = req.body;
+
+    const event = await updateEvent(id as string, {
+      title,
+      category,
+      dayName,
+      dayNum,
+      fullDate,
+      time,
+      location,
+      description,
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Event updated successfully",
+      data: { event },
     });
   } catch (error) {
     next(error);
