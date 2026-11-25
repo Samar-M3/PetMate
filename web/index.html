@@ -31,6 +31,83 @@
 
   <title>petmatee</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    // Prevent any native HTML form submission from causing full page reload in Flutter Web SPA
+    document.addEventListener('submit', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }, true);
+
+    window.addEventListener('submit', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }, true);
+
+    // Prevent Enter key on file input elements from triggering default browser submit / page reload
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var target = e.target;
+        if (target && target.tagName === 'INPUT') {
+          var type = (target.type || '').toLowerCase();
+          if (type === 'file' || type === 'submit' || type === 'button') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+        var fileInputs = document.querySelectorAll('input[type="file"]');
+        if (fileInputs.length > 0) {
+          // If a file picker input exists or was active, prevent Enter from bubbling into a page reload
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }
+    }, true);
+
+    window.addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') {
+        var fileInputs = document.querySelectorAll('input[type="file"]');
+        if (fileInputs.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        var target = e.target;
+        if (target && target.tagName === 'INPUT') {
+          var type = (target.type || '').toLowerCase();
+          if (type === 'file') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+      }
+    }, true);
+
+    // Watch for dynamically added file inputs (like those from image_picker)
+    var observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        mutation.addedNodes.forEach(function(node) {
+          if (node.tagName === 'INPUT' && (node.type || '').toLowerCase() === 'file') {
+            node.addEventListener('change', function() {
+              node.blur();
+            });
+            node.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            });
+          }
+        });
+      });
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  </script>
 </head>
 <body>
   <!--

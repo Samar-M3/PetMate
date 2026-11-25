@@ -50,6 +50,7 @@ class _SellerRegistrationPageState
   String? _identityDocUrl;
   String? _identityDocName;
   bool _isUploadingIdDoc = false;
+  bool _isPickingDoc = false;
 
   // Registration Options
   bool _termsAccepted = false;
@@ -74,6 +75,8 @@ class _SellerRegistrationPageState
   }
 
   Future<void> _pickAndUploadDocument({required bool isRegistrationDoc}) async {
+    if (_isPickingDoc) return;
+    _isPickingDoc = true;
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -143,6 +146,8 @@ class _SellerRegistrationPageState
           ),
         );
       }
+    } finally {
+      _isPickingDoc = false;
     }
   }
 

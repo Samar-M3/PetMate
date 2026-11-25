@@ -5,9 +5,13 @@ import {
   StoreStatus,
   ApplicationType,
   ApplicationStatus,
+  Prisma,
 } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
-import type { RegisterSellerInput } from "./sellers.validation.ts";
+import type {
+  RegisterSellerInput,
+  CreateProductInput,
+} from "./sellers.validation.ts";
 
 export function slugify(text: string): string {
   return text
@@ -330,4 +334,324 @@ export const getSellerDashboardStats = async (userId: string) => {
     outOfStockProducts: store.products.filter((p) => p.status === "OUT_OF_STOCK" || p.availableStock <= 0).length,
     products: store.products.slice(0, 5),
   };
+};
+
+export const createSellerProduct = async (
+  userId: string,
+  input: CreateProductInput
+) => {
+  const store = await prisma.store.findUnique({
+    where: { userId },
+  });
+
+  if (!store) {
+    throw new AppError("Store not found for this seller", 404);
+  }
+
+  if (store.status !== StoreStatus.APPROVED) {
+    throw new AppError("Only approved sellers can create product listings", 403);
+  }
+
+  // Ensure category exists or fallback to first available
+  let categoryId = input.categoryId;
+  if (categoryId) {
+    const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!cat) {
+      categoryId = undefined;
+    }
+  }
+
+  if (!categoryId) {
+    const firstCat = await prisma.category.findFirst({ orderBy: { name: "asc" } });
+    if (firstCat) {
+      categoryId = firstCat.id;
+    } else {
+      // Auto-create a default category if database has none
+      const defaultCat = await prisma.category.create({
+        data: {
+          name: "Pet Supplies",
+          slug: "pet-supplies",
+          description: "General pet supplies and accessories",
+        },
+      });
+      categoryId = defaultCat.id;
+    }
+  }
+
+  // Generate unique slug
+  let baseSlug = slugify(input.name);
+  if (!baseSlug) baseSlug = "product";
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.product.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
+  const status = input.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
+
+  // Validate discount vs base price according to DB constraint:
+  // CHECK ("discounted_price" IS NULL OR ("discounted_price" > 0 AND "discounted_price" < "base_price"))
+  let discountedPriceDecimal: Prisma.Decimal | null = null;
+  if (
+    input.discountedPrice !== undefined &&
+    input.discountedPrice !== null &&
+    Number(input.discountedPrice) > 0
+  ) {
+    const discNum = Number(input.discountedPrice);
+    if (discNum >= input.basePrice) {
+      throw new AppError(
+        `Discounted price (${discNum}) must be strictly less than regular price (${input.basePrice})`,
+        400
+      );
+    }
+    discountedPriceDecimal = new Prisma.Decimal(discNum);
+  }
+
+  const product = await prisma.product.create({
+    data: {
+      name: input.name,
+      slug,
+      sku: input.sku || null,
+      brand: input.brand || null,
+      description: input.description || null,
+      shortDescription: input.shortDescription || null,
+      basePrice: new Prisma.Decimal(input.basePrice),
+      discountedPrice: discountedPriceDecimal,
+      costPrice: input.costPrice ? new Prisma.Decimal(input.costPrice) : null,
+      availableStock: input.availableStock || 0,
+      lowStockThreshold: input.lowStockThreshold || 5,
+      status: status as any,
+      isFeatured: input.isFeatured || false,
+      categoryId: categoryId!,
+      storeId: store.id,
+      shippingWeight: input.shippingWeight || null,
+      packageDimensions: input.packageDimensions || null,
+      specifications: input.specifications || null,
+      images: {
+        create: (input.imageUrls || []).map((url, idx) => ({
+          imageUrl: url,
+          cloudinaryPublicId: `prod_${Date.now()}_${idx}`,
+          displayOrder: idx,
+        })),
+      },
+    },
+    include: {
+      images: { orderBy: { displayOrder: "asc" } },
+      category: true,
+      store: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return product;
+};
+
+export const getSellerProducts = async (userId: string) => {
+  const store = await prisma.store.findUnique({
+    where: { userId },
+  });
+
+  if (!store) {
+    throw new AppError("Store not found", 404);
+  }
+
+  const products = await prisma.product.findMany({
+    where: { storeId: store.id },
+    include: {
+      images: { orderBy: { displayOrder: "asc" } },
+      category: true,
+      _count: { select: { orderItems: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return products.map((p) => ({
+    ...p,
+    discountPercentage: p.discountedPrice
+      ? Math.round((1 - Number(p.discountedPrice) / Number(p.basePrice)) * 100)
+      : null,
+  }));
+};
+
+export const getSellerProductById = async (userId: string, productId: string) => {
+  const store = await prisma.store.findUnique({ where: { userId } });
+  if (!store) throw new AppError("Store not found", 404);
+
+  const product = await prisma.product.findFirst({
+    where: { id: productId, storeId: store.id },
+    include: {
+      images: { orderBy: { displayOrder: "asc" } },
+      category: true,
+    },
+  });
+
+  if (!product) throw new AppError("Product not found", 404);
+  return product;
+};
+
+export const updateSellerProduct = async (
+  userId: string,
+  productId: string,
+  input: Partial<CreateProductInput>
+) => {
+  const store = await prisma.store.findUnique({ where: { userId } });
+  if (!store) throw new AppError("Store not found", 404);
+
+  const existing = await prisma.product.findFirst({
+    where: { id: productId, storeId: store.id },
+  });
+  if (!existing) throw new AppError("Product not found", 404);
+
+  const updateData: any = {};
+  if (input.name !== undefined) updateData.name = input.name;
+  if (input.sku !== undefined) updateData.sku = input.sku || null;
+  if (input.brand !== undefined) updateData.brand = input.brand || null;
+  if (input.description !== undefined) updateData.description = input.description || null;
+  if (input.shortDescription !== undefined) updateData.shortDescription = input.shortDescription || null;
+  const effectiveBasePrice = input.basePrice !== undefined ? Number(input.basePrice) : Number(existing.basePrice);
+
+  if (input.basePrice !== undefined) updateData.basePrice = new Prisma.Decimal(input.basePrice);
+  if (input.discountedPrice !== undefined) {
+    if (input.discountedPrice === null || Number(input.discountedPrice) <= 0) {
+      updateData.discountedPrice = null;
+    } else {
+      const discNum = Number(input.discountedPrice);
+      if (discNum >= effectiveBasePrice) {
+        throw new AppError(
+          `Discounted price (${discNum}) must be strictly less than regular price (${effectiveBasePrice})`,
+          400
+        );
+      }
+      updateData.discountedPrice = new Prisma.Decimal(discNum);
+    }
+  } else if (input.basePrice !== undefined && existing.discountedPrice) {
+    if (Number(existing.discountedPrice) >= input.basePrice) {
+      throw new AppError(
+        `Existing discounted price (${existing.discountedPrice}) cannot be greater than or equal to new regular price (${input.basePrice})`,
+        400
+      );
+    }
+  }
+  if (input.costPrice !== undefined) {
+    updateData.costPrice = input.costPrice ? new Prisma.Decimal(input.costPrice) : null;
+  }
+  if (input.availableStock !== undefined) updateData.availableStock = input.availableStock;
+  if (input.lowStockThreshold !== undefined) updateData.lowStockThreshold = input.lowStockThreshold;
+  if (input.status !== undefined) updateData.status = input.status;
+  if (input.isFeatured !== undefined) updateData.isFeatured = input.isFeatured;
+  if (input.categoryId !== undefined) updateData.categoryId = input.categoryId;
+  if (input.shippingWeight !== undefined) updateData.shippingWeight = input.shippingWeight;
+  if (input.packageDimensions !== undefined) updateData.packageDimensions = input.packageDimensions;
+  if (input.specifications !== undefined) updateData.specifications = input.specifications;
+
+  // If new images provided
+  if (input.imageUrls && Array.isArray(input.imageUrls)) {
+    await prisma.productImage.deleteMany({ where: { productId } });
+    await prisma.productImage.createMany({
+      data: input.imageUrls.map((url, idx) => ({
+        productId,
+        imageUrl: url,
+        cloudinaryPublicId: `prod_${Date.now()}_${idx}`,
+        displayOrder: idx,
+      })),
+    });
+  }
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: updateData,
+    include: {
+      images: { orderBy: { displayOrder: "asc" } },
+      category: true,
+    },
+  });
+
+  return updated;
+};
+
+export const deleteSellerProduct = async (userId: string, productId: string) => {
+  const store = await prisma.store.findUnique({ where: { userId } });
+  if (!store) throw new AppError("Store not found", 404);
+
+  const existing = await prisma.product.findFirst({
+    where: { id: productId, storeId: store.id },
+    include: { _count: { select: { orderItems: true } } },
+  });
+  if (!existing) throw new AppError("Product not found", 404);
+
+  if (existing._count.orderItems > 0) {
+    // Cannot hard delete if order history exists; archive it
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: "INACTIVE" as any },
+    });
+    return { message: "Product has associated orders; marked as INACTIVE." };
+  }
+
+  // Delete product images first, then product
+  await prisma.productImage.deleteMany({ where: { productId } });
+  await prisma.product.delete({ where: { id: productId } });
+
+  return { message: "Product deleted successfully" };
+};
+
+export const updateSellerProductStock = async (
+  userId: string,
+  productId: string,
+  stock: number
+) => {
+  const store = await prisma.store.findUnique({ where: { userId } });
+  if (!store) throw new AppError("Store not found", 404);
+
+  const existing = await prisma.product.findFirst({
+    where: { id: productId, storeId: store.id },
+  });
+  if (!existing) throw new AppError("Product not found", 404);
+
+  const newStock = Math.max(0, stock);
+  const newStatus = newStock === 0 && existing.status === "ACTIVE"
+    ? "OUT_OF_STOCK"
+    : existing.status === "OUT_OF_STOCK" && newStock > 0
+    ? "ACTIVE"
+    : existing.status;
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      availableStock: newStock,
+      status: newStatus as any,
+    },
+  });
+
+  return updated;
+};
+
+export const toggleSellerProductStatus = async (
+  userId: string,
+  productId: string,
+  targetStatus?: string
+) => {
+  const store = await prisma.store.findUnique({ where: { userId } });
+  if (!store) throw new AppError("Store not found", 404);
+
+  const existing = await prisma.product.findFirst({
+    where: { id: productId, storeId: store.id },
+  });
+  if (!existing) throw new AppError("Product not found", 404);
+
+  const nextStatus = targetStatus || (existing.status === "ACTIVE" ? "DRAFT" : "ACTIVE");
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { status: nextStatus as any },
+  });
+
+  return updated;
 };

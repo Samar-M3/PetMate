@@ -81,6 +81,11 @@ class ShopProduct {
   final List<ShopVariant> variants;
   final bool? available;
   final String? availabilityReason;
+  final double rating;
+  final int reviewCount;
+  final Map<String, dynamic>? specifications;
+  final double? shippingWeight;
+  final String? packageDimensions;
 
   const ShopProduct({
     required this.id,
@@ -102,6 +107,11 @@ class ShopProduct {
     this.variants = const [],
     this.available,
     this.availabilityReason,
+    this.rating = 4.8,
+    this.reviewCount = 18,
+    this.specifications,
+    this.shippingWeight,
+    this.packageDimensions,
   });
 
   double get displayPrice => discountedPrice ?? basePrice;
@@ -112,13 +122,21 @@ class ShopProduct {
       : availableStock > 0;
 
   factory ShopProduct.fromJson(Map<String, dynamic> json) {
-    final category = json['category'] as Map<String, dynamic>?;
-    final store = json['store'] as Map<String, dynamic>?;
+    final category = json['category'] is Map
+        ? Map<String, dynamic>.from(json['category'] as Map)
+        : null;
+    final store = json['store'] is Map
+        ? Map<String, dynamic>.from(json['store'] as Map)
+        : null;
     final images = (json['images'] as List? ?? const [])
         .whereType<Map>()
         .map((item) => item['imageUrl']?.toString() ?? '')
         .where((url) => url.isNotEmpty)
         .toList();
+    final count = json['_count'] is Map
+        ? Map<String, dynamic>.from(json['_count'] as Map)
+        : null;
+
     return ShopProduct(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -142,6 +160,15 @@ class ShopProduct {
           .toList(),
       available: json['available'] as bool?,
       availabilityReason: json['availabilityReason'] as String?,
+      rating: _number(json['rating']) ?? _number(json['avgRating']) ?? 4.8,
+      reviewCount: (json['reviewCount'] as num?)?.toInt() ??
+          (count?['reviews'] as num?)?.toInt() ??
+          18,
+      specifications: json['specifications'] is Map
+          ? Map<String, dynamic>.from(json['specifications'] as Map)
+          : null,
+      shippingWeight: _number(json['shippingWeight']),
+      packageDimensions: json['packageDimensions'] as String?,
     );
   }
 }
@@ -423,6 +450,8 @@ class ShopReviewSummary {
       );
 }
 
-double? _number(dynamic value) => value == null
-    ? null
-    : (value as num?)?.toDouble() ?? double.tryParse(value.toString());
+double? _number(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}

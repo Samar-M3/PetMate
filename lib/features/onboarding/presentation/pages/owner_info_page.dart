@@ -31,6 +31,7 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
   String? _imageName;
   String? _uploadedImageUrl;
   bool _isUploadingImage = false;
+  bool _isPickingImage = false;
 
   @override
   void initState() {
@@ -73,6 +74,8 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
   }
 
   Future<void> _pickImage() async {
+    if (_isPickingImage) return;
+    _isPickingImage = true;
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -103,6 +106,8 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
           ),
         );
       }
+    } finally {
+      _isPickingImage = false;
     }
   }
 

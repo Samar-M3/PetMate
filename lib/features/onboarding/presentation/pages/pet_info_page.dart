@@ -38,6 +38,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   int _validationRequestId = 0;
   String? _lastValidatedImagePath;
   String? _lastValidatedAnimalType;
+  bool _isPickingImage = false;
 
   String _selectedAnimalType = 'Dog';
   String _selectedBreed = 'Labrador';
@@ -115,7 +116,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   Future<void> _pickImage() async {
-    if (_isUploadingImage) return;
+    if (_isUploadingImage || _isPickingImage) return;
+    _isPickingImage = true;
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -150,6 +152,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
           ),
         );
       }
+    } finally {
+      _isPickingImage = false;
     }
   }
 

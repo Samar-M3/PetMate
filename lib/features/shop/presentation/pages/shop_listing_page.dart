@@ -444,6 +444,43 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
       ),
       body: Column(
         children: [
+          // Breadcrumb Navigation
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => context.go('/'),
+                  child: const Text('Home', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text('Shop', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    widget.categoryName ??
+                        (widget.search != null ? 'Search: "${widget.search}"' : 'All Products'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Search & Filter Bar
           Container(
             color: Colors.white,
@@ -702,7 +739,7 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.64,
+            childAspectRatio: crossAxisCount == 2 ? 0.58 : 0.60,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),

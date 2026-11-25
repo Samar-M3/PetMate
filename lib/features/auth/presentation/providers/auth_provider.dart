@@ -105,13 +105,21 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       if (currentFbUser != null) {
         await _syncBackendProfile(currentFbUser, isBackground: true);
       }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-disabled' || e.code == 'user-not-found') {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthNotifier] Session reload on resume detected disabled/deleted account: ${e.code}',
+          );
+        }
+        await _performCleanupAndResetState();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
-          '[AuthNotifier] Session reload on resume detected invalid session: $e',
+          '[AuthNotifier] Session check on resume ignored non-fatal error: $e',
         );
       }
-      await _performCleanupAndResetState();
     }
   }
 
