@@ -31,6 +31,7 @@ import '../../features/shop/presentation/pages/shop_listing_page.dart';
 import '../../features/shop/presentation/pages/wishlist_page.dart';
 import '../../features/vet/presentation/pages/vet_shell.dart';
 import '../../features/chat/presentation/pages/chat_route_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/notification_settings_page.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -259,6 +260,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/chat/:matchId',
         builder: (context, state) =>
             ChatRoutePage(matchId: state.pathParameters['matchId'] ?? ''),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(
         path: '/settings/notifications',

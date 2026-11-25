@@ -3,6 +3,7 @@ import {
   getDeck,
   postSwipe,
   postUndoSwipe,
+  postResetPasses,
   getIncoming,
   acceptRequest,
   rejectRequest,
@@ -32,6 +33,7 @@ router.get("/discover", matchingAuth, getDeck);
 // Swipe endpoints
 router.post("/swipes", matchingAuth, postSwipe);
 router.post("/swipes/undo", matchingAuth, postUndoSwipe);
+router.post("/swipes/reset-passes", matchingAuth, postResetPasses);
 
 // Request endpoints
 router.get("/requests/incoming", matchingAuth, getIncoming);

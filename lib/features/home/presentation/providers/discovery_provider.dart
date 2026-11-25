@@ -260,12 +260,35 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     state = const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
   }
 
-  void resetDeck() {
+  Future<void> resetDeck() async {
+    final petId = state.activePetId;
+    if (petId == null) {
+      state = const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
+      return;
+    }
+
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      currentIndex: 0,
+      pets: [],
+    );
+
+    try {
+      await _repository.resetPassSwipes(petId: petId);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Discovery] ⚠️ Failed to reset pass swipes for $petId: $e');
+      }
+    }
+
+    await loadInitial(petId);
+  }
+
+  void retryLoad() {
     final petId = state.activePetId;
     if (petId != null) {
       loadInitial(petId);
-    } else {
-      state = const DiscoveryState(pets: [], currentIndex: 0, isLoading: false);
     }
   }
 }

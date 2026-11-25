@@ -304,6 +304,7 @@ class _SellerRegistrationPageState
               constraints: const BoxConstraints(maxWidth: 580),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

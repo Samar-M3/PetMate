@@ -1,5 +1,6 @@
 import prisma from "../config/db.ts";
-import { messaging as defaultMessaging } from "../config/firebase.ts";
+import { firestore, messaging as defaultMessaging } from "../config/firebase.ts";
+import { FieldValue } from "firebase-admin/firestore";
 import type { MulticastMessage } from "firebase-admin/messaging";
 
 let currentMessaging: any = defaultMessaging;
@@ -216,11 +217,6 @@ export class NotificationService {
       if (options.category === "system" && !pref.system) return { sent: false, successCount: 0, failureCount: 0 };
     }
 
-    const tokens = user.deviceTokens;
-    if (!tokens || tokens.length === 0) {
-      return { sent: false, successCount: 0, failureCount: 0 };
-    }
-
     // Determine body with showPreviews check
     let resolvedBodyTemplate: LocalizedText = options.body;
     if (options.category === "messages" && pref?.showPreviews === false) {
@@ -241,6 +237,39 @@ export class NotificationService {
           stringData[key] = String(value);
         }
       }
+    }
+
+    // Persist notification to Firestore for in-app notification center & cross-device sync
+    let notificationId: string | undefined;
+    if (user.firebaseUid) {
+      try {
+        const notifRef = firestore
+          .collection("users")
+          .doc(user.firebaseUid)
+          .collection("notifications")
+          .doc();
+        notificationId = notifRef.id;
+        stringData.notificationId = notificationId;
+
+        await notifRef.set({
+          id: notificationId,
+          category: options.category,
+          type: options.type,
+          title: resolveLocalizedText(options.title, "en"),
+          body: resolveLocalizedText(resolvedBodyTemplate, "en"),
+          route: stringData.route ?? null,
+          data: stringData,
+          isRead: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      } catch (err: any) {
+        console.warn(`[NotificationService] Failed to persist in-app notification: ${err?.message || err}`);
+      }
+    }
+
+    const tokens = user.deviceTokens;
+    if (!tokens || tokens.length === 0) {
+      return { sent: false, successCount: 0, failureCount: 0 };
     }
 
     const channelId = getChannelIdForCategory(options.category);

@@ -494,6 +494,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       ),
       body: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: SingleChildScrollView(
           controller: _scrollController,
           padding: const EdgeInsets.all(16),
