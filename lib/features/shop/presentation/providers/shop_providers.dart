@@ -18,6 +18,15 @@ final shopNewArrivalsProvider = FutureProvider<List<ShopProduct>>(
 final shopRecommendedProvider = FutureProvider<List<ShopProduct>>(
   (ref) => ref.watch(shopRepositoryProvider).section('recommended'),
 );
+final shopDealsProvider = FutureProvider<List<ShopProduct>>(
+  (ref) async {
+    final raw = await ref.watch(shopRepositoryProvider).products({'page': 1, 'limit': 12});
+    final all = _products(raw);
+    final discounted = all.where((p) => p.discountedPrice != null).toList();
+    if (discounted.isNotEmpty) return discounted;
+    return all.take(6).toList();
+  },
+);
 final shopProductProvider = FutureProvider.family<ShopProduct, String>(
   (ref, id) => ref.watch(shopRepositoryProvider).product(id),
 );

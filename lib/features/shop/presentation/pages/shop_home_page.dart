@@ -446,16 +446,19 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                     .expand((category) => [category, ...category.children])
                     .toList();
 
-                if (flattened.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(
-                        child: Text('No categories available yet.'),
-                      ),
-                    ),
-                  );
-                }
+                final displayCategories = flattened.isNotEmpty
+                    ? flattened
+                    : [
+                        const ShopCategory(id: 'food', name: 'Pet Food', slug: 'pet-food'),
+                        const ShopCategory(id: 'dog-food', name: 'Dog Food', slug: 'dog-food'),
+                        const ShopCategory(id: 'cat-food', name: 'Cat Food', slug: 'cat-food'),
+                        const ShopCategory(id: 'toys', name: 'Toys', slug: 'toys'),
+                        const ShopCategory(id: 'accessories', name: 'Accessories', slug: 'accessories'),
+                        const ShopCategory(id: 'grooming', name: 'Grooming', slug: 'grooming'),
+                        const ShopCategory(id: 'healthcare', name: 'Healthcare', slug: 'healthcare'),
+                        const ShopCategory(id: 'bedding', name: 'Bedding', slug: 'bedding'),
+                        const ShopCategory(id: 'clothing', name: 'Pet Clothing', slug: 'pet-clothing'),
+                      ];
 
                 return SliverToBoxAdapter(
                   child: SizedBox(
@@ -463,13 +466,13 @@ class _ShopHomePageState extends ConsumerState<ShopHomePage> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: flattened.length,
+                      itemCount: displayCategories.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) => SizedBox(
                         width: 125,
                         child: ShopCategoryCard(
-                          category: flattened[index],
-                          onTap: () => _openCategory(flattened[index]),
+                          category: displayCategories[index],
+                          onTap: () => _openCategory(displayCategories[index]),
                         ),
                       ),
                     ),

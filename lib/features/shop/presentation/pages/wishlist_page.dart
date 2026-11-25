@@ -249,6 +249,27 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                         ),
                       ],
                     ),
+                    if (prod.storeName != null && prod.storeName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront_outlined, size: 12, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              prod.storeName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       formatShopPrice(prod.displayPrice),

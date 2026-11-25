@@ -679,6 +679,10 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
                 ),
                 const SizedBox(height: 10),
 
+                // Specifications & Shipping
+                _buildSpecifications(product),
+                const SizedBox(height: 10),
+
                 // Customer Reviews Section
                 Container(
                   color: Colors.white,
@@ -825,7 +829,10 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
 
+                // Related Products Section
+                _buildRelatedProducts(),
                 const SizedBox(height: 32),
               ],
             ),
@@ -1055,6 +1062,158 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSpecifications(ShopProduct product) {
+    final specs = product.specifications ?? {};
+    final petType = specs['petType']?.toString();
+    final material = specs['material']?.toString();
+    final dimensions = product.packageDimensions ?? specs['dimensions']?.toString();
+    final weight = product.shippingWeight != null ? '${product.shippingWeight} kg' : null;
+    final ingredients = specs['ingredients']?.toString();
+
+    final specList = <MapEntry<String, String>>[];
+    if (product.brand != null && product.brand!.isNotEmpty) {
+      specList.add(MapEntry('Brand', product.brand!));
+    }
+    if (product.categoryName != null) {
+      specList.add(MapEntry('Category', product.categoryName!));
+    }
+    if (petType != null && petType.isNotEmpty) {
+      specList.add(MapEntry('Pet Type', petType));
+    }
+    if (material != null && material.isNotEmpty) {
+      specList.add(MapEntry('Material', material));
+    }
+    if (dimensions != null && dimensions.isNotEmpty) {
+      specList.add(MapEntry('Dimensions', dimensions));
+    }
+    if (weight != null && weight.isNotEmpty) {
+      specList.add(MapEntry('Shipping Weight', weight));
+    }
+    if (ingredients != null && ingredients.isNotEmpty) {
+      specList.add(MapEntry('Ingredients / Features', ingredients));
+    }
+
+    if (specList.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Specifications & Details',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.inputFill,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: specList.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final item = entry.value;
+                final isLast = idx == specList.length - 1;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          item.key,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          item.value,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRelatedProducts() {
+    final related = ref.watch(shopRecommendedProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Related Products',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/shop/products'),
+                child: const Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 300,
+          child: related.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (items) {
+              final others = items.where((p) => p.id != widget.productId).toList();
+              if (others.isEmpty) return const SizedBox.shrink();
+
+              return ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: others.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) => SizedBox(
+                  width: 180,
+                  child: ShopProductCard(product: others[index]),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

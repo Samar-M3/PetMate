@@ -129,3 +129,114 @@ export function validateSellerRegistration(data: unknown): RegisterSellerInput {
     termsAccepted: true,
   };
 }
+
+export interface CreateProductInput {
+  name: string;
+  sku?: string;
+  brand?: string;
+  description?: string;
+  shortDescription?: string;
+  basePrice: number;
+  discountedPrice?: number;
+  costPrice?: number;
+  availableStock?: number;
+  lowStockThreshold?: number;
+  status?: "ACTIVE" | "DRAFT";
+  isFeatured?: boolean;
+  categoryId?: string;
+  shippingWeight?: number;
+  packageDimensions?: string;
+  specifications?: Record<string, any>;
+  imageUrls?: string[];
+}
+
+export function validateCreateProduct(data: any): CreateProductInput {
+  if (!data || typeof data !== "object") {
+    throw new AppError("Invalid product data", 400);
+  }
+  const name = typeof data.name === "string" ? data.name.trim() : "";
+  if (!name || name.length < 2) {
+    throw new AppError("Product name is required (minimum 2 characters)", 400);
+  }
+
+  const basePrice = Number(data.basePrice);
+  if (isNaN(basePrice) || basePrice <= 0) {
+    throw new AppError("A valid regular price greater than 0 is required", 400);
+  }
+
+  let discountedPrice: number | undefined;
+  if (
+    data.discountedPrice !== undefined &&
+    data.discountedPrice !== null &&
+    data.discountedPrice !== ""
+  ) {
+    const parsed = Number(data.discountedPrice);
+    if (isNaN(parsed)) {
+      throw new AppError("Discounted price must be a valid number", 400);
+    }
+    if (parsed < 0) {
+      throw new AppError("Discounted price cannot be negative", 400);
+    }
+    if (parsed === 0) {
+      // 0 means no discount -> store as NULL in database
+      discountedPrice = undefined;
+    } else {
+      if (parsed >= basePrice) {
+        throw new AppError(
+          `Discounted price (${parsed}) must be strictly less than regular price (${basePrice})`,
+          400
+        );
+      }
+      discountedPrice = parsed;
+    }
+  }
+
+  let costPrice: number | undefined;
+  if (data.costPrice !== undefined && data.costPrice !== null && data.costPrice !== "") {
+    costPrice = Number(data.costPrice);
+  }
+
+  const availableStock = data.availableStock !== undefined && data.availableStock !== null
+    ? Math.max(0, parseInt(String(data.availableStock), 10) || 0)
+    : 0;
+
+  const lowStockThreshold = data.lowStockThreshold !== undefined && data.lowStockThreshold !== null
+    ? Math.max(0, parseInt(String(data.lowStockThreshold), 10) || 5)
+    : 5;
+
+  let shippingWeight: number | undefined;
+  if (data.shippingWeight !== undefined && data.shippingWeight !== null && data.shippingWeight !== "") {
+    const rawWeight = String(data.shippingWeight).replace(/[^0-9.]/g, "");
+    const parsedWeight = parseFloat(rawWeight);
+    if (!isNaN(parsedWeight) && parsedWeight > 0) {
+      shippingWeight = parsedWeight;
+    }
+  }
+
+  const status = data.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
+  const isFeatured = Boolean(data.isFeatured);
+
+  const imageUrls = Array.isArray(data.imageUrls)
+    ? data.imageUrls.filter((u: any) => typeof u === "string" && u.trim().length > 0)
+    : [];
+
+  return {
+    name,
+    sku: typeof data.sku === "string" ? data.sku.trim() : undefined,
+    brand: typeof data.brand === "string" ? data.brand.trim() : undefined,
+    description: typeof data.description === "string" ? data.description.trim() : undefined,
+    shortDescription: typeof data.shortDescription === "string" ? data.shortDescription.trim() : undefined,
+    basePrice,
+    discountedPrice,
+    costPrice,
+    availableStock,
+    lowStockThreshold,
+    status,
+    isFeatured,
+    categoryId: typeof data.categoryId === "string" && data.categoryId.trim().length > 0 ? data.categoryId.trim() : undefined,
+    shippingWeight,
+    packageDimensions: typeof data.packageDimensions === "string" ? data.packageDimensions.trim() : undefined,
+    specifications: typeof data.specifications === "object" && data.specifications !== null ? data.specifications : undefined,
+    imageUrls,
+  };
+}
