@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/pet_image_validation_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../pets/presentation/providers/pets_activation_provider.dart';
 
@@ -32,6 +33,11 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   String? _imageName;
   String? _uploadedImageUrl;
   bool _isUploadingImage = false;
+  bool _isValidatingImage = false;
+  PetImageValidationResult? _validationResult;
+  int _validationRequestId = 0;
+  String? _lastValidatedImagePath;
+  String? _lastValidatedAnimalType;
   bool _isPickingImage = false;
 
   String _selectedAnimalType = 'Dog';
@@ -110,7 +116,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   Future<void> _pickImage() async {
-    if (_isPickingImage) return;
+    if (_isUploadingImage || _isPickingImage) return;
     _isPickingImage = true;
     try {
       final picker = ImagePicker();
@@ -122,15 +128,19 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
       if (picked == null) return; // User cancelled gracefully
 
       final bytes = await picked.readAsBytes();
+      final file = !kIsWeb ? File(picked.path) : null;
 
       setState(() {
         _imageBytes = bytes;
         _imageName = picked.name;
-        if (!kIsWeb) {
-          _selectedImage = File(picked.path);
-        }
+        _selectedImage = file;
         _uploadedImageUrl = null;
+        _validationResult = null;
+        _lastValidatedImagePath = null;
+        _lastValidatedAnimalType = null;
       });
+
+      await _validateCurrentImage();
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,6 +155,46 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
     } finally {
       _isPickingImage = false;
     }
+  }
+
+  Future<void> _validateCurrentImage() async {
+    if (_selectedImage == null && _imageBytes == null) return;
+
+    final currentKey = _selectedImage?.path ??
+        (_imageBytes != null
+            ? 'web:${_imageName ?? ''}:${_imageBytes!.length}'
+            : null);
+    if (currentKey != null &&
+        _lastValidatedImagePath == currentKey &&
+        _lastValidatedAnimalType == _selectedAnimalType &&
+        _validationResult != null) {
+      return;
+    }
+
+    final requestId = ++_validationRequestId;
+    final targetAnimalType = _selectedAnimalType;
+
+    setState(() {
+      _isValidatingImage = true;
+      _validationResult = null;
+    });
+
+    final result = await ref
+        .read(petImageValidationServiceProvider)
+        .validatePetImage(
+          imageFile: _selectedImage,
+          imageBytes: _imageBytes,
+          selectedAnimalType: targetAnimalType,
+        );
+
+    if (!mounted || requestId != _validationRequestId) return;
+
+    setState(() {
+      _isValidatingImage = false;
+      _validationResult = result;
+      _lastValidatedImagePath = currentKey;
+      _lastValidatedAnimalType = targetAnimalType;
+    });
   }
 
   Future<void> _pickDateOfBirth() async {
@@ -200,11 +250,16 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   void _resetFormForNextPet() {
+    _validationRequestId++;
     setState(() {
       _selectedImage = null;
       _imageBytes = null;
       _imageName = null;
       _uploadedImageUrl = null;
+      _isValidatingImage = false;
+      _validationResult = null;
+      _lastValidatedImagePath = null;
+      _lastValidatedAnimalType = null;
       _nameController.clear();
       _customBreedController.clear();
       _colorController.clear();
@@ -229,6 +284,37 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a photo for your pet.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_isValidatingImage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait while we finish checking your pet\'s photo.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    if (_uploadedImageUrl == null &&
+        (_validationResult == null ||
+            _validationResult!.selectedAnimalType != _selectedAnimalType)) {
+      await _validateCurrentImage();
+      if (!mounted) return;
+    }
+
+    if (_uploadedImageUrl == null &&
+        (_validationResult == null || !_validationResult!.isValid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _validationResult?.message ??
+                'Please upload a clear photo of your $_selectedAnimalType.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -529,6 +615,33 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                     ),
                   ),
                 ),
+                if (_isValidatingImage) ...[
+                  const SizedBox(height: 12),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Checking your pet\'s photo...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (_validationResult != null) ...[
+                  const SizedBox(height: 12),
+                  _buildValidationFeedbackBanner(_validationResult!),
+                ],
                 const SizedBox(height: 24),
 
                 // Pet Name (Required)
@@ -562,11 +675,17 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                     return DropdownMenuItem(value: type, child: Text(type));
                   }).toList(),
                   onChanged: (val) {
-                    if (val != null) {
+                    if (val != null && val != _selectedAnimalType) {
                       setState(() {
                         _selectedAnimalType = val;
                         _updateBreedListForAnimal(val);
+                        _uploadedImageUrl = null;
+                        _validationResult = null;
+                        _lastValidatedAnimalType = null;
                       });
+                      if (_selectedImage != null || _imageBytes != null) {
+                        _validateCurrentImage();
+                      }
                     }
                   },
                 ),
@@ -802,7 +921,9 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
 
                 // Save Pet Button
                 ElevatedButton(
-                  onPressed: (authState.isLoading || _isUploadingImage)
+                  onPressed: (authState.isLoading ||
+                          _isUploadingImage ||
+                          _isValidatingImage)
                       ? null
                       : _savePet,
                   child: (authState.isLoading || _isUploadingImage)
@@ -816,7 +937,11 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
                             ),
                           ),
                         )
-                      : const Text('Save Pet Profile'),
+                      : Text(
+                          _isValidatingImage
+                              ? 'Checking Photo...'
+                              : 'Save Pet Profile',
+                        ),
                 ),
                 const SizedBox(height: 16),
 
@@ -848,6 +973,103 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildValidationFeedbackBanner(PetImageValidationResult result) {
+    if (result.isValid) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.success.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppColors.success.withValues(alpha: 0.30),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 16,
+              color: AppColors.success,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                result.message,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.success,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  size: 17,
+                  color: AppColors.error,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: _isUploadingImage ? null : _pickImage,
+              child: const Text(
+                'Choose Another Photo',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.terracotta,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

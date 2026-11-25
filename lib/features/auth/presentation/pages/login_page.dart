@@ -69,12 +69,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cream,
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Reset Password',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
             color: AppColors.textPrimary,
           ),
         ),
@@ -83,16 +84,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Enter your email address to receive password reset instructions.',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              'Enter your email address to receive password reset instructions',
+              style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: resetEmailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
-                labelText: 'Email Address',
-                prefixIcon: Icon(Icons.email_outlined),
+                labelText: 'Email address',
+                prefixIcon: Icon(Icons.email_outlined, size: 20),
               ),
             ),
           ],
@@ -107,8 +108,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              minimumSize: const Size(100, 42),
+              minimumSize: const Size(96, 42),
               backgroundColor: AppColors.primary,
+              elevation: 0,
             ),
             onPressed: () async {
               final email = resetEmailController.text.trim();
@@ -121,7 +123,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Password reset link sent! Check your inbox.',
+                        'Password reset instructions sent. Please check your inbox',
                       ),
                       backgroundColor: AppColors.success,
                     ),
@@ -145,72 +147,86 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // App Icon / Logo
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.pets,
-                        size: 42,
+                  // App Icon Mark
+                  Center(
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
                         color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.primaryDark.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.pets,
+                          size: 26,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   const Text(
                     'Welcome to PetMate',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
-                    'Your all-in-one companion for pet care and mating connections',
+                    'Pet care and companion connections across Nepal',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
                   // Error Banner
                   if (authState.errorMessage != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: AppColors.error.withValues(alpha: 0.3),
+                          color: AppColors.error.withValues(alpha: 0.25),
                         ),
                       ),
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.error_outline,
+                            Icons.error_outline_rounded,
                             color: AppColors.error,
-                            size: 20,
+                            size: 18,
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               authState.errorMessage!,
@@ -223,7 +239,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                   ],
 
                   // Email Field
@@ -234,6 +250,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       labelText: 'Email address',
                       prefixIcon: Icon(
                         Icons.email_outlined,
+                        size: 20,
                         color: AppColors.primary,
                       ),
                     ),
@@ -247,7 +264,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   // Password Field
                   TextFormField(
@@ -257,6 +274,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       labelText: 'Password',
                       prefixIcon: const Icon(
                         Icons.lock_outline,
+                        size: 20,
                         color: AppColors.primary,
                       ),
                       suffixIcon: IconButton(
@@ -264,6 +282,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           _obscurePassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
+                          size: 20,
                           color: AppColors.textSecondary,
                         ),
                         onPressed: () {
@@ -303,10 +322,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: authState.isLoading ? null : _submitLogin,
                     child: authState.isLoading
                         ? const SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 20,
+                            height: 20,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
+                              strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 Colors.white,
                               ),
@@ -318,17 +337,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                   // Divider OR
                   Row(
-                    children: [
+                    children: const [
                       Expanded(
                         child: Divider(color: AppColors.border, thickness: 1),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          'OR',
+                          'or',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                             color: AppColors.textMuted,
                           ),
                         ),
@@ -350,14 +369,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: authState.isLoading ? null : _submitGoogleLogin,
                     icon: Image.network(
                       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       errorBuilder: (_, _, _) =>
-                          const Icon(Icons.g_mobiledata, size: 24),
+                          const Icon(Icons.g_mobiledata, size: 22),
                     ),
                     label: const Text('Continue with Google'),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
                   // Don't have an account? Create one
                   Row(
@@ -367,7 +386,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         "Don't have an account? ",
                         style: TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 14,
+                          fontSize: 13.5,
                         ),
                       ),
                       GestureDetector(
@@ -376,38 +395,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           'Create one',
                           style: TextStyle(
                             color: AppColors.terracotta,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Center(
-                    child: OutlinedButton.icon(
+                    child: TextButton.icon(
                       onPressed: () => context.go('/seller/register'),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.terracotta),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 11,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       icon: const Icon(
-                        Icons.storefront_rounded,
-                        size: 18,
-                        color: AppColors.terracotta,
+                        Icons.storefront_outlined,
+                        size: 16,
+                        color: AppColors.textSecondary,
                       ),
                       label: const Text(
                         'Register as Seller',
                         style: TextStyle(
-                          color: AppColors.terracotta,
+                          color: AppColors.textSecondary,
                           fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),

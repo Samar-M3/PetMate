@@ -539,30 +539,30 @@ class ChatsPage extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: AppColors.primary.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.chat_bubble_outline_rounded,
-                size: 40,
+                size: 32,
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             const Text(
               'No Matches Yet',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'When you and another pet parent swipe right on each other or accept a playdate request, you\'ll be matched and your conversations will appear here!',
+              'When you and another pet parent match or accept a playdate request, your conversations will appear here',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
