@@ -77,14 +77,88 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
     try {
       await repo.getMatchChat(widget.match.matchId);
+      final myUid = ref.read(currentFirebaseUidProvider);
+      repo.clearReceiptPermissionError(widget.match.matchId, myUid);
     } catch (_) {
       // Backend may be offline or match already active
     }
 
     if (!mounted) return;
 
-    // Receipt writes are driven by the live conversation and message listeners
-    // after participant membership has been confirmed.
+    _syncReadAndDeliveredState();
+  }
+
+  void _syncReadAndDeliveredState({
+    FirestoreConversation? conversation,
+    List<FirestoreMessage>? messages,
+  }) {
+    if (!mounted) return;
+    final myUid = ref.read(currentFirebaseUidProvider);
+    if (myUid.isEmpty) return;
+
+    final conv =
+        conversation ??
+        ref.read(singleConversationProvider(widget.match.matchId)).value;
+    if (conv == null ||
+        conv.status != 'ACTIVE' ||
+        !conv.participantUids.contains(myUid)) {
+      return;
+    }
+
+    final repo = ref.read(chatRepositoryProvider);
+
+    // 1. Advance delivery watermark if needed
+    final lastMsgAt = conv.lastMessageAt;
+    final myDelivered = conv.deliveredAtFor(myUid);
+    if (lastMsgAt != null &&
+        conv.lastMessageSenderUid != null &&
+        conv.lastMessageSenderUid != myUid &&
+        (myDelivered == null || lastMsgAt.isAfter(myDelivered)) &&
+        _lastMarkedDeliveredAt != lastMsgAt) {
+      repo
+          .markDelivered(widget.match.matchId, myUid, lastMessageAt: lastMsgAt)
+          .then((allowed) {
+            if (allowed && mounted) _lastMarkedDeliveredAt = lastMsgAt;
+          });
+    }
+
+    // 2. Mark conversation as read & seen when user is viewing it
+    final msgs =
+        messages ??
+        _currentMessages ??
+        ref
+            .read(
+              messagesStreamProvider((
+                matchId: widget.match.matchId,
+                limit: _messageLimit,
+              )),
+            )
+            .value;
+
+    final hasUnread = conv.unreadFor(myUid) > 0;
+    final latestMsgId = (msgs != null && msgs.isNotEmpty)
+        ? msgs.first.id
+        : (hasUnread
+              ? 'unread_${lastMsgAt?.millisecondsSinceEpoch ?? 0}'
+              : null);
+
+    if (latestMsgId == null) return;
+    if (!hasUnread && _lastMarkedReadMessageId == latestMsgId) return;
+
+    final readReceipts = ref.read(readReceiptsSettingProvider);
+    repo
+        .markSeenAndRead(
+          widget.match.matchId,
+          myUid,
+          latestMessageId: latestMsgId,
+          includeSeenReceipt: readReceipts,
+          force: hasUnread,
+        )
+        .then((allowed) {
+          if (allowed && mounted) {
+            _lastMarkedReadMessageId = latestMsgId;
+          }
+        });
   }
 
   void _onScroll() {
@@ -355,7 +429,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       singleConversationProvider(widget.match.matchId),
     );
     final conv = convAsync.value;
-    final otherUid = conv?.otherUid(myUid) ?? '';
+    final otherUid =
+        conv?.otherUid(myUid) ?? widget.match.otherFirebaseUid ?? '';
 
     final replyTo = _replyingTo != null
         ? ReplyToData(
@@ -633,31 +708,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             });
           }
 
-          if (myUid.isNotEmpty && msgs.isNotEmpty) {
-            final conv = convAsync.value;
-            // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
-            if (conv != null &&
-                conv.status == 'ACTIVE' &&
-                conv.participantUids.contains(myUid)) {
-              final latestMsgId = msgs.first.id;
-              if (_lastMarkedReadMessageId != latestMsgId) {
-                final readReceipts = ref.read(readReceiptsSettingProvider);
-                ref
-                    .read(chatRepositoryProvider)
-                    .markSeenAndRead(
-                      match.matchId,
-                      myUid,
-                      latestMessageId: latestMsgId,
-                      includeSeenReceipt: readReceipts,
-                    )
-                    .then((allowed) {
-                      if (allowed && mounted) {
-                        _lastMarkedReadMessageId = latestMsgId;
-                      }
-                    });
-              }
-            }
-          }
+          _syncReadAndDeliveredState(messages: msgs);
         } else if (next.hasError && _isLoadingOlder) {
           if (mounted) {
             setState(() => _isLoadingOlder = false);
@@ -666,27 +717,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       },
     );
 
-    // Mark delivery watermark when viewing conversation
+    // Mark delivery and read/seen watermarks when conversation stream updates
     ref.listen(singleConversationProvider(match.matchId), (_, next) {
       final conv = next.value;
-      if (conv != null && myUid.isNotEmpty && conv.status == 'ACTIVE') {
-        // If caller is not in participantUids, do NOT attempt writes (avoids PERMISSION_DENIED loop)
-        if (!conv.participantUids.contains(myUid)) return;
-
-        final lastMsgAt = conv.lastMessageAt;
-        final myDelivered = conv.deliveredAtFor(myUid);
-        if (lastMsgAt != null &&
-              conv.lastMessageSenderUid != null &&
-            conv.lastMessageSenderUid != myUid &&
-            (myDelivered == null || lastMsgAt.isAfter(myDelivered)) &&
-            _lastMarkedDeliveredAt != lastMsgAt) {
-          ref
-              .read(chatRepositoryProvider)
-              .markDelivered(match.matchId, myUid, lastMessageAt: lastMsgAt)
-              .then((allowed) {
-                if (allowed && mounted) _lastMarkedDeliveredAt = lastMsgAt;
-              });
-        }
+      if (conv != null) {
+        _syncReadAndDeliveredState(conversation: conv);
       }
     });
 

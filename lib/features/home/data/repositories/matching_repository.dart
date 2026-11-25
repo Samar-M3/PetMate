@@ -76,6 +76,13 @@ class MatchingRepository {
     return {'status': 'recorded'};
   }
 
+  Future<void> resetPassSwipes({required String petId}) async {
+    await _apiClient.post(
+      '/swipes/reset-passes',
+      body: {'petId': petId},
+    );
+  }
+
   Future<IncomingRequestsResult> getIncomingRequests({
     String? cursor,
     int limit = 20,

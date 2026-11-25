@@ -21,6 +21,10 @@ service cloud.firestore {
         );
     }
 
+    match /users/{uid}/notifications/{notificationId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+    }
+
     match /conversations/{conversationId} {
       // Read: allowed only if caller is in participantUids
       allow read: if isAuthenticated() &&

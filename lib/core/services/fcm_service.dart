@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_colors.dart';
 import '../router/app_router.dart';
+import 'in_app_notification_service.dart';
 import 'notification_repository.dart';
 import 'storage_service.dart';
 
@@ -57,6 +58,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {}
+
+  await persistBackgroundRemoteMessage(message);
 
   // Never log tokens or sensitive message contents!
   if (kDebugMode) {
@@ -172,6 +175,9 @@ class FcmService {
     // 4. Background-to-foreground tap handler
     _subscriptions.add(
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        _ref
+            .read(inAppNotificationsProvider.notifier)
+            .saveFromRemoteMessage(message, isRead: true);
         final route = message.data['route'] as String?;
         if (route != null) {
           handleNotificationTap(route);
@@ -190,6 +196,9 @@ class FcmService {
     // 6. Check for cold start initial message
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
+      _ref
+          .read(inAppNotificationsProvider.notifier)
+          .saveFromRemoteMessage(initialMessage, isRead: true);
       final route = initialMessage.data['route'] as String?;
       if (route != null) {
         _ref.read(pendingNotificationRouteProvider.notifier).setRoute(route);
@@ -203,11 +212,19 @@ class FcmService {
     final conversationId = message.data['conversationId'] as String?;
     final activeConv = _ref.read(activeConversationProvider);
 
-    // Suppress notification if currently in the conversation
-    if (category == 'messages' &&
+    final isViewingActiveChat =
+        category == 'messages' &&
         conversationId != null &&
         activeConv != null &&
-        conversationId == activeConv) {
+        conversationId == activeConv;
+
+    // Persist in-app notification (marked read immediately if user is already in that chat)
+    _ref
+        .read(inAppNotificationsProvider.notifier)
+        .saveFromRemoteMessage(message, isRead: isViewingActiveChat);
+
+    // Suppress OS banner notification if currently in the conversation
+    if (isViewingActiveChat) {
       if (kDebugMode) {
         debugPrint(
           '[FCM Foreground] Suppressed push for active chat: $conversationId',

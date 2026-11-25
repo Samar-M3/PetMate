@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'pet_profile_card.dart';
 
@@ -27,6 +26,12 @@ class SwipeableCardDeck extends StatefulWidget {
 
 class SwipeableCardDeckState extends State<SwipeableCardDeck>
     with SingleTickerProviderStateMixin {
+  static const Color _deepTeal = Color(0xFF0F5C57);
+  static const Color _sageGreen = Color(0xFFE8F0EA);
+  static const Color _warmCream = Color(0xFFFAF7F0);
+  static const Color _softCoral = Color(0xFFE16F52);
+  static const Color _darkText = Color(0xFF293A37);
+
   late AnimationController _animController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _rotateAnimation;
@@ -42,7 +47,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 240),
+      duration: const Duration(milliseconds: 260),
     );
 
     _animController.addListener(() {
@@ -74,12 +79,12 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void swipeRightProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(500, 20), 0.28);
+    _animateCardOut(const Offset(520, 24), 0.26);
   }
 
   void swipeLeftProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(-500, 20), -0.28);
+    _animateCardOut(const Offset(-520, 24), -0.26);
   }
 
   void _animateCardOut(Offset targetOffset, double targetRotation) {
@@ -102,7 +107,6 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void _animateCardBack() {
     _isAnimatingOut = false;
-    // Calm ease-out return without springy bounce
     _slideAnimation = Tween<Offset>(begin: _dragOffset, end: Offset.zero)
         .animate(
           CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
@@ -126,13 +130,13 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     if (_isAnimatingOut) return;
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final threshold = screenWidth * 0.30;
+    final threshold = screenWidth * 0.28;
     final velocityX = details.velocity.pixelsPerSecond.dx;
 
-    if (_dragOffset.dx > threshold || velocityX > 750) {
-      _animateCardOut(Offset(screenWidth * 1.4, _dragOffset.dy), 0.26);
-    } else if (_dragOffset.dx < -threshold || velocityX < -750) {
-      _animateCardOut(Offset(-screenWidth * 1.4, _dragOffset.dy), -0.26);
+    if (_dragOffset.dx > threshold || velocityX > 720) {
+      _animateCardOut(Offset(screenWidth * 1.45, _dragOffset.dy), 0.25);
+    } else if (_dragOffset.dx < -threshold || velocityX < -720) {
+      _animateCardOut(Offset(-screenWidth * 1.45, _dragOffset.dy), -0.25);
     } else {
       _animateCardBack();
     }
@@ -154,183 +158,141 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     final thirdPet = (currentIndex + 2 < pets.length)
         ? pets[currentIndex + 2]
         : null;
-    final fourthPet = (currentIndex + 3 < pets.length)
-        ? pets[currentIndex + 3]
-        : null;
 
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // 0. Base card deck background
-            if (nextPet == null)
-              Container(
-                width: constraints.maxWidth * 0.96,
-                height: constraints.maxHeight * 0.96,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: AppColors.border,
-                    width: 1.0,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.pets_rounded,
-                    size: 48,
-                    color: AppColors.textMuted.withValues(alpha: 0.3),
-                  ),
+    // Reserve top & upper-right space so Instagram-style stacked edges peek cleanly
+    return Padding(
+      padding: const EdgeInsets.only(top: 18, right: 14),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // 1. Third Card in Stack (offset ~18px up-right, scale 0.92 -> 0.96)
+          if (thirdPet != null)
+            _buildStackedBackgroundCard(
+              key: ValueKey('stack-3-${thirdPet.id}'),
+              screenWidth: screenWidth,
+              baseScale: 0.92,
+              targetScale: 0.96,
+              baseOffset: const Offset(18, -18),
+              targetOffset: const Offset(9, -9),
+              baseOpacity: 0.84,
+              targetOpacity: 0.92,
+              card: RepaintBoundary(
+                child: PetProfileCard(
+                  pet: thirdPet,
+                  swipeProgress: 0.0,
+                  showActionButtons: false,
+                  enableHero: false,
                 ),
               ),
+            ),
 
-            // 1. Fourth Card in Stack
-            if (fourthPet != null)
-              _buildDeckBackground(
-                screenWidth: screenWidth,
-                card: RepaintBoundary(
-                  child: PetProfileCard(pet: fourthPet, swipeProgress: 0.0),
+          // 2. Second Card in Stack (offset ~9px up-right, scale 0.96 -> 1.0)
+          if (nextPet != null)
+            _buildStackedBackgroundCard(
+              key: ValueKey('stack-2-${nextPet.id}'),
+              screenWidth: screenWidth,
+              baseScale: 0.96,
+              targetScale: 1.0,
+              baseOffset: const Offset(9, -9),
+              targetOffset: Offset.zero,
+              baseOpacity: 0.94,
+              targetOpacity: 1.0,
+              card: RepaintBoundary(
+                child: PetProfileCard(
+                  pet: nextPet,
+                  swipeProgress: 0.0,
+                  showActionButtons: false,
+                  enableHero: false,
                 ),
-                scale: 0.88,
-                scaleRange: 0.05,
-                horizontalOffset: 16,
-                verticalOffset: 22,
-                opacity: 0.40,
-                opacityRange: 0.25,
-                shadowAlpha: 0.03,
-                shadowBlur: 10,
-                shadowOffset: const Offset(0, 6),
               ),
+            ),
 
-            // 2. Third Card in Stack
-            if (thirdPet != null)
-              _buildDeckBackground(
-                screenWidth: screenWidth,
-                card: RepaintBoundary(
-                  child: PetProfileCard(pet: thirdPet, swipeProgress: 0.0),
-                ),
-                scale: 0.92,
-                scaleRange: 0.04,
-                horizontalOffset: 10,
-                verticalOffset: 15,
-                opacity: 0.55,
-                opacityRange: 0.25,
-                shadowAlpha: 0.04,
-                shadowBlur: 12,
-                shadowOffset: const Offset(0, 8),
-              ),
-
-            // 3. Next Card in Stack
-            if (nextPet != null)
-              _buildDeckBackground(
-                screenWidth: screenWidth,
-                card: RepaintBoundary(
-                  child: PetProfileCard(pet: nextPet, swipeProgress: 0.0),
-                ),
-                scale: 0.95,
-                scaleRange: 0.05,
-                horizontalOffset: 6,
-                verticalOffset: 8,
-                opacity: 0.80,
-                opacityRange: 0.20,
-                shadowAlpha: 0.06,
-                shadowBlur: 14,
-                shadowOffset: const Offset(0, 6),
-              ),
-
-            // 4. Active Front Card with dynamic drag feedback
-            ValueListenableBuilder<Offset>(
-              valueListenable: _dragOffsetListenable,
-              builder: (context, dragOffset, _) {
-                final swipeRatio = (dragOffset.dx / (screenWidth * 0.35)).clamp(
-                  -1.0,
-                  1.0,
-                );
-                return GestureDetector(
-                  onPanUpdate: _onPanUpdate,
-                  onPanEnd: _onPanEnd,
-                  child: Transform.translate(
-                    offset: dragOffset,
-                    child: Transform.rotate(
-                      angle: (_isAnimatingOut)
-                          ? _rotateAnimation.value
-                          : (dragOffset.dx / 1000) * 0.55,
-                      child: RepaintBoundary(
-                        child: PetProfileCard(
-                          pet: currentPet,
-                          swipeProgress: swipeRatio,
-                          onCardTap: () {
-                            if (!_isAnimatingOut && _dragOffset.distance < 8) {
-                              context.push('/pet/${currentPet.id}');
-                            }
-                          },
-                          onOwnerTap: () {
-                            if (!_isAnimatingOut &&
-                                _dragOffset.distance < 8 &&
-                                currentPet.ownerId != null &&
-                                currentPet.ownerId!.isNotEmpty) {
-                              context.push('/owner/${currentPet.ownerId}');
-                            }
-                          },
-                        ),
+          // 3. Active Front Card with drag physics and embedded action buttons
+          ValueListenableBuilder<Offset>(
+            valueListenable: _dragOffsetListenable,
+            builder: (context, dragOffset, _) {
+              final swipeRatio = (dragOffset.dx / (screenWidth * 0.35)).clamp(
+                -1.0,
+                1.0,
+              );
+              return GestureDetector(
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                child: Transform.translate(
+                  offset: dragOffset,
+                  child: Transform.rotate(
+                    angle: (_isAnimatingOut)
+                        ? _rotateAnimation.value
+                        : (dragOffset.dx / 1000) * 0.52,
+                    child: RepaintBoundary(
+                      child: PetProfileCard(
+                        key: ValueKey('active-${currentPet.id}'),
+                        pet: currentPet,
+                        swipeProgress: swipeRatio,
+                        showActionButtons: true,
+                        enableHero: true,
+                        onPassTap: swipeLeftProgrammatic,
+                        onLikeTap: swipeRightProgrammatic,
+                        onCardTap: () {
+                          if (!_isAnimatingOut && _dragOffset.distance < 8) {
+                            context.push('/pet/${currentPet.id}');
+                          }
+                        },
+                        onOwnerTap: () {
+                          if (!_isAnimatingOut &&
+                              _dragOffset.distance < 8 &&
+                              currentPet.ownerId != null &&
+                              currentPet.ownerId!.isNotEmpty) {
+                            context.push('/owner/${currentPet.ownerId}');
+                          }
+                        },
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ],
-        );
-      },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDeckBackground({
+  Widget _buildStackedBackgroundCard({
+    required Key key,
     required double screenWidth,
+    required double baseScale,
+    required double targetScale,
+    required Offset baseOffset,
+    required Offset targetOffset,
+    required double baseOpacity,
+    required double targetOpacity,
     required Widget card,
-    required double scale,
-    required double scaleRange,
-    required double horizontalOffset,
-    required double verticalOffset,
-    required double opacity,
-    required double opacityRange,
-    required double shadowAlpha,
-    required double shadowBlur,
-    required Offset shadowOffset,
   }) {
     return ValueListenableBuilder<Offset>(
+      key: key,
       valueListenable: _dragOffsetListenable,
       child: card,
       builder: (context, dragOffset, cardChild) {
-        final swipeRatio = (dragOffset.dx / (screenWidth * 0.35))
+        final t = (dragOffset.dx / (screenWidth * 0.35))
             .clamp(-1.0, 1.0)
             .abs();
+        final currentScale = baseScale + (targetScale - baseScale) * t;
+        final currentOffset = Offset.lerp(baseOffset, targetOffset, t)!;
+        final currentOpacity = baseOpacity + (targetOpacity - baseOpacity) * t;
+
         return IgnorePointer(
-          child: Transform.scale(
-            scale: scale + (scaleRange * swipeRatio),
-            child: Transform.translate(
-              offset: Offset(
-                horizontalOffset * (1.0 - swipeRatio),
-                verticalOffset * (1.0 - swipeRatio),
-              ),
+          child: Transform.translate(
+            offset: currentOffset,
+            child: Transform.scale(
+              scale: currentScale,
+              alignment: Alignment.topRight,
               child: Opacity(
-                opacity: opacity + (opacityRange * swipeRatio),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: shadowAlpha),
-                        blurRadius: shadowBlur,
-                        offset: shadowOffset,
-                      ),
-                    ],
-                  ),
-                  child: cardChild,
-                ),
+                opacity: currentOpacity,
+                child: cardChild,
               ),
             ),
           ),
@@ -343,17 +305,17 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     return Center(
       child: SingleChildScrollView(
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFE0E8E2)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: const Color(0xFF1A2926).withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -361,59 +323,116 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  size: 32,
-                  color: AppColors.primary,
+              // Layered botanical/pet illustration
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _sageGreen,
+                      ),
+                    ),
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _deepTeal.withValues(alpha: 0.12),
+                      ),
+                      child: const Icon(
+                        Icons.pets_rounded,
+                        size: 34,
+                        color: _deepTeal,
+                      ),
+                    ),
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _softCoral,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.favorite_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               const Text(
-                'All Caught Up',
+                "You've discovered all nearby pets!",
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  color: _darkText,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               const Text(
-                'You have reviewed all available pet profiles in your area for now',
+                'Check back soon for new furry friends in your area, or tap below to explore passed profiles again.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
-                  height: 1.4,
-                  color: AppColors.textSecondary,
+                  height: 1.45,
+                  color: Color(0xFF5D6E6A),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.terracotta,
+                  backgroundColor: _deepTeal,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 12,
+                    horizontal: 26,
+                    vertical: 14,
                   ),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: widget.onReset,
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+                icon: const Icon(Icons.refresh_rounded, size: 19),
                 label: const Text(
                   'Explore Again',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _warmCream,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Resets skipped profiles',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF7B8C87),
                   ),
                 ),
               ),

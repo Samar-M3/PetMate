@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-
 class PetMateBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -14,30 +12,39 @@ class PetMateBottomNavBar extends StatelessWidget {
     this.pendingRequestsCount = 0,
   });
 
+  static const Color _deepTeal = Color(0xFF0F5C57);
+  static const Color _sageGreen = Color(0xFFE8F0EA);
+  static const Color _softCoral = Color(0xFFE16F52);
+  static const Color _darkText = Color(0xFF293A37);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         border: const Border(
-          top: BorderSide(color: AppColors.border, width: 1.0),
+          top: BorderSide(color: Color(0xFFE4ECE6), width: 1.0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: const Color(0xFF1A2926).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(index: 0, icon: Icons.pets_outlined, activeIcon: Icons.pets, label: 'Discover'),
+              _buildNavItem(
+                index: 0,
+                icon: Icons.pets_outlined,
+                activeIcon: Icons.pets_rounded,
+                label: 'Discover',
+              ),
               _buildNavItem(
                 index: 1,
                 icon: Icons.chat_bubble_outline_rounded,
@@ -78,49 +85,61 @@ class PetMateBottomNavBar extends StatelessWidget {
     int badgeCount = 0,
   }) {
     final isSelected = selectedIndex == index;
-    final color = isSelected ? AppColors.terracotta : AppColors.textSecondary;
+    final iconColor = isSelected ? _deepTeal : const Color(0xFF6B7B76);
+    final labelColor = isSelected ? _darkText : const Color(0xFF6B7B76);
 
-    return InkWell(
-      onTap: () => onItemSelected(index),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Badge(
-              isLabelVisible: badgeCount > 0,
-              label: Text(
-                badgeCount > 99 ? '99+' : '$badgeCount',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+    return Expanded(
+      child: InkWell(
+        onTap: () => onItemSelected(index),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
+                isLabelVisible: badgeCount > 0,
+                backgroundColor: _softCoral,
+                label: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              backgroundColor: AppColors.terracotta,
-              child: SizedBox(
-                height: 28,
-                child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _sageGreen : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   child: Icon(
                     isSelected ? activeIcon : icon,
-                    size: 22,
-                    color: color,
+                    size: 21,
+                    color: iconColor,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: color,
-                letterSpacing: -0.1,
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: labelColor,
+                  letterSpacing: -0.1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

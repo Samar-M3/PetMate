@@ -83,22 +83,26 @@ class AppNetworkImage extends StatelessWidget {
       return _buildFallback();
     }
 
-    // Auto-calculate transformation sizes from widget width/height if not explicitly set
+    // Auto-calculate transformation sizes from finite widget width/height if not explicitly set
+    final finiteWidth = (width != null && width!.isFinite) ? width : null;
+    final finiteHeight = (height != null && height!.isFinite) ? height : null;
     final tWidth =
-        transformationWidth ?? (width != null ? (width! * 2).round() : null);
+        transformationWidth ??
+        (finiteWidth != null ? (finiteWidth * 2).round() : null);
     final tHeight =
-        transformationHeight ?? (height != null ? (height! * 2).round() : null);
+        transformationHeight ??
+        (finiteHeight != null ? (finiteHeight * 2).round() : null);
     final processedUrl = buildTransformedCloudinaryUrl(
       imageUrl!.trim(),
       width: tWidth,
       height: tHeight,
     );
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final decodeWidth = width != null
-        ? (width! * devicePixelRatio).round()
+    final decodeWidth = finiteWidth != null
+        ? (finiteWidth * devicePixelRatio).round()
         : transformationWidth;
-    final decodeHeight = height != null
-        ? (height! * devicePixelRatio).round()
+    final decodeHeight = finiteHeight != null
+        ? (finiteHeight * devicePixelRatio).round()
         : transformationHeight;
 
     Widget imageWidget = CachedNetworkImage(
@@ -158,7 +162,9 @@ class AppNetworkImage extends StatelessWidget {
             ? Text(
                 fallbackInitials!.trim()[0].toUpperCase(),
                 style: TextStyle(
-                  fontSize: (height != null ? height! * 0.42 : 16.0)
+                  fontSize: (height != null && height!.isFinite
+                          ? height! * 0.42
+                          : 16.0)
                       .clamp(11.0, 28.0)
                       .toDouble(),
                   fontWeight: FontWeight.bold,
@@ -167,7 +173,9 @@ class AppNetworkImage extends StatelessWidget {
               )
             : Icon(
                 fallbackIcon,
-                size: (height != null ? height! * 0.45 : 24.0)
+                size: (height != null && height!.isFinite
+                        ? height! * 0.45
+                        : 24.0)
                     .clamp(16.0, 48.0)
                     .toDouble(),
                 color: AppColors.primaryLight,

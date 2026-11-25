@@ -242,20 +242,27 @@ class ChatRepository {
     );
   }
 
+  void clearReceiptPermissionError(String conversationId, String myUid) {
+    if (conversationId.isEmpty || myUid.isEmpty) return;
+    _permissionDeniedReceipts.remove('$conversationId:$myUid');
+  }
+
   // 10c. Mark Seen and Read
   //
-  // Read and seen watermarks advance once for each newly observed message.
+  // Read and seen watermarks advance once for each newly observed message,
+  // or whenever forced (e.g. unread count is still > 0 on the conversation).
   Future<bool> markSeenAndRead(
     String conversationId,
     String myUid, {
     required String latestMessageId,
     bool includeSeenReceipt = true,
+    bool force = false,
   }) async {
     if (conversationId.isEmpty || myUid.isEmpty || latestMessageId.isEmpty) {
       return false;
     }
     final cacheKey = '$conversationId:$myUid';
-    if (_seenThrough[cacheKey] == latestMessageId) return true;
+    if (!force && _seenThrough[cacheKey] == latestMessageId) return true;
     if (_permissionDeniedReceipts.contains(cacheKey)) return false;
 
     return _writeReceipt(

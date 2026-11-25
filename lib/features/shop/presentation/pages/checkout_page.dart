@@ -72,6 +72,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
           child: SingleChildScrollView(
             child: Form(
               key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,

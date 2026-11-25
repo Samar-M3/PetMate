@@ -5,12 +5,12 @@ import 'package:petmatee/features/care_events/screens/events_home_screen.dart';
 import 'package:petmatee/features/care_events/screens/vet_appts_home_screen.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/in_app_notification_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/discovery_provider.dart';
 import '../providers/requests_provider.dart';
-import '../widgets/action_buttons.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
 import '../widgets/swipeable_card_deck.dart';
@@ -50,6 +50,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (state == AppLifecycleState.resumed) {
       ref.read(requestsProvider.notifier).loadRequests(refresh: true);
       ref.read(authStateProvider.notifier).refreshUserProfile();
+      ref.read(inAppNotificationsProvider.notifier).syncPendingOnResume();
     }
   }
 
@@ -97,7 +98,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final unreadChatsCount = ref.watch(unreadChatsCountProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: const Color(0xFFFAF7F0),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -106,69 +107,7 @@ class _HomePageState extends ConsumerState<HomePage>
             if (_selectedNavIndex != 3)
               HomeHeader(onProfileTap: () => context.push('/profile')),
 
-            // 2. Active Pet Switcher (if user has several pets)
-            if (userPets.length > 1 && _selectedNavIndex == 0)
-              Container(
-                height: 38,
-                margin: const EdgeInsets.only(bottom: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: userPets.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final pet = userPets[index];
-                    final isSelected = pet.id == discoveryState.activePetId;
-                    return InkWell(
-                      onTap: () => discoveryNotifier.setActivePet(pet.id),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.terracotta
-                                : AppColors.border,
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.pets,
-                              size: 13,
-                              color: isSelected
-                                  ? AppColors.terracotta
-                                  : AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              pet.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppColors.terracotta
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
+            // 2. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
             Expanded(
               child: IndexedStack(
                 index: _selectedNavIndex,
@@ -456,7 +395,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   ),
                 ),
                 onPressed: () {
-                  discoveryNotifier.resetDeck();
+                  discoveryNotifier.retryLoad();
                 },
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
                 label: const Text(
@@ -475,34 +414,16 @@ class _HomePageState extends ConsumerState<HomePage>
     }
 
     // State D: Normal deck with cards or empty deck state
-    return Column(
-      children: [
-        // Large Swipeable Card
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SwipeableCardDeck(
-              key: _deckKey,
-              pets: discoveryState.pets,
-              currentIndex: discoveryState.currentIndex,
-              onSwipeRight: () => discoveryNotifier.swipeRight(),
-              onSwipeLeft: () => discoveryNotifier.swipeLeft(),
-              onReset: () => discoveryNotifier.resetDeck(),
-            ),
-          ),
-        ),
-
-        // Two Action Buttons: Pass (X) and Like (Heart)
-        ActionButtons(
-          enabled: discoveryState.hasMore,
-          onPass: () {
-            _deckKey.currentState?.swipeLeftProgrammatic();
-          },
-          onLike: () {
-            _deckKey.currentState?.swipeRightProgrammatic();
-          },
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: SwipeableCardDeck(
+        key: _deckKey,
+        pets: discoveryState.pets,
+        currentIndex: discoveryState.currentIndex,
+        onSwipeRight: () => discoveryNotifier.swipeRight(),
+        onSwipeLeft: () => discoveryNotifier.swipeLeft(),
+        onReset: () => discoveryNotifier.resetDeck(),
+      ),
     );
   }
 }

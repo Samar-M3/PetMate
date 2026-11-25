@@ -249,6 +249,7 @@ export const getDeckFeed = async ({
       OR: [
         { imageUrl: { not: null } },
         { profilePictureUrl: { not: null } },
+        { images: { some: {} } },
       ],
     },
     take: effectiveLimit + 1,
@@ -302,13 +303,19 @@ export const getDeckFeed = async ({
   // 7. Format safe public fields ONLY (never return owner contact details or email/phone/UID)
   const items = candidatePets.map((p) => {
     const profile = p.user.profile;
-    const effectiveImageUrl = p.imageUrl || p.profilePictureUrl || "";
+    const mainGalleryImage =
+      p.images?.find((img) => img.isMain && img.imageUrl?.trim())?.imageUrl ||
+      p.images?.find((img) => img.imageUrl?.trim())?.imageUrl ||
+      "";
+    const effectiveImageUrl =
+      p.imageUrl?.trim() || p.profilePictureUrl?.trim() || mainGalleryImage || "";
     const allPhotos: string[] = [];
     if (effectiveImageUrl) allPhotos.push(effectiveImageUrl);
     if (p.images && p.images.length > 0) {
       for (const img of p.images) {
-        if (img.imageUrl && !allPhotos.includes(img.imageUrl)) {
-          allPhotos.push(img.imageUrl);
+        const trimmed = img.imageUrl?.trim();
+        if (trimmed && !allPhotos.includes(trimmed)) {
+          allPhotos.push(trimmed);
         }
       }
     }
@@ -660,6 +667,30 @@ export const undoLastPassSwipe = async ({
     success: true,
     message: "Last PASS swipe undone successfully",
     undoneTargetPetId: latestSwipe.targetPetId,
+  };
+};
+
+export const resetPassSwipes = async ({
+  userId,
+  petId,
+}: UndoSwipeParams) => {
+  const actingPet = await prisma.pet.findFirst({
+    where: { id: petId, userId },
+  });
+  if (!actingPet) {
+    throw new AppError("Acting pet not found or unauthorized", 404);
+  }
+
+  const deleted = await prisma.petSwipe.deleteMany({
+    where: {
+      swiperPetId: petId,
+      action: SwipeAction.PASS,
+    },
+  });
+
+  return {
+    success: true,
+    clearedCount: deleted.count,
   };
 };
 
