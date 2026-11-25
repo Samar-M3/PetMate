@@ -5,8 +5,9 @@ import 'package:petmatee/features/care_events/screens/vet_management/vet_admin_d
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../widgets/vet_first_login_password_dialog.dart';
 
-class VetShell extends ConsumerWidget {
+class VetShell extends ConsumerStatefulWidget {
   const VetShell({super.key});
 
   static Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
@@ -41,7 +42,38 @@ class VetShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VetShell> createState() => _VetShellState();
+}
+
+class _VetShellState extends ConsumerState<VetShell> {
+  bool _passwordDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showPasswordSetup());
+  }
+
+  Future<void> _showPasswordSetup() async {
+    if (!mounted || _passwordDialogShown) return;
+    if (ref.read(authStateProvider).user?.mustChangePassword != true) return;
+
+    _passwordDialogShown = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => VetFirstLoginPasswordDialog(
+        onSubmit: ref
+            .read(authStateProvider.notifier)
+            .completeInitialVeterinarianPassword,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mustChangePassword =
+        ref.watch(authStateProvider).user?.mustChangePassword ?? false;
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(
@@ -91,7 +123,9 @@ class VetShell extends ConsumerWidget {
           ),
         ],
       ),
-      body: const VetAdminDashboard(),
+      body: mustChangePassword
+          ? const SizedBox.expand()
+          : const VetAdminDashboard(),
     );
   }
 }

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../providers/admin_provider.dart';
+import '../theme/admin_colors.dart';
 import '../widgets/stat_card.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 class AdminDashboardTab extends ConsumerWidget {
   final VoidCallback onNavigateToUsers;
   final VoidCallback onNavigateToApplications;
   final VoidCallback onNavigateToEvents;
   final VoidCallback onNavigateToVets;
+  final VoidCallback onNavigateToAppointments;
   final void Function(String role)? onRoleTap;
 
   const AdminDashboardTab({
@@ -18,159 +20,169 @@ class AdminDashboardTab extends ConsumerWidget {
     required this.onNavigateToApplications,
     required this.onNavigateToEvents,
     required this.onNavigateToVets,
+    required this.onNavigateToAppointments,
     this.onRoleTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(adminStatsProvider);
+    final vetListCount = ref
+        .watch(careVetsProvider)
+        .maybeWhen(data: (vets) => vets.length, orElse: () => null);
 
     return statsAsync.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: CircularProgressIndicator(color: AdminColors.primary),
       ),
-      error: (err, _) => _ErrorView(
-        message: err.toString().replaceAll('Exception: ', ''),
-        onRetry: () => ref.read(adminStatsProvider.notifier).refresh(),
-      ),
+      error: (err, _) => _buildErrorView(ref, err.toString()),
       data: (stats) {
-        // Use the admin stats as the single source of truth for veterinarian count.
-        // This correctly counts all veterinarians from the Veterinarian table (not users with VETERINARIAN role).
-        final vetCount = stats.safeTotalVeterinarians;
+        final totalVets =
+            vetListCount ??
+            (stats.safeTotalVeterinarians > 0
+                ? stats.safeTotalVeterinarians
+                : (stats.usersByRole['VETERINARIAN'] ?? 0));
 
         return RefreshIndicator(
-          color: AppColors.primary,
+          color: AdminColors.primary,
           onRefresh: () async =>
               ref.read(adminStatsProvider.notifier).refresh(),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
+                constraints: const BoxConstraints(maxWidth: 1300),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Welcome Banner ──
-                    _WelcomeBanner(),
-
-                    const SizedBox(height: 20),
-
-                    // ── Stat Cards Grid (Responsive, Compact Height) ──
-                    const _SectionTitle('Key Platform Metrics'),
-                    const SizedBox(height: 12),
+                    // 1. Metric Stat Cards Responsive Grid
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final isWide = constraints.maxWidth >= 850;
-                        return GridView.builder(
-                          itemCount: 5,
+                        int crossAxisCount = 6;
+                        if (constraints.maxWidth < 640) {
+                          crossAxisCount = 2;
+                        } else if (constraints.maxWidth < 1000) {
+                          crossAxisCount = 3;
+                        }
+
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: isWide ? 5 : 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            mainAxisExtent: 105,
-                          ),
-                          itemBuilder: (context, index) {
-                            switch (index) {
-                              case 0:
-                                return StatCard(
-                                  title: 'Total Users',
-                                  value: stats.totalUsers.toString(),
-                                  icon: Icons.people_alt_rounded,
-                                  iconColor: AppColors.primaryDark,
-                                );
-                              case 1:
-                                return StatCard(
-                                  title: 'Total Pets',
-                                  value: stats.totalPets.toString(),
-                                  icon: Icons.pets_rounded,
-                                  iconColor: AppColors.terracotta,
-                                );
-                              case 2:
-                                return StatCard(
-                                  title: 'Total Events',
-                                  value: stats.safeTotalEvents.toString(),
-                                  icon: Icons.event_available_rounded,
-                                  iconColor: AppColors.info,
-                                  subtitle: 'Community care',
-                                );
-                              case 3:
-                                return StatCard(
-                                  title: 'Veterinarians',
-                                  value: vetCount.toString(),
-                                  icon: Icons.medical_services_rounded,
-                                  iconColor: AppColors.success,
-                                  subtitle: 'Trusted doctors',
-                                );
-                              default:
-                                return StatCard(
-                                  title: 'Pending Apps',
-                                  value: stats.pendingApplications.toString(),
-                                  icon: Icons.assignment_late_rounded,
-                                  iconColor: AppColors.warning,
-                                  subtitle: stats.pendingApplications > 0
-                                      ? 'Action required'
-                                      : 'Up to date',
-                                );
-                            }
-                          },
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                          childAspectRatio: constraints.maxWidth < 640
+                              ? 1.35
+                              : 1.5,
+                          children: [
+                            StatCard(
+                              title: 'Total Users',
+                              value: '${stats.totalUsers}',
+                              icon: Icons.people_outline_rounded,
+                              iconColor: AdminColors.primary,
+                              subtitle: 'Registered accounts',
+                              onTap: onNavigateToUsers,
+                            ),
+                            StatCard(
+                              title: 'Total Pets',
+                              value: '${stats.totalPets}',
+                              icon: Icons.pets_rounded,
+                              iconColor: AdminColors.warning,
+                              subtitle: 'Active companions',
+                            ),
+                            StatCard(
+                              title: 'Veterinarians',
+                              value: '$totalVets',
+                              icon: Icons.medical_services_outlined,
+                              iconColor: AdminColors.success,
+                              subtitle: 'Verified clinics',
+                              onTap: onNavigateToVets,
+                            ),
+                            StatCard(
+                              title: 'Appointments',
+                              value: '${stats.totalAppointments}',
+                              icon: Icons.calendar_today_outlined,
+                              iconColor: AdminColors.info,
+                              subtitle: 'Patient queue',
+                              onTap: onNavigateToAppointments,
+                            ),
+                            StatCard(
+                              title: 'Total Orders',
+                              value: '${stats.totalOrders}',
+                              icon: Icons.shopping_bag_outlined,
+                              iconColor: AdminColors.purple,
+                              subtitle: 'Shop purchases',
+                            ),
+                            StatCard(
+                              title: 'Total Revenue',
+                              value: stats.totalRevenue > 0
+                                  ? 'NPR ${(stats.totalRevenue).toStringAsFixed(0)}'
+                                  : 'NPR 0',
+                              icon: Icons.payments_outlined,
+                              iconColor: AdminColors.primaryDark,
+                              subtitle: 'Completed sales',
+                            ),
+                          ],
                         );
                       },
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Quick Actions ──
-                    const _SectionTitle('Administrative Quick Actions'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _actionBtn(
-                          icon: Icons.event_available_rounded,
-                          label: 'Manage Events',
-                          color: AppColors.terracotta,
-                          onPressed: onNavigateToEvents,
-                        ),
-                        _actionBtn(
-                          icon: Icons.medical_services_rounded,
-                          label: 'Manage Vets',
-                          color: AppColors.success,
-                          onPressed: onNavigateToVets,
-                        ),
-                        _actionBtn(
-                          icon: Icons.manage_accounts_rounded,
-                          label: 'Manage Users',
-                          color: AppColors.primaryDark,
-                          onPressed: onNavigateToUsers,
-                        ),
-                        _actionBtn(
-                          icon: Icons.approval_rounded,
-                          label: 'Review Applications',
-                          color: AppColors.warning,
-                          onPressed: onNavigateToApplications,
-                        ),
-                      ],
-                    ),
+                    // 2. Action Shortcuts Banner
+                    _buildQuickActionBanner(context),
                     const SizedBox(height: 24),
 
-                    // ── Role Breakdown ──
-                    const _SectionTitle('User Base by Role'),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tap any role to view and manage users of that role',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    // 3. Two-Column Analytics & Real-Time Overview
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDesktop = constraints.maxWidth >= 900;
+                        if (isDesktop) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left Column: User Role Analytics + Recent Registrations (60%)
+                              Expanded(
+                                flex: 6,
+                                child: Column(
+                                  children: [
+                                    _buildRoleDistributionCard(stats),
+                                    const SizedBox(height: 20),
+                                    _buildRecentUsersCard(stats),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              // Right Column: Pending Approvals + Quick Status (40%)
+                              Expanded(
+                                flex: 4,
+                                child: Column(
+                                  children: [
+                                    _buildPendingApprovalsCard(stats),
+                                    const SizedBox(height: 20),
+                                    _buildPlatformHealthCard(stats),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          // Mobile / Tablet vertical stack
+                          return Column(
+                            children: [
+                              _buildPendingApprovalsCard(stats),
+                              const SizedBox(height: 20),
+                              _buildRoleDistributionCard(stats),
+                              const SizedBox(height: 20),
+                              _buildRecentUsersCard(stats),
+                              const SizedBox(height: 20),
+                              _buildPlatformHealthCard(stats),
+                            ],
+                          );
+                        }
+                      },
                     ),
-                    const SizedBox(height: 10),
-                    _RoleBreakdownCard(
-                      usersByRole: stats.usersByRole,
-                      vetCount: stats.safeTotalVeterinarians,
-                      onRoleTap: onRoleTap,
-                    ),
-                    const SizedBox(height: 20),
+const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -181,153 +193,633 @@ class AdminDashboardTab extends ConsumerWidget {
     );
   }
 
-  Widget _actionBtn({
-    required IconData icon,
+  Widget _buildQuickActionBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.border, width: 1.0),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bolt_rounded, size: 18, color: AdminColors.primary),
+              SizedBox(width: 6),
+              Text(
+                'Quick Actions:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AdminColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          _buildActionButton(
+            label: 'Review Applications',
+            icon: Icons.verified_user_outlined,
+            color: AdminColors.warning,
+            onPressed: onNavigateToApplications,
+          ),
+          _buildActionButton(
+            label: 'Manage Users',
+            icon: Icons.people_outline_rounded,
+            color: AdminColors.primary,
+            onPressed: onNavigateToUsers,
+          ),
+          _buildActionButton(
+            label: 'Add Veterinarian',
+            icon: Icons.medical_services_outlined,
+            color: AdminColors.success,
+            onPressed: onNavigateToVets,
+          ),
+          _buildActionButton(
+            label: 'Create Event',
+            icon: Icons.event_outlined,
+            color: AdminColors.info,
+            onPressed: onNavigateToEvents,
+          ),
+          _buildActionButton(
+            label: 'Patient Appointments',
+            icon: Icons.calendar_today_outlined,
+            color: AdminColors.purple,
+            onPressed: onNavigateToAppointments,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
     required String label,
+    required IconData icon,
     required Color color,
     required VoidCallback onPressed,
   }) {
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16, color: color),
       label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AdminColors.textPrimary,
+        side: const BorderSide(color: AdminColors.border, width: 1.0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
       ),
     );
   }
-}
 
-// ── Reusable section title ──
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
+  // --- Role Distribution Section ---
+  Widget _buildRoleDistributionCard(stats) {
+    final total = stats.totalUsers > 0 ? stats.totalUsers : 1;
+    final petOwners = stats.usersByRole['PET_OWNER'] ?? 0;
+    final sellers = stats.usersByRole['SELLER'] ?? 0;
+    final vets = stats.usersByRole['VETERINARIAN'] ?? 0;
+    final admins = stats.usersByRole['ADMIN'] ?? 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textPrimary,
-      ),
-    );
-  }
-}
-
-// ── Welcome Banner ──
-class _WelcomeBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primaryDark, AppColors.primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.admin_panel_settings_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'User Base Breakdown',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Distribution of registered user roles',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AdminColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Admin Overview',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              TextButton(
+                onPressed: onNavigateToUsers,
+                child: const Text('View All Users'),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Monitor platform metrics, publish events, manage veterinarians, verify applications, and manage accounts securely.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white70,
-              height: 1.4,
+          const SizedBox(height: 16),
+
+          // Stacked Segmented Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 12,
+              child: Row(
+                children: [
+                  if (petOwners > 0)
+                    Expanded(
+                      flex: petOwners,
+                      child: Container(color: AdminColors.primary),
+                    ),
+                  if (sellers > 0)
+                    Expanded(
+                      flex: sellers,
+                      child: Container(color: AdminColors.info),
+                    ),
+                  if (vets > 0)
+                    Expanded(
+                      flex: vets,
+                      child: Container(color: AdminColors.success),
+                    ),
+                  if (admins > 0)
+                    Expanded(
+                      flex: admins,
+                      child: Container(color: AdminColors.purple),
+                    ),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: 18),
+
+          // Role Metrics Chips
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              _buildRolePill(
+                'Pet Owners',
+                petOwners,
+                (petOwners / total * 100),
+                AdminColors.primary,
+                'PET_OWNER',
+              ),
+              _buildRolePill(
+                'Sellers',
+                sellers,
+                (sellers / total * 100),
+                AdminColors.info,
+                'SELLER',
+              ),
+              _buildRolePill(
+                'Veterinarians',
+                vets,
+                (vets / total * 100),
+                AdminColors.success,
+                'VETERINARIAN',
+              ),
+              _buildRolePill(
+                'Administrators',
+                admins,
+                (admins / total * 100),
+                AdminColors.purple,
+                'ADMIN',
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-// ── Role Breakdown Card ──
-class _RoleBreakdownCard extends StatelessWidget {
-  final Map<String, int> usersByRole;
-  final int vetCount; // Correct count from Veterinarian table
-  final void Function(String role)? onRoleTap;
-  const _RoleBreakdownCard({required this.usersByRole, required this.vetCount, this.onRoleTap});
-
-  static const _roles = [
-    ('Pet Owners', 'PET_OWNER', Icons.favorite_rounded, AppColors.terracotta),
-    ('Sellers', 'SELLER', Icons.storefront_rounded, AppColors.info),
-    ('Veterinarians', 'VETERINARIAN', Icons.medical_services_rounded, AppColors.success),
-    ('System Admins', 'ADMIN', Icons.security_rounded, AppColors.primaryDark),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < _roles.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: AppColors.border),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.vertical(
-                  top: i == 0 ? const Radius.circular(16) : Radius.zero,
-                  bottom: i == _roles.length - 1 ? const Radius.circular(16) : Radius.zero,
+Widget _buildRolePill(
+    String label,
+    int count,
+    double pct,
+    Color color,
+    String roleCode,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onRoleTap?.call(roleCode),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AdminColors.background,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AdminColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AdminColors.textPrimary,
                 ),
-                onTap: () => onRoleTap?.call(_roles[i].$2),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: _RoleRow(
-                    title: _roles[i].$1,
-                    // Use correct vet count from Veterinarian table for Veterinarians role
-                    count: _roles[i].$2 == 'VETERINARIAN' ? vetCount : (usersByRole[_roles[i].$2] ?? 0),
-                    icon: _roles[i].$3,
-                    color: _roles[i].$4,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AdminColors.border),
+                ),
+                child: Text(
+                  '$count (${pct.toStringAsFixed(0)}%)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: color,
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Recent Users Card ---
+  Widget _buildRecentUsersCard(stats) {
+    final recentUsers = stats.recentUsers;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recent Registrations',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Latest accounts created on PetMate',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AdminColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: onNavigateToUsers,
+                child: const Text('Manage All'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (recentUsers.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No recent registrations found.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AdminColors.textSecondary,
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recentUsers.length,
+              separatorBuilder: (_, _) => const Divider(
+                height: 1,
+                thickness: 0.8,
+                color: AdminColors.borderLight,
+              ),
+              itemBuilder: (context, index) {
+                final user = recentUsers[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: AdminColors.primaryLight,
+                        backgroundImage:
+                            user.imageUrl != null && user.imageUrl!.isNotEmpty
+                            ? NetworkImage(user.imageUrl!)
+                            : null,
+                        child: (user.imageUrl == null || user.imageUrl!.isEmpty)
+                            ? Text(
+                                (user.fullName ?? user.email ?? 'U')
+                                    .substring(0, 1)
+                                    .toUpperCase(),
+                                style: const TextStyle(
+                                  color: AdminColors.primaryDark,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.fullName ?? 'Unnamed User',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: AdminColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              user.email ?? 'No email',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: AdminColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getRoleTagColor(user.role)
+                              .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          user.role,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: _getRoleTagColor(user.role),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '${user.petsCount} pets',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AdminColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // --- Pending Approvals Card ---
+  Widget _buildPendingApprovalsCard(stats) {
+    final pendingCount = stats.pendingApplications;
+    final recentApps = stats.recentApplications;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: pendingCount > 0
+              ? AdminColors.warning.withValues(alpha: 0.5)
+              : AdminColors.border,
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: pendingCount > 0
+                          ? AdminColors.warningLight
+                          : AdminColors.successLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      pendingCount > 0
+                          ? Icons.assignment_late_outlined
+                          : Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: pendingCount > 0
+                          ? AdminColors.warning
+                          : AdminColors.success,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Pending Verifications',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              if (pendingCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AdminColors.warning,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$pendingCount Required',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          if (pendingCount == 0 || recentApps.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.done_all_rounded,
+                    size: 36,
+                    color: AdminColors.success,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'All Caught Up!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AdminColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'No pending role applications require review.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AdminColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recentApps.length,
+              separatorBuilder: (_, _) => const Divider(
+                height: 1,
+                thickness: 0.8,
+                color: AdminColors.borderLight,
+              ),
+              itemBuilder: (context, index) {
+                final app = recentApps[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color:
+                              (app.type == 'SELLER'
+                                      ? AdminColors.info
+                                      : AdminColors.success)
+                                  .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          app.type == 'SELLER'
+                              ? Icons.storefront_outlined
+                              : Icons.medical_services_outlined,
+                          size: 16,
+                          color: app.type == 'SELLER'
+                              ? AdminColors.info
+                              : AdminColors.success,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              app.userFullName ?? app.userEmail ?? 'Applicant',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AdminColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (app.storeName != null)
+                              Text(
+                                app.storeName!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AdminColors.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: onNavigateToApplications,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          textStyle: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('Review'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onNavigateToApplications,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AdminColors.border),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const Text('View All Applications Queue'),
               ),
             ),
           ],
@@ -335,76 +827,109 @@ class _RoleBreakdownCard extends StatelessWidget {
       ),
     );
   }
-}
 
-// ── Single role row ──
-class _RoleRow extends StatelessWidget {
-  final String title;
-  final int count;
-  final IconData icon;
-  final Color color;
+  // --- Platform Health Card ---
+  Widget _buildPlatformHealthCard(stats) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'System & Services Status',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AdminColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildHealthRow(
+            'PostgreSQL Database',
+            'Online & Synced',
+            AdminColors.success,
+          ),
+          const SizedBox(height: 10),
+          _buildHealthRow(
+            'FCM Push Messaging',
+            'Active v1 Engine',
+            AdminColors.success,
+          ),
+          const SizedBox(height: 10),
+          _buildHealthRow(
+            'Community Events',
+            '${stats.safeTotalEvents} Published',
+            AdminColors.primary,
+          ),
+          const SizedBox(height: 10),
+          _buildHealthRow(
+            'Appointments Queue',
+            '${stats.totalAppointments} Booked',
+            AdminColors.info,
+          ),
+        ],
+      ),
+    );
+  }
 
-  const _RoleRow({
-    required this.title,
-    required this.count,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildHealthRow(String label, String value, Color color) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: AdminColors.textSecondary,
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: AppColors.inputFill,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(
-            count.toString(),
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.circle, size: 6, color: color),
+              const SizedBox(width: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 6),
-        const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
       ],
     );
   }
-}
 
-// ── Reusable error view ──
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
+  Color _getRoleTagColor(String role) {
+    switch (role) {
+      case 'PET_OWNER':
+        return AdminColors.primary;
+      case 'SELLER':
+        return AdminColors.info;
+      case 'VETERINARIAN':
+        return AdminColors.success;
+      case 'ADMIN':
+        return AdminColors.purple;
+      default:
+        return AdminColors.textSecondary;
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildErrorView(WidgetRef ref, String msg) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -414,33 +939,33 @@ class _ErrorView extends StatelessWidget {
             const Icon(
               Icons.error_outline_rounded,
               size: 48,
-              color: AppColors.error,
+              color: AdminColors.error,
             ),
             const SizedBox(height: 12),
             const Text(
-              'Failed to load admin stats',
+              'Failed to load admin metrics',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AdminColors.textPrimary,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              message,
+              msg,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: AdminColors.textSecondary,
               ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: onRetry,
+              onPressed: () => ref.read(adminStatsProvider.notifier).refresh(),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AdminColors.primary,
                 foregroundColor: Colors.white,
               ),
             ),

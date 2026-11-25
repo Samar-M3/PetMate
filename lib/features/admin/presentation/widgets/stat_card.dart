@@ -1,44 +1,46 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../theme/admin_colors.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
   final Color iconColor;
-  final Color? backgroundColor;
   final String? subtitle;
+  final Color? subtitleColor;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
     required this.title,
     required this.value,
     required this.icon,
-    this.iconColor = AppColors.primary,
-    this.backgroundColor,
+    this.iconColor = AdminColors.primary,
     this.subtitle,
+    this.subtitleColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    final cardWidget = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.border, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -46,25 +48,28 @@ class StatCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                    color: AdminColors.textSecondary,
+                    letterSpacing: -0.1,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(7),
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: iconColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: iconColor, size: 18),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -72,9 +77,10 @@ class StatCard extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AdminColors.textPrimary,
+                  letterSpacing: -0.5,
                 ),
               ),
               if (subtitle != null) ...[
@@ -82,17 +88,31 @@ class StatCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: subtitleColor ?? AdminColors.textMuted,
+                    ),
                   ),
                 ),
               ],
             ],
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return cardWidget;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: cardWidget,
       ),
     );
   }

@@ -41,8 +41,10 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search doctor, clinic or specialty...',
-                prefixIcon:
-                    const Icon(Icons.search, color: CareTheme.mutedText),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: CareTheme.mutedText,
+                ),
                 filled: true,
                 fillColor: CareTheme.cardBg,
                 border: OutlineInputBorder(
@@ -61,8 +63,12 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 ),
                 data: (vets) {
                   final filtered = vets
-                      .where((v) =>
-                          v.isVerified && v.isAcceptingBookings && _matches(v))
+                      .where(
+                        (v) =>
+                            v.isVerified &&
+                            v.isAcceptingBookings &&
+                            _matches(v),
+                      )
                       .toList();
 
                   return RefreshIndicator(
@@ -74,7 +80,8 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                             children: const [
                               SizedBox(height: 80),
                               CareMessage(
-                                  'No veterinarians are available right now.'),
+                                'No veterinarians are available right now.',
+                              ),
                             ],
                           )
                         : ListView.builder(
@@ -111,8 +118,10 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
               const CircleAvatar(
                 radius: 26,
                 backgroundColor: CareTheme.sageGreen,
-                child:
-                    Icon(Icons.medical_services_rounded, color: Colors.white),
+                child: Icon(
+                  Icons.medical_services_rounded,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -130,14 +139,18 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                     Text(
                       vet.specialty,
                       style: const TextStyle(
-                          fontSize: 13, color: CareTheme.mutedText),
+                        fontSize: 13,
+                        color: CareTheme.mutedText,
+                      ),
                     ),
                     Text(
                       vet.address.isEmpty
                           ? vet.clinicName
                           : '${vet.clinicName} • ${vet.address}',
                       style: const TextStyle(
-                          fontSize: 12, color: CareTheme.deepOlive),
+                        fontSize: 12,
+                        color: CareTheme.deepOlive,
+                      ),
                     ),
                   ],
                 ),
@@ -146,7 +159,9 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    vet.rating > 0 ? '★ ${vet.rating.toStringAsFixed(1)}' : 'New',
+                    vet.rating > 0
+                        ? '★ ${vet.rating.toStringAsFixed(1)}'
+                        : 'New',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   if (vet.fee > 0) ...[
@@ -171,16 +186,20 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 backgroundColor: CareTheme.terracotta,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               onPressed: hasSlots
                   ? () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => BookAppointmentScreen(vet: vet)),
-                      )
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookAppointmentScreen(vet: vet),
+                      ),
+                    )
                   : null,
-              child: Text(hasSlots ? 'Select Clinic Slot' : 'No slots available'),
+              child: Text(
+                hasSlots ? 'Select Clinic Slot' : 'No slots available',
+              ),
             ),
           ),
         ],

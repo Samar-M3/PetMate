@@ -100,6 +100,7 @@ class UserEntity {
   final UserRole role;
   final bool isActive;
   final bool onboardingCompleted;
+  final bool mustChangePassword;
   final ProfileEntity? profile;
   final List<PetEntity> pets;
 
@@ -111,6 +112,7 @@ class UserEntity {
     this.role = UserRole.petOwner,
     this.isActive = true,
     this.onboardingCompleted = false,
+    this.mustChangePassword = false,
     this.profile,
     this.pets = const [],
   });

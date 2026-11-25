@@ -12,7 +12,10 @@ class VetAdminDashboard extends ConsumerWidget {
   const VetAdminDashboard({super.key});
 
   Future<void> _complete(
-      BuildContext context, WidgetRef ref, Appointment appt) async {
+    BuildContext context,
+    WidgetRef ref,
+    Appointment appt,
+  ) async {
     final result = await showDialog<_VisitSummary>(
       context: context,
       builder: (_) => _CompleteVisitDialog(petName: appt.petName),
@@ -20,7 +23,9 @@ class VetAdminDashboard extends ConsumerWidget {
     if (result == null || !context.mounted) return;
 
     try {
-      await ref.read(appointmentsProvider.notifier).updateStatus(
+      await ref
+          .read(appointmentsProvider.notifier)
+          .updateStatus(
             appt.id,
             status: 'COMPLETED',
             vetNotes: result.notes,
@@ -35,11 +40,15 @@ class VetAdminDashboard extends ConsumerWidget {
   }
 
   Future<void> _decline(
-      BuildContext context, WidgetRef ref, Appointment appt) async {
+    BuildContext context,
+    WidgetRef ref,
+    Appointment appt,
+  ) async {
     final ok = await confirmCareAction(
       context,
       title: 'Decline appointment?',
-      message: '${appt.petName} on ${appt.date} at ${appt.timeSlot} will be cancelled.',
+      message:
+          '${appt.petName} on ${appt.date} at ${appt.timeSlot} will be cancelled.',
       confirmLabel: 'Decline',
       cancelLabel: 'Keep it',
     );
@@ -75,7 +84,8 @@ class VetAdminDashboard extends ConsumerWidget {
               data: (vet) {
                 if (vet == null) {
                   return const Text(
-                      'No clinic profile is linked to this account yet.');
+                    'No clinic profile is linked to this account yet.',
+                  );
                 }
                 return Container(
                   width: double.infinity,
@@ -87,13 +97,18 @@ class VetAdminDashboard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(vet.name,
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: CareTheme.charcoal)),
-                      Text(vet.clinicName,
-                          style: const TextStyle(color: CareTheme.mutedText)),
+                      Text(
+                        vet.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: CareTheme.charcoal,
+                        ),
+                      ),
+                      Text(
+                        vet.clinicName,
+                        style: const TextStyle(color: CareTheme.mutedText),
+                      ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -118,11 +133,14 @@ class VetAdminDashboard extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 20),
-            const Text('Patient Appointment Queue',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Patient Appointment Queue',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: apptsAsync.when(
@@ -137,8 +155,11 @@ class VetAdminDashboard extends ConsumerWidget {
                       await ref.read(appointmentsProvider.notifier).refresh();
                     } catch (e) {
                       if (context.mounted) {
-                        showCareSnackBar(context, 'Could not refresh: $e',
-                            isError: true);
+                        showCareSnackBar(
+                          context,
+                          'Could not refresh: $e',
+                          isError: true,
+                        );
                       }
                     }
                   },
@@ -181,20 +202,29 @@ class VetAdminDashboard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text('Pet: ${appt.petName}',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              Text(appt.status,
+                child: Text(
+                  'Pet: ${appt.petName}',
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: CareTheme.terracotta)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Text(
+                appt.status,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: CareTheme.terracotta,
+                ),
+              ),
             ],
           ),
           Text('${appt.date} • ${appt.timeSlot}'),
-          Text('Reason: ${appt.reason}',
-              style: const TextStyle(color: CareTheme.mutedText)),
+          Text(
+            'Reason: ${appt.reason}',
+            style: const TextStyle(color: CareTheme.mutedText),
+          ),
           if (appt.isUpcoming) ...[
             const SizedBox(height: 10),
             Row(
@@ -210,8 +240,10 @@ class VetAdminDashboard extends ConsumerWidget {
                 const SizedBox(width: 10),
                 TextButton(
                   onPressed: () => _decline(context, ref, appt),
-                  child: const Text('Decline',
-                      style: TextStyle(color: CareTheme.terracotta)),
+                  child: const Text(
+                    'Decline',
+                    style: TextStyle(color: CareTheme.terracotta),
+                  ),
                 ),
               ],
             ),
@@ -283,9 +315,11 @@ class _CompleteVisitDialogState extends State<_CompleteVisitDialog> {
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.vaccines_rounded, size: 18),
-              label: Text(_nextVaccine == null
-                  ? 'Set next vaccine date (optional)'
-                  : 'Next vaccine: ${formatCareDate(_nextVaccine!)}'),
+              label: Text(
+                _nextVaccine == null
+                    ? 'Set next vaccine date (optional)'
+                    : 'Next vaccine: ${formatCareDate(_nextVaccine!)}',
+              ),
             ),
           ],
         ),
@@ -306,8 +340,9 @@ class _CompleteVisitDialogState extends State<_CompleteVisitDialog> {
               context,
               _VisitSummary(
                 notes: notes.isEmpty ? null : notes,
-                nextVaccineDue:
-                    _nextVaccine == null ? null : formatCareDate(_nextVaccine!),
+                nextVaccineDue: _nextVaccine == null
+                    ? null
+                    : formatCareDate(_nextVaccine!),
               ),
             );
           },

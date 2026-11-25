@@ -3,7 +3,7 @@ import prisma from "../../config/db.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import chatConfig from "../../config/chat.config.ts";
 import { FieldValue } from "firebase-admin/firestore";
-import { firestore, rtdb } from "../../config/firebase.ts";
+import { firestore } from "../../config/firebase.ts";
 import { NotificationService } from "../../services/notification.service.ts";
 import {
   getConversationDoc,
@@ -454,20 +454,7 @@ export async function notifyChatMessage(
     return { notified: false, reason: "User is blocked" };
   }
 
-  // 7. Presence check: if recipient has active connections in RTDB, skip sending push
-  try {
-    const connectionsSnap = await rtdb.ref(`status/${otherFirebaseUid}/connections`).get();
-    if (connectionsSnap.exists()) {
-      const val = connectionsSnap.val();
-      if (val && typeof val === "object" && Object.keys(val).length > 0) {
-        return { notified: false, reason: "Recipient is currently online" };
-      }
-    }
-  } catch (err) {
-    // If RTDB check fails, fail open and proceed with push
-  }
-
-  // 8. Format title and body
+  // 7. Format title and body
   const callerUser = await prisma.user.findUnique({
     where: { id: callerUserId },
     include: { profile: true },
@@ -489,7 +476,7 @@ export async function notifyChatMessage(
     bodyText = trimmed.length > 80 ? `${trimmed.substring(0, 77)}...` : trimmed;
   }
 
-  // 9. Send via NotificationService
+  // 8. Send via NotificationService
   await NotificationService.sendToUser(recipient.id, {
     category: "messages",
     type: "chat_message",

@@ -51,7 +51,10 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
             icon: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.shopping_bag_outlined, color: AppColors.textPrimary),
+                const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: AppColors.textPrimary,
+                ),
                 if (cartState.totalCount > 0)
                   Positioned(
                     right: 0,
@@ -64,7 +67,11 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                       ),
                       child: Text(
                         '${cartState.totalCount}',
-                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -76,12 +83,14 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
         ],
       ),
       body: wishlist.loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : wishlist.error != null && wishlist.items.isEmpty
-              ? _buildError(wishlist.error!)
-              : wishlist.items.isEmpty
-                  ? _buildEmpty()
-                  : _buildWishlist(wishlist.items),
+          ? _buildError(wishlist.error!)
+          : wishlist.items.isEmpty
+          ? _buildEmpty()
+          : _buildWishlist(wishlist.items),
     );
   }
 
@@ -124,8 +133,13 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => context.go('/shop'),
               icon: const Icon(Icons.storefront_rounded, size: 18),
@@ -147,7 +161,11 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
@@ -204,7 +222,8 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => context.push('/shop/product/${prod.id}'),
+                            onTap: () =>
+                                context.push('/shop/product/${prod.id}'),
                             child: Text(
                               prod.name,
                               maxLines: 2,
@@ -218,12 +237,39 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
                           visualDensity: VisualDensity.compact,
-                          onPressed: () => ref.read(shopWishlistProvider.notifier).remove(line.id),
+                          onPressed: () => ref
+                              .read(shopWishlistProvider.notifier)
+                              .remove(line.id),
                         ),
                       ],
                     ),
+                    if (prod.storeName != null && prod.storeName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront_outlined, size: 12, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              prod.storeName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       formatShopPrice(prod.displayPrice),
@@ -241,8 +287,13 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             elevation: 0,
                           ),
                           onPressed: () async {
@@ -252,8 +303,12 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                                 context.push('/shop/product/${prod.id}');
                                 return;
                               }
-                              await ref.read(shopCartProvider.notifier).add(prod.id);
-                              await ref.read(shopWishlistProvider.notifier).remove(line.id);
+                              await ref
+                                  .read(shopCartProvider.notifier)
+                                  .add(prod.id);
+                              await ref
+                                  .read(shopWishlistProvider.notifier)
+                                  .remove(line.id);
                               messenger.showSnackBar(
                                 SnackBar(
                                   content: Text('${prod.name} moved to cart!'),
@@ -262,14 +317,25 @@ class _ShopWishlistPageState extends ConsumerState<ShopWishlistPage> {
                               );
                             } catch (e) {
                               messenger.showSnackBar(
-                                SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+                                SnackBar(
+                                  content: Text(e.toString()),
+                                  backgroundColor: AppColors.error,
+                                ),
                               );
                             }
                           },
-                          icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                          icon: const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 14,
+                          ),
                           label: Text(
-                            prod.variants.isNotEmpty ? 'Select Options' : 'Move to Cart',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            prod.variants.isNotEmpty
+                                ? 'Select Options'
+                                : 'Move to Cart',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],

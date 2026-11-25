@@ -35,11 +35,12 @@ class Vet {
 
     return Vet(
       id: j['id'].toString(),
-      name: (j['name'] ??
-              j['fullName'] ??
-              j['user']?['profile']?['fullName'] ??
-              'Veterinarian')
-          .toString(),
+      name:
+          (j['name'] ??
+                  j['fullName'] ??
+                  j['user']?['profile']?['fullName'] ??
+                  'Veterinarian')
+              .toString(),
       clinicName: (j['clinicName'] ?? 'Partner Clinic').toString(),
       specialty: (j['specialty'] ?? 'General Veterinary Care').toString(),
       address: (j['address'] ?? '').toString(),

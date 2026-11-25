@@ -78,16 +78,16 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
   }
 
   Map<String, dynamic> _query() => {
-        if (_categoryId != null) 'categoryId': _categoryId,
-        if (_searchController.text.trim().isNotEmpty)
-          'search': _searchController.text.trim(),
-        if (_brand != null) 'brand': _brand,
-        if (_minController.text.trim().isNotEmpty)
-          'minPrice': _minController.text.trim(),
-        if (_maxController.text.trim().isNotEmpty)
-          'maxPrice': _maxController.text.trim(),
-        'sortBy': _sort,
-      };
+    if (_categoryId != null) 'categoryId': _categoryId,
+    if (_searchController.text.trim().isNotEmpty)
+      'search': _searchController.text.trim(),
+    if (_brand != null) 'brand': _brand,
+    if (_minController.text.trim().isNotEmpty)
+      'minPrice': _minController.text.trim(),
+    if (_maxController.text.trim().isNotEmpty)
+      'maxPrice': _maxController.text.trim(),
+    'sortBy': _sort,
+  };
 
   void _apply() {
     setState(() => _filters = _query());
@@ -104,7 +104,8 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
   }
 
   Future<void> _loadRecent() async {
-    final values = ref
+    final values =
+        ref
             .read(sharedPreferencesProvider)
             .getStringList('shop_recent_searches') ??
         [];
@@ -112,7 +113,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
   }
 
   Future<void> _saveRecent(String value) async {
-    final updated = [value, ..._recent.where((item) => item != value)].take(6).toList();
+    final updated = [
+      value,
+      ..._recent.where((item) => item != value),
+    ].take(6).toList();
     await ref
         .read(sharedPreferencesProvider)
         .setStringList('shop_recent_searches', updated);
@@ -135,12 +139,16 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
     int count = 0;
     if (_categoryId != null) count++;
     if (_brand != null) count++;
-    if (_minController.text.isNotEmpty || _maxController.text.isNotEmpty) count++;
+    if (_minController.text.isNotEmpty || _maxController.text.isNotEmpty)
+      count++;
     if (_sort != 'newest') count++;
     return count;
   }
 
-  void _openFilterBottomSheet(ShopListingState state, List<ShopCategory> categories) {
+  void _openFilterBottomSheet(
+    ShopListingState state,
+    List<ShopCategory> categories,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -194,7 +202,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                   ),
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('All Categories')),
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('All Categories'),
+                  ),
                   ...categories.map(
                     (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
                   ),
@@ -217,7 +228,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                   ),
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('All Brands')),
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('All Brands'),
+                  ),
                   ...state.brands.map(
                     (b) => DropdownMenuItem(value: b, child: Text(b)),
                   ),
@@ -275,9 +289,18 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                   ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'newest', child: Text('Newest Arrivals')),
-                  DropdownMenuItem(value: 'price_asc', child: Text('Price: Low to High')),
-                  DropdownMenuItem(value: 'price_desc', child: Text('Price: High to Low')),
+                  DropdownMenuItem(
+                    value: 'newest',
+                    child: Text('Newest Arrivals'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'price_asc',
+                    child: Text('Price: Low to High'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'price_desc',
+                    child: Text('Price: High to Low'),
+                  ),
                 ],
                 onChanged: (val) {
                   setSheetState(() => _sort = val ?? 'newest');
@@ -315,18 +338,25 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(shopListingProvider);
     final categoryRoots =
-        ref.watch(shopCategoriesProvider).asData?.value ?? const <ShopCategory>[];
-    final categories =
-        categoryRoots.expand((c) => [c, ...c.children]).toList();
+        ref.watch(shopCategoriesProvider).asData?.value ??
+        const <ShopCategory>[];
+    final categories = categoryRoots.expand((c) => [c, ...c.children]).toList();
     final cartState = ref.watch(shopCartProvider);
     final wishlistState = ref.watch(shopWishlistProvider);
 
-    final title = widget.categoryName ??
+    final title =
+        widget.categoryName ??
         (_categoryId != null
-            ? categories.firstWhere((c) => c.id == _categoryId, orElse: () => ShopCategory(id: '', name: 'Products', slug: '')).name
+            ? categories
+                  .firstWhere(
+                    (c) => c.id == _categoryId,
+                    orElse: () =>
+                        ShopCategory(id: '', name: 'Products', slug: ''),
+                  )
+                  .name
             : widget.search?.isNotEmpty == true
-                ? 'Search Results'
-                : 'All Products');
+            ? 'Search Results'
+            : 'All Products');
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -348,7 +378,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
             icon: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.favorite_border_rounded, color: AppColors.textPrimary),
+                const Icon(
+                  Icons.favorite_border_rounded,
+                  color: AppColors.textPrimary,
+                ),
                 if (wishlistState.items.isNotEmpty)
                   Positioned(
                     right: 0,
@@ -361,7 +394,11 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                       ),
                       child: Text(
                         '${wishlistState.items.length}',
-                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -374,7 +411,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
             icon: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.shopping_bag_outlined, color: AppColors.textPrimary),
+                const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: AppColors.textPrimary,
+                ),
                 if (cartState.totalCount > 0)
                   Positioned(
                     right: 0,
@@ -387,7 +427,11 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                       ),
                       child: Text(
                         '${cartState.totalCount}',
-                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -400,6 +444,43 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
       ),
       body: Column(
         children: [
+          // Breadcrumb Navigation
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => context.go('/'),
+                  child: const Text('Home', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text('Shop', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    widget.categoryName ??
+                        (widget.search != null ? 'Search: "${widget.search}"' : 'All Products'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Search & Filter Bar
           Container(
             color: Colors.white,
@@ -414,7 +495,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded, size: 20),
                       hintText: 'Search products or brands...',
-                      hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 18),
@@ -426,7 +510,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                           : null,
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: AppColors.border),
@@ -445,16 +532,25 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                   backgroundColor: AppColors.terracotta,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       side: BorderSide(
-                        color: _activeFilterCount > 0 ? AppColors.primary : AppColors.border,
+                        color: _activeFilterCount > 0
+                            ? AppColors.primary
+                            : AppColors.border,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onPressed: () => _openFilterBottomSheet(state, categories),
-                    icon: const Icon(Icons.tune_rounded, size: 18, color: AppColors.textPrimary),
+                    icon: const Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: AppColors.textPrimary,
+                    ),
                     label: const Text(
                       'Filter',
                       style: TextStyle(
@@ -486,7 +582,10 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                     backgroundColor: AppColors.cream,
                     label: Text(
                       term,
-                      style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     onPressed: () {
                       _searchController.text = term;
@@ -530,9 +629,7 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
           ),
 
           // Main Product Grid
-          Expanded(
-            child: _buildProductGrid(state),
-          ),
+          Expanded(child: _buildProductGrid(state)),
         ],
       ),
     );
@@ -540,7 +637,9 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
 
   Widget _buildProductGrid(ShopListingState state) {
     if (state.isLoading && state.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     if (state.error != null && state.items.isEmpty) {
@@ -550,7 +649,11 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: 12),
               Text(
                 state.error!,
@@ -559,7 +662,8 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.read(shopListingProvider.notifier).load(_filters),
+                onPressed: () =>
+                    ref.read(shopListingProvider.notifier).load(_filters),
                 child: const Text('Try Again'),
               ),
             ],
@@ -581,12 +685,20 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                   color: AppColors.creamDark,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.search_off_rounded, size: 48, color: AppColors.textMuted),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  size: 48,
+                  color: AppColors.textMuted,
+                ),
               ),
               const SizedBox(height: 16),
               const Text(
                 'No products found',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -599,7 +711,9 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _clearFilters,
                 child: const Text('Reset All Filters'),
@@ -614,14 +728,18 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
       builder: (context, constraints) {
         // Responsive columns: 2 on mobile (< 600px), 3 on tablet, 4+ on desktop
         final width = constraints.maxWidth;
-        final int crossAxisCount = width < 600 ? 2 : width < 900 ? 3 : 4;
+        final int crossAxisCount = width < 600
+            ? 2
+            : width < 900
+            ? 3
+            : 4;
 
         return GridView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.64,
+            childAspectRatio: crossAxisCount == 2 ? 0.58 : 0.60,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),

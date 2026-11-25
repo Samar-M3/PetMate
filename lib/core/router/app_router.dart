@@ -17,6 +17,7 @@ import '../../features/pets/presentation/pages/pet_details_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
 import '../../features/seller/presentation/pages/seller_add_product_page.dart';
 import '../../features/profile/presentation/pages/owner_profile_page.dart';
+import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/seller/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_shell.dart';
 import '../../features/seller/presentation/pages/seller_status_page.dart';
@@ -47,12 +48,14 @@ class RouterNotifier extends ChangeNotifier {
       return '/login';
     }
 
-    final isAuthPage = location == '/login' ||
+    final isAuthPage =
+        location == '/login' ||
         location == '/register' ||
         location == '/seller/register' ||
         location == '/vet-login';
     final isSplashPage = location == '/splash';
-    final isPublicShopPage = location == '/shop' ||
+    final isPublicShopPage =
+        location == '/shop' ||
         location == '/shop/products' ||
         location.startsWith('/shop/product/');
     // Vet portal pages (login is public, home is protected by screen)
@@ -71,11 +74,17 @@ class RouterNotifier extends ChangeNotifier {
 
     // 3. Authenticated -> decide first screen from role BEFORE anything else
     if (authState.isAuthenticated) {
-      // 3.0. If backend sync is still loading on initial app launch (user profile not yet fetched),
-      //      stay on splash until we have definitive role info.
-      //      If user profile is already loaded, NEVER kick them back to /splash during background syncs.
+      // 3.0. If user profile is not yet fetched, stay on / redirect to splash.
+      // This prevents prematurely routing ADMIN/SELLER to the pet-owner flow
+      // before role information is resolved from the backend.
+      // If user profile is already loaded, never kick them back to /splash during background syncs.
       if (authState.user == null) {
         return isSplashPage ? null : '/splash';
+      }
+
+      // If already on the splash screen and still performing initial load, stay on splash.
+      if (isSplashPage && authState.isLoading) {
+        return null;
       }
 
       final role = authState.user?.role;
@@ -199,7 +208,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/slots',
-        builder: (context, state) => const SlotsPurchasePage(),
+        builder: (context, state) =>
+            SlotsPurchasePage(targetPetId: state.uri.queryParameters['petId']),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
         path: '/requests',
@@ -207,15 +221,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/pet/:petId',
-        builder: (context, state) => PetDetailsPage(
-          petId: state.pathParameters['petId'] ?? '',
-        ),
+        builder: (context, state) =>
+            PetDetailsPage(petId: state.pathParameters['petId'] ?? ''),
       ),
       GoRoute(
         path: '/owner/:userId',
-        builder: (context, state) => OwnerProfilePage(
-          userId: state.pathParameters['userId'] ?? '',
-        ),
+        builder: (context, state) =>
+            OwnerProfilePage(userId: state.pathParameters['userId'] ?? ''),
       ),
       GoRoute(path: '/shop', builder: (context, state) => const ShopHomePage()),
       GoRoute(
@@ -228,9 +240,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/shop/product/:id',
-        builder: (context, state) => ProductDetailsPage(
-          productId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            ProductDetailsPage(productId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/shop/cart',
@@ -250,15 +261,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/shop/orders/:id',
-        builder: (context, state) => ShopOrderDetailPage(
-          orderId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            ShopOrderDetailPage(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/chat/:matchId',
-        builder: (context, state) => ChatRoutePage(
-          matchId: state.pathParameters['matchId'] ?? '',
-        ),
+        builder: (context, state) =>
+            ChatRoutePage(matchId: state.pathParameters['matchId'] ?? ''),
       ),
       GoRoute(
         path: '/settings/notifications',

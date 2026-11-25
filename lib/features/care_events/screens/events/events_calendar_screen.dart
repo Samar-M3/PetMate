@@ -25,11 +25,18 @@ class EventsCalendarScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(builder: (_) => const MyEventBookingsScreen()),
             ),
-            icon: const Icon(Icons.confirmation_number_outlined,
-                size: 18, color: CareTheme.terracotta),
-            label: const Text('My Passes',
-                style: TextStyle(
-                    color: CareTheme.terracotta, fontWeight: FontWeight.bold)),
+            icon: const Icon(
+              Icons.confirmation_number_outlined,
+              size: 18,
+              color: CareTheme.terracotta,
+            ),
+            label: const Text(
+              'My Passes',
+              style: TextStyle(
+                color: CareTheme.terracotta,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -39,10 +46,8 @@ class EventsCalendarScreen extends ConsumerWidget {
           error: e,
           onRetry: () => ref.invalidate(careEventsProvider),
         ),
-        data: (events) => EventFeed(
-          events: events,
-          emptyMessage: 'No events published yet.',
-        ),
+        data: (events) =>
+            EventFeed(events: events, emptyMessage: 'No events published yet.'),
       ),
     );
   }

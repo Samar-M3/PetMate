@@ -65,19 +65,26 @@ class ShopOrderDetailPage extends ConsumerWidget {
         ),
       ),
       body: orderAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 12),
                 Text('Could not load order details: $err'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.invalidate(shopOrderDetailProvider(orderId)),
+                  onPressed: () =>
+                      ref.invalidate(shopOrderDetailProvider(orderId)),
                   child: const Text('Retry'),
                 ),
               ],
@@ -91,7 +98,8 @@ class ShopOrderDetailPage extends ConsumerWidget {
 
   Widget _buildDetail(BuildContext context, WidgetRef ref, ShopOrder order) {
     final statusColor = _statusColor(order.status);
-    final dateStr = DateFormat('MMMM dd, yyyy • hh:mm a').format(order.createdAt);
+    final dateStr = DateFormat('MMMM dd, yyyy • hh:mm a')
+        .format(order.createdAt);
     final stepIndex = _statusStepIndex(order.status);
     final isCancelled = order.status == 'CANCELLED';
 
@@ -116,17 +124,28 @@ class ShopOrderDetailPage extends ConsumerWidget {
                   children: [
                     Text(
                       order.orderNumber,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         order.status,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
                       ),
                     ),
                   ],
@@ -134,7 +153,10 @@ class ShopOrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Placed on $dateStr',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -160,13 +182,21 @@ class ShopOrderDetailPage extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      _buildTimelineStep('Confirmed', stepIndex >= 0, isFirst: true),
+                      _buildTimelineStep(
+                        'Confirmed',
+                        stepIndex >= 0,
+                        isFirst: true,
+                      ),
                       _buildTimelineLine(stepIndex >= 1),
                       _buildTimelineStep('Processing', stepIndex >= 1),
                       _buildTimelineLine(stepIndex >= 2),
                       _buildTimelineStep('Shipped', stepIndex >= 2),
                       _buildTimelineLine(stepIndex >= 3),
-                      _buildTimelineStep('Delivered', stepIndex >= 3, isLast: true),
+                      _buildTimelineStep(
+                        'Delivered',
+                        stepIndex >= 3,
+                        isLast: true,
+                      ),
                     ],
                   ),
                 ],
@@ -215,26 +245,38 @@ class ShopOrderDetailPage extends ConsumerWidget {
                                 item.productName,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                               if (item.variantName != null) ...[
                                 const SizedBox(height: 2),
                                 Text(
                                   'Variant: ${item.variantName}',
-                                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ],
                               const SizedBox(height: 2),
                               Text(
                                 '${item.quantity} x ${formatShopPrice(item.unitPrice)}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         Text(
                           formatShopPrice(item.totalPrice),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
@@ -265,18 +307,28 @@ class ShopOrderDetailPage extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(
                     order.deliveryAddress!.fullName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     order.deliveryAddress!.formattedSummary,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   Text(
                     'Phone: ${order.deliveryAddress!.phoneNumber}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                  if (order.customerNotes != null && order.customerNotes!.isNotEmpty) ...[
+                  if (order.customerNotes != null &&
+                      order.customerNotes!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -286,12 +338,19 @@ class ShopOrderDetailPage extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.notes_rounded, size: 16, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.notes_rounded,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Note: ${order.customerNotes}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ],
@@ -323,21 +382,41 @@ class ShopOrderDetailPage extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Payment Method', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                    Text(order.paymentMethod, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(
+                      'Payment Method',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      order.paymentMethod,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Payment Status', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    const Text(
+                      'Payment Status',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     Text(
                       order.paymentStatus,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: order.paymentStatus == 'COMPLETED' ? AppColors.success : Colors.orange,
+                        color: order.paymentStatus == 'COMPLETED'
+                            ? AppColors.success
+                            : Colors.orange,
                       ),
                     ),
                   ],
@@ -348,21 +427,43 @@ class ShopOrderDetailPage extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                    Text(formatShopPrice(order.subtotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      formatShopPrice(order.subtotal),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Delivery Charge', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    const Text(
+                      'Delivery Charge',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     Text(
-                      order.deliveryCharge == 0 ? 'FREE' : formatShopPrice(order.deliveryCharge),
+                      order.deliveryCharge == 0
+                          ? 'FREE'
+                          : formatShopPrice(order.deliveryCharge),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: order.deliveryCharge == 0 ? AppColors.success : AppColors.textPrimary,
+                        color: order.deliveryCharge == 0
+                            ? AppColors.success
+                            : AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -373,10 +474,20 @@ class ShopOrderDetailPage extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Total Amount',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       formatShopPrice(order.totalAmount),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryDark,
+                      ),
                     ),
                   ],
                 ),
@@ -392,7 +503,9 @@ class ShopOrderDetailPage extends ConsumerWidget {
                 foregroundColor: AppColors.error,
                 side: const BorderSide(color: AppColors.error),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () async {
                 final confirm = await showDialog<bool>(
@@ -403,17 +516,24 @@ class ShopOrderDetailPage extends ConsumerWidget {
                       'Are you sure you want to cancel this order? Items will be returned to stock.',
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No, Keep Order')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('No, Keep Order'),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                        ),
                         child: const Text('Yes, Cancel Order'),
                       ),
                     ],
                   ),
                 );
                 if (confirm == true) {
-                  final success = await ref.read(shopOrdersProvider.notifier).cancelOrder(order.id);
+                  final success = await ref
+                      .read(shopOrdersProvider.notifier)
+                      .cancelOrder(order.id);
                   if (context.mounted) {
                     if (success) {
                       ref.invalidate(shopOrderDetailProvider(order.id));
@@ -424,15 +544,23 @@ class ShopOrderDetailPage extends ConsumerWidget {
                         ),
                       );
                     } else {
-                      final err = ref.read(shopOrdersProvider).error ?? 'Failed to cancel order.';
+                      final err =
+                          ref.read(shopOrdersProvider).error ??
+                          'Failed to cancel order.';
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(err), backgroundColor: AppColors.error),
+                        SnackBar(
+                          content: Text(err),
+                          backgroundColor: AppColors.error,
+                        ),
                       );
                     }
                   }
                 }
               },
-              child: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Cancel Order',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
 
           const SizedBox(height: 32),
@@ -441,7 +569,12 @@ class ShopOrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTimelineStep(String label, bool isDone, {bool isFirst = false, bool isLast = false}) {
+  Widget _buildTimelineStep(
+    String label,
+    bool isDone, {
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
     return Expanded(
       child: Column(
         children: [

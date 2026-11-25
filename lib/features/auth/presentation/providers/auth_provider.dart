@@ -107,13 +107,21 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       if (currentFbUser != null) {
         await _syncBackendProfile(currentFbUser, isBackground: true);
       }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-disabled' || e.code == 'user-not-found') {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthNotifier] Session reload on resume detected disabled/deleted account: ${e.code}',
+          );
+        }
+        await _performCleanupAndResetState();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
-          '[AuthNotifier] Session reload on resume detected invalid session: $e',
+          '[AuthNotifier] Session check on resume ignored non-fatal error: $e',
         );
       }
-      await _performCleanupAndResetState();
     }
   }
 
@@ -127,7 +135,36 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     await _syncBackendProfile(fbUser);
   }
 
+  Future<void>? _inFlightSyncFuture;
+
   Future<void> _syncBackendProfile(
+    User fbUser, {
+    int retryCount = 0,
+    bool isBackground = false,
+  }) async {
+    if (_inFlightSyncFuture != null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthNotifier] 🔀 Awaiting existing in-flight backend profile sync',
+        );
+      }
+      return _inFlightSyncFuture!;
+    }
+
+    final future = _doSyncBackendProfile(
+      fbUser,
+      retryCount: retryCount,
+      isBackground: isBackground,
+    );
+    _inFlightSyncFuture = future;
+    try {
+      await future;
+    } finally {
+      _inFlightSyncFuture = null;
+    }
+  }
+
+  Future<void> _doSyncBackendProfile(
     User fbUser, {
     int retryCount = 0,
     bool isBackground = false,
@@ -192,7 +229,15 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         // Check the user is still signed in before retrying
         final stillSignedIn = _authService.currentUser;
         if (stillSignedIn != null) {
-          return _syncBackendProfile(fbUser, retryCount: retryCount + 1);
+          // Retry the internal operation directly. Calling
+          // _syncBackendProfile() here would return the currently-running
+          // _inFlightSyncFuture, causing that Future to wait for itself.
+          await _doSyncBackendProfile(
+            fbUser,
+            retryCount: retryCount + 1,
+            isBackground: isBackground,
+          );
+          return;
         }
       }
       // All retries exhausted — keep isLoading: false but do NOT set user
@@ -480,15 +525,14 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
   Future<void> refreshUserProfile() async {
     final fbUser = _authService.currentUser;
     if (fbUser == null) return;
-    try {
-      final userDetails = await _repository.getMe();
-      final status = await _repository.getOnboardingStatus();
-      state = state.copyWith(user: userDetails, onboardingStatus: status);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[AuthNotifier] refreshUserProfile failed: $e');
-      }
-    }
+    await _syncBackendProfile(fbUser, isBackground: true);
+  }
+
+  Future<void> completeInitialVeterinarianPassword(String newPassword) async {
+    final updatedUser = await _repository.completeInitialVeterinarianPassword(
+      newPassword,
+    );
+    state = state.copyWith(user: updatedUser, errorMessage: null);
   }
 
   Future<void> logout() async {

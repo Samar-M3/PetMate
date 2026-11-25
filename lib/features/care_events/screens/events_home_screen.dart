@@ -42,10 +42,13 @@ class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
                 style: TextButton.styleFrom(
                   backgroundColor: CareTheme.cardBg,
                   foregroundColor: CareTheme.terracotta,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
                 icon: const Icon(Icons.confirmation_number_outlined, size: 17),
                 label: const Text(
@@ -55,7 +58,8 @@ class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const MyEventBookingsScreen()),
+                    builder: (_) => const MyEventBookingsScreen(),
+                  ),
                 ),
               ),
             ],
@@ -103,8 +107,9 @@ class _EventsHomeScreenState extends ConsumerState<EventsHomeScreen> {
                             labelStyle: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color:
-                                  isSelected ? Colors.white : CareTheme.charcoal,
+                              color: isSelected
+                                  ? Colors.white
+                                  : CareTheme.charcoal,
                             ),
                             onSelected: (_) =>
                                 setState(() => _selectedCategory = cat),

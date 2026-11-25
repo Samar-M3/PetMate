@@ -81,6 +81,11 @@ class ShopProduct {
   final List<ShopVariant> variants;
   final bool? available;
   final String? availabilityReason;
+  final double rating;
+  final int reviewCount;
+  final Map<String, dynamic>? specifications;
+  final double? shippingWeight;
+  final String? packageDimensions;
 
   const ShopProduct({
     required this.id,
@@ -102,6 +107,11 @@ class ShopProduct {
     this.variants = const [],
     this.available,
     this.availabilityReason,
+    this.rating = 4.8,
+    this.reviewCount = 18,
+    this.specifications,
+    this.shippingWeight,
+    this.packageDimensions,
   });
 
   double get displayPrice => discountedPrice ?? basePrice;
@@ -112,13 +122,21 @@ class ShopProduct {
       : availableStock > 0;
 
   factory ShopProduct.fromJson(Map<String, dynamic> json) {
-    final category = json['category'] as Map<String, dynamic>?;
-    final store = json['store'] as Map<String, dynamic>?;
+    final category = json['category'] is Map
+        ? Map<String, dynamic>.from(json['category'] as Map)
+        : null;
+    final store = json['store'] is Map
+        ? Map<String, dynamic>.from(json['store'] as Map)
+        : null;
     final images = (json['images'] as List? ?? const [])
         .whereType<Map>()
         .map((item) => item['imageUrl']?.toString() ?? '')
         .where((url) => url.isNotEmpty)
         .toList();
+    final count = json['_count'] is Map
+        ? Map<String, dynamic>.from(json['_count'] as Map)
+        : null;
+
     return ShopProduct(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -142,6 +160,15 @@ class ShopProduct {
           .toList(),
       available: json['available'] as bool?,
       availabilityReason: json['availabilityReason'] as String?,
+      rating: _number(json['rating']) ?? _number(json['avgRating']) ?? 4.8,
+      reviewCount: (json['reviewCount'] as num?)?.toInt() ??
+          (count?['reviews'] as num?)?.toInt() ??
+          18,
+      specifications: json['specifications'] is Map
+          ? Map<String, dynamic>.from(json['specifications'] as Map)
+          : null,
+      shippingWeight: _number(json['shippingWeight']),
+      packageDimensions: json['packageDimensions'] as String?,
     );
   }
 }
@@ -234,29 +261,28 @@ class ShopAddress {
   });
 
   factory ShopAddress.fromJson(Map<String, dynamic> json) => ShopAddress(
-        id: json['id']?.toString() ?? '',
-        fullName: json['fullName']?.toString() ?? '',
-        phoneNumber: json['phoneNumber']?.toString() ?? '',
-        addressLine1: json['addressLine1']?.toString() ?? '',
-        addressLine2: json['addressLine2'] as String?,
-        city: json['city']?.toString() ?? '',
-        province: json['province']?.toString() ?? '',
-        postalCode: json['postalCode'] as String?,
-        isDefault: json['isDefault'] as bool? ?? false,
-      );
+    id: json['id']?.toString() ?? '',
+    fullName: json['fullName']?.toString() ?? '',
+    phoneNumber: json['phoneNumber']?.toString() ?? '',
+    addressLine1: json['addressLine1']?.toString() ?? '',
+    addressLine2: json['addressLine2'] as String?,
+    city: json['city']?.toString() ?? '',
+    province: json['province']?.toString() ?? '',
+    postalCode: json['postalCode'] as String?,
+    isDefault: json['isDefault'] as bool? ?? false,
+  );
 
   Map<String, dynamic> toJson() => {
-        'fullName': fullName,
-        'phoneNumber': phoneNumber,
-        'addressLine1': addressLine1,
-        if (addressLine2 != null && addressLine2!.isNotEmpty)
-          'addressLine2': addressLine2,
-        'city': city,
-        'province': province,
-        if (postalCode != null && postalCode!.isNotEmpty)
-          'postalCode': postalCode,
-        'isDefault': isDefault,
-      };
+    'fullName': fullName,
+    'phoneNumber': phoneNumber,
+    'addressLine1': addressLine1,
+    if (addressLine2 != null && addressLine2!.isNotEmpty)
+      'addressLine2': addressLine2,
+    'city': city,
+    'province': province,
+    if (postalCode != null && postalCode!.isNotEmpty) 'postalCode': postalCode,
+    'isDefault': isDefault,
+  };
 
   String get formattedSummary =>
       '$addressLine1, $city, $province${postalCode != null ? ' - $postalCode' : ''}';
@@ -340,28 +366,27 @@ class ShopOrder {
   });
 
   factory ShopOrder.fromJson(Map<String, dynamic> json) => ShopOrder(
-        id: json['id']?.toString() ?? '',
-        orderNumber: json['orderNumber']?.toString() ?? '',
-        status: json['status']?.toString() ?? 'PENDING',
-        paymentMethod: json['paymentMethod']?.toString() ?? 'CASH_ON_DELIVERY',
-        paymentStatus: json['paymentStatus']?.toString() ?? 'PENDING',
-        subtotal: _number(json['subtotal']) ?? 0,
-        deliveryCharge: _number(json['deliveryCharge']) ?? 0,
-        discount: _number(json['discount']) ?? 0,
-        totalAmount: _number(json['totalAmount']) ?? 0,
-        customerNotes: json['customerNotes'] as String?,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-        deliveryAddress: json['deliveryAddress'] is Map<String, dynamic>
-            ? ShopAddress.fromJson(
-                json['deliveryAddress'] as Map<String, dynamic>)
-            : null,
-        items: (json['items'] as List? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(ShopOrderItem.fromJson)
-            .toList(),
-      );
+    id: json['id']?.toString() ?? '',
+    orderNumber: json['orderNumber']?.toString() ?? '',
+    status: json['status']?.toString() ?? 'PENDING',
+    paymentMethod: json['paymentMethod']?.toString() ?? 'CASH_ON_DELIVERY',
+    paymentStatus: json['paymentStatus']?.toString() ?? 'PENDING',
+    subtotal: _number(json['subtotal']) ?? 0,
+    deliveryCharge: _number(json['deliveryCharge']) ?? 0,
+    discount: _number(json['discount']) ?? 0,
+    totalAmount: _number(json['totalAmount']) ?? 0,
+    customerNotes: json['customerNotes'] as String?,
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+        : DateTime.now(),
+    deliveryAddress: json['deliveryAddress'] is Map<String, dynamic>
+        ? ShopAddress.fromJson(json['deliveryAddress'] as Map<String, dynamic>)
+        : null,
+    items: (json['items'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopOrderItem.fromJson)
+        .toList(),
+  );
 
   bool get canBeCancelled => status == 'PENDING' || status == 'CONFIRMED';
 }
@@ -388,19 +413,19 @@ class ShopReview {
   });
 
   factory ShopReview.fromJson(Map<String, dynamic> json) => ShopReview(
-        id: json['id']?.toString() ?? '',
-        rating: (json['rating'] as num?)?.toInt() ?? 5,
-        title: json['title'] as String?,
-        comment: json['comment'] as String?,
-        images: (json['images'] as List? ?? const [])
-            .map((e) => e.toString())
-            .toList(),
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-        userName: json['userName']?.toString() ?? 'Pet Parent',
-        userAvatar: json['userAvatar'] as String?,
-      );
+    id: json['id']?.toString() ?? '',
+    rating: (json['rating'] as num?)?.toInt() ?? 5,
+    title: json['title'] as String?,
+    comment: json['comment'] as String?,
+    images: (json['images'] as List? ?? const [])
+        .map((e) => e.toString())
+        .toList(),
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+        : DateTime.now(),
+    userName: json['userName']?.toString() ?? 'Pet Parent',
+    userAvatar: json['userAvatar'] as String?,
+  );
 }
 
 class ShopReviewSummary {
@@ -425,7 +450,8 @@ class ShopReviewSummary {
       );
 }
 
-
-double? _number(dynamic value) => value == null
-    ? null
-    : (value as num?)?.toDouble() ?? double.tryParse(value.toString());
+double? _number(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}

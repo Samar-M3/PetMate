@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,14 +74,20 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textPrimary,
+            ),
             tooltip: 'Refresh Status',
             onPressed: () {
               ref.read(sellerProvider.notifier).loadSellerStatus();
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: AppColors.textSecondary,
+            ),
             tooltip: 'Log Out',
             onPressed: () async {
               await ref.read(authStateProvider.notifier).logout();
@@ -208,30 +215,26 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
         statusColor = AppColors.success;
         statusIcon = Icons.check_circle_rounded;
         statusTitle = 'Seller Application Approved!';
-        statusDescription =
-            'Congratulations! Your seller application has been approved by the PetMate administrative team. You now have full access to create product listings, manage inventory, and process customer orders.';
+        statusDescription = 'Congratulations! Your seller application has been approved by the PetMate administrative team. You now have full access to create product listings, manage inventory, and process customer orders.';
         break;
       case 'REJECTED':
         statusColor = AppColors.error;
         statusIcon = Icons.cancel_rounded;
         statusTitle = 'Application Requires Revision';
-        statusDescription =
-            'Your application could not be approved in its current form. Please review the admin feedback below, update your details or documentation, and resubmit for review.';
+        statusDescription = 'Your application could not be approved in its current form. Please review the admin feedback below, update your details or documentation, and resubmit for review.';
         break;
       case 'SUSPENDED':
         statusColor = AppColors.error;
         statusIcon = Icons.warning_rounded;
         statusTitle = 'Seller Store Suspended';
-        statusDescription =
-            'This seller account is temporarily suspended. For inquiries or appeals, please contact our support desk at sellers@petmate.com.';
+        statusDescription = 'This seller account is temporarily suspended. For inquiries or appeals, please contact our support desk at sellers@petmate.com.';
         break;
       case 'PENDING':
       default:
         statusColor = AppColors.warning;
         statusIcon = Icons.access_time_rounded;
         statusTitle = 'Application Under Review';
-        statusDescription =
-            'Thank you for applying to sell on PetMate! Our verification team is actively reviewing your store details and documents. Approvals typically take 24–48 business hours.';
+        statusDescription = 'Thank you for applying to sell on PetMate! Our verification team is actively reviewing your store details and documents. Approvals typically take 24–48 business hours.';
         break;
     }
 
@@ -376,11 +379,7 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
         children: [
           Row(
             children: const [
-              Icon(
-                Icons.badge_outlined,
-                size: 20,
-                color: AppColors.terracotta,
-              ),
+              Icon(Icons.badge_outlined, size: 20, color: AppColors.terracotta),
               SizedBox(width: 8),
               Text(
                 'Submitted Store Details',
@@ -538,8 +537,7 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
           _buildTimelineStep(
             number: '2',
             title: 'Admin Document Verification',
-            description:
-                'Our team checks store registration and verification documents.',
+            description: 'Our team checks store registration and verification documents.',
             isComplete: step2Done,
             isActive: !step2Done,
           ),
@@ -568,7 +566,9 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
     Color iconBg = isComplete
         ? AppColors.success
         : (isActive ? AppColors.warning : AppColors.border);
-    Color iconColor = isComplete || isActive ? Colors.white : AppColors.textMuted;
+    Color iconColor = isComplete || isActive
+        ? Colors.white
+        : AppColors.textMuted;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,10 +578,7 @@ class _SellerStatusPageState extends ConsumerState<SellerStatusPage> {
             Container(
               width: 28,
               height: 28,
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
               child: Center(
                 child: isComplete
                     ? const Icon(Icons.check, size: 16, color: Colors.white)
@@ -660,6 +657,7 @@ class _ResubmitApplicationSheetState
   String? _registrationDocUrl;
   String? _identityDocUrl;
   bool _isUploadingDoc = false;
+  bool _isPickingDoc = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -667,15 +665,19 @@ class _ResubmitApplicationSheetState
   void initState() {
     super.initState();
     _storeNameController = TextEditingController(text: widget.store.name);
-    _descriptionController =
-        TextEditingController(text: widget.store.description ?? '');
-    _addressController =
-        TextEditingController(text: widget.store.businessAddress ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.store.description ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.store.businessAddress ?? '',
+    );
     _cityController = TextEditingController(text: widget.store.city ?? '');
-    _provinceController =
-        TextEditingController(text: widget.store.province ?? 'Bagmati Province');
-    _postalCodeController =
-        TextEditingController(text: widget.store.postalCode ?? '');
+    _provinceController = TextEditingController(
+      text: widget.store.province ?? 'Bagmati Province',
+    );
+    _postalCodeController = TextEditingController(
+      text: widget.store.postalCode ?? '',
+    );
     _businessType = widget.store.businessType;
     _registrationDocUrl = widget.store.registrationDocUrl;
     _identityDocUrl = widget.store.identityDocUrl;
@@ -693,6 +695,8 @@ class _ResubmitApplicationSheetState
   }
 
   Future<void> _pickAndUpload(bool isRegDoc) async {
+    if (_isPickingDoc) return;
+    _isPickingDoc = true;
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -736,6 +740,8 @@ class _ResubmitApplicationSheetState
           ),
         );
       }
+    } finally {
+      _isPickingDoc = false;
     }
   }
 
@@ -755,8 +761,9 @@ class _ResubmitApplicationSheetState
       if (_identityDocUrl != null) 'identityDocUrl': _identityDocUrl,
     };
 
-    final success =
-        await ref.read(sellerProvider.notifier).resubmitApplication(data);
+    final success = await ref
+        .read(sellerProvider.notifier)
+        .resubmitApplication(data);
 
     if (mounted) {
       if (success) {
@@ -770,7 +777,8 @@ class _ResubmitApplicationSheetState
           ),
         );
       } else {
-        final err = ref.read(sellerProvider).errorMessage ??
+        final err =
+            ref.read(sellerProvider).errorMessage ??
             'Resubmission failed. Please check your data.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err), backgroundColor: AppColors.error),
@@ -939,7 +947,9 @@ class _ResubmitApplicationSheetState
                             onPressed: () => _pickAndUpload(true),
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                             ),
                             child: const Text('Change'),
                           ),
@@ -993,7 +1003,9 @@ class _ResubmitApplicationSheetState
                             onPressed: () => _pickAndUpload(false),
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                             ),
                             child: const Text('Change'),
                           ),
@@ -1004,10 +1016,9 @@ class _ResubmitApplicationSheetState
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            (isSubmitting || _isUploadingDoc)
-                                ? null
-                                : _submitResubmission,
+                        onPressed: (isSubmitting || _isUploadingDoc)
+                            ? null
+                            : _submitResubmission,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.terracotta,
                           foregroundColor: Colors.white,

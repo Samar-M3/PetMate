@@ -26,8 +26,8 @@ describe("Matching: Config Module", () => {
     assert.equal(matchingConfig.MAX_PENDING_REQUESTS, 20);
     assert.equal(matchingConfig.MAX_PETS_PER_OWNER, 20);
     assert.equal(matchingConfig.SLOT_DURATION_DAYS, 30);
-    assert.equal(matchingConfig.MAX_PAID_SLOTS, 5);
-    assert.ok(matchingConfig.SLOT_PRICE_NPR > 0);
+    assert.equal(matchingConfig.MAX_PAID_SLOTS, 1);
+    assert.equal(matchingConfig.SLOT_PRICE_NPR, 100);
   });
 });
 

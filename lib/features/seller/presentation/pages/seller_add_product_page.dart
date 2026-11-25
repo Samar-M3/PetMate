@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/cloudinary_service.dart';
+import '../../../shop/presentation/providers/shop_providers.dart';
+import '../providers/seller_provider.dart';
 
 /// Add New Product page for the seller dashboard.
 class SellerAddProductPage extends ConsumerStatefulWidget {
@@ -49,6 +51,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
   // Image state
   final List<_ProductImageEntry> _selectedImages = [];
   static const int _maxImages = 8;
+  bool _isPickingImages = false;
 
   final List<String> _petTypes = [
     'Dog',
@@ -92,13 +95,13 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
     try {
       final apiClient = ref.read(apiClientProvider);
       final response = await apiClient.get('/shop/categories');
-      if (response is Map<String, dynamic>) {
-        final data = response['data'];
+      if (response is Map) {
+        final data = response['data'] is Map ? response['data'] as Map : response;
         List<dynamic> catList;
-        if (data is Map && data['categories'] is List) {
+        if (data['items'] is List) {
+          catList = data['items'] as List;
+        } else if (data['categories'] is List) {
           catList = data['categories'] as List;
-        } else if (data is List) {
-          catList = data;
         } else {
           catList = [];
         }
@@ -106,11 +109,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         final flat = <Map<String, dynamic>>[];
         for (final cat in catList) {
           if (cat is Map<String, dynamic>) {
-            flat.add({
-              'id': cat['id'],
-              'name': cat['name'],
-              'isChild': false,
-            });
+            flat.add({'id': cat['id'], 'name': cat['name'], 'isChild': false});
             final children = cat['children'] as List? ?? [];
             for (final child in children) {
               if (child is Map<String, dynamic>) {
@@ -126,6 +125,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         if (mounted) {
           setState(() {
             _categories = flat;
+            if (_selectedCategoryId == null && flat.isNotEmpty) {
+              _selectedCategoryId = flat.first['id'] as String;
+            }
             _isLoadingCategories = false;
           });
         }
@@ -138,30 +140,127 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
   }
 
   Future<void> _pickImages() async {
-    if (_selectedImages.length >= _maxImages) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum 8 images allowed'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
-      return;
-    }
+    if (_isPickingImages) return;
+    _isPickingImages = true;
+    try {
+      if (_selectedImages.length >= _maxImages) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Maximum 8 images allowed'),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+        return;
+      }
 
-    final picker = ImagePicker();
-    final remaining = _maxImages - _selectedImages.length;
-    final picked = await picker.pickMultiImage(limit: remaining);
+      final picker = ImagePicker();
+      final remaining = _maxImages - _selectedImages.length;
+      List<XFile> picked = [];
 
-    if (picked.isNotEmpty) {
+      try {
+        picked = await picker.pickMultiImage(
+          maxWidth: 1200,
+          maxHeight: 1200,
+          imageQuality: 85,
+        );
+      } catch (multiError) {
+        // Fallback for web or devices where pickMultiImage encounters issues
+        try {
+          final single = await picker.pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 1200,
+            maxHeight: 1200,
+            imageQuality: 85,
+          );
+          if (single != null) {
+            picked = [single];
+          }
+        } catch (_) {
+          // Gracefully handled if user cancels
+        }
+      }
+
+      if (picked.isEmpty) return;
+
+      final newEntries = <_ProductImageEntry>[];
       for (final xFile in picked) {
-        if (_selectedImages.length >= _maxImages) break;
-        final bytes = await xFile.readAsBytes();
-        setState(() {
-          _selectedImages.add(_ProductImageEntry(
+        if (_selectedImages.length + newEntries.length >= _maxImages) break;
+        try {
+          final bytes = await xFile.readAsBytes();
+          newEntries.add(_ProductImageEntry(
             bytes: bytes,
-            name: xFile.name,
+            name: xFile.name.isNotEmpty ? xFile.name : 'product_image.jpg',
+            isUploading: true,
           ));
+        } catch (e) {
+          debugPrint('Error reading image file: $e');
+        }
+      }
+
+      if (newEntries.isEmpty || !mounted) return;
+
+      setState(() {
+        _selectedImages.addAll(newEntries);
+      });
+
+      // Upload each image in background without blocking form inputs
+      for (final entry in newEntries) {
+        _uploadSingleImage(entry);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not access image: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImages = false);
+      } else {
+        _isPickingImages = false;
+      }
+    }
+  }
+
+  Future<void> _uploadSingleImage(_ProductImageEntry entry) async {
+    try {
+      final cloudinary = ref.read(cloudinaryServiceProvider);
+      final url = await cloudinary.uploadImage(
+        null,
+        bytes: entry.bytes,
+        filename: entry.name,
+        folder: 'products',
+      );
+
+      if (url != null && url.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            entry.uploadedUrl = url;
+            entry.isUploading = false;
+            entry.errorMessage = null;
+          });
+        } else {
+          entry.uploadedUrl = url;
+          entry.isUploading = false;
+          entry.errorMessage = null;
+        }
+      } else {
+        throw Exception('Upload returned empty response');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          entry.isUploading = false;
+          entry.errorMessage = 'Upload failed';
         });
+      } else {
+        entry.isUploading = false;
+        entry.errorMessage = 'Upload failed';
       }
     }
   }
@@ -191,9 +290,11 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
 
   Future<void> _submitProduct({required bool publish}) async {
     if (!_formKey.currentState!.validate()) {
-      // Scroll to top to show errors
-      _scrollController.animateTo(0,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
       return;
     }
 
@@ -207,41 +308,58 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       return;
     }
 
+    // Check if any images are still uploading
+    if (_selectedImages.any((img) => img.isUploading)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait for image uploads to complete...'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    // Check if any image failed upload
+    final failed = _selectedImages.where((img) => img.uploadedUrl == null);
+    if (failed.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Some images failed to upload. Please retry or remove them.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      // 1. Upload all images to Cloudinary
-      final cloudinary = ref.read(cloudinaryServiceProvider);
-      final uploadedUrls = <String>[];
+      final uploadedUrls = _selectedImages
+          .map((img) => img.uploadedUrl)
+          .whereType<String>()
+          .toList();
 
-      for (final img in _selectedImages) {
-        if (img.uploadedUrl != null) {
-          uploadedUrls.add(img.uploadedUrl!);
-          continue;
-        }
-        final url = await cloudinary.uploadImage(
-          null,
-          bytes: img.bytes,
-          filename: img.name,
-          folder: 'products',
-        );
-        if (url != null) {
-          img.uploadedUrl = url;
-          uploadedUrls.add(url);
-        } else {
-          throw Exception('Failed to upload image: ${img.name}');
+      final basePrice = double.parse(_basePriceController.text.trim());
+      double? validDiscount;
+      final discountText = _discountedPriceController.text.trim();
+      if (discountText.isNotEmpty) {
+        final parsed = double.tryParse(discountText);
+        if (parsed != null && parsed > 0 && parsed < basePrice) {
+          validDiscount = parsed;
         }
       }
-
-      // 2. Build product data
-      final basePrice = double.parse(_basePriceController.text.trim());
-      final discountedPrice =
-          double.tryParse(_discountedPriceController.text.trim());
       final costPrice = double.tryParse(_costPriceController.text.trim());
       final stock = int.tryParse(_stockController.text.trim()) ?? 0;
       final lowStockThreshold =
           int.tryParse(_lowStockThresholdController.text.trim()) ?? 5;
-      final weight = double.tryParse(_weightController.text.trim());
+
+      // Extract numeric value from weight string (e.g. "2KG" -> 2.0)
+      double? weight;
+      final rawWeight = _weightController.text.trim();
+      if (rawWeight.isNotEmpty) {
+        final cleanWeight = rawWeight.replaceAll(RegExp(r'[^0-9.]'), '');
+        weight = double.tryParse(cleanWeight);
+      }
 
       // Build specifications JSON
       final specs = <String, dynamic>{};
@@ -280,8 +398,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       if (_selectedCategoryId != null) {
         body['categoryId'] = _selectedCategoryId;
       }
-      if (discountedPrice != null && discountedPrice > 0) {
-        body['discountedPrice'] = discountedPrice;
+      if (validDiscount != null) {
+        body['discountedPrice'] = validDiscount;
       }
       if (costPrice != null && costPrice > 0) {
         body['costPrice'] = costPrice;
@@ -292,13 +410,23 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       if (weight != null && weight > 0) {
         body['shippingWeight'] = weight;
       }
+      if (_dimensionsController.text.trim().isNotEmpty) {
+        body['packageDimensions'] = _dimensionsController.text.trim();
+      }
       if (specs.isNotEmpty) {
         body['specifications'] = specs;
       }
 
-      // 3. POST to backend
       final apiClient = ref.read(apiClientProvider);
       await apiClient.post('/sellers/products', body: body);
+
+      // Refresh seller dashboard and customer shop caches so the new product is immediately visible
+      ref.invalidate(shopCategoriesProvider);
+      ref.invalidate(shopFeaturedProvider);
+      ref.invalidate(shopNewArrivalsProvider);
+      ref.invalidate(shopRecommendedProvider);
+      ref.invalidate(shopDealsProvider);
+      ref.read(sellerProvider.notifier).loadDashboard();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -315,10 +443,19 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       }
     } catch (e) {
       if (mounted) {
+        // Extract clean message from ApiException or similar
+        String errorMsg = e.toString();
+        if (errorMsg.contains('ApiException:')) {
+          errorMsg = errorMsg.replaceAll(RegExp(r'^.*ApiException:\s*'), '');
+        }
+        if (errorMsg.contains('message:')) {
+          errorMsg = errorMsg.replaceAll(RegExp(r'^.*message:\s*'), '');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save product: $e'),
+            content: Text(errorMsg),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -340,7 +477,10 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         elevation: 0,
         scrolledUnderElevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => context.go('/seller'),
         ),
         title: const Text(
@@ -440,8 +580,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                       _buildTextField(
                         controller: _descriptionController,
                         label: 'Full Description',
-                        hint:
-                            'Detailed product description including benefits, ingredients, usage...',
+                        hint: 'Detailed product description including benefits, ingredients, usage...',
                         maxLines: 5,
                       ),
                     ],
@@ -480,7 +619,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                               hint: '0.00',
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                      decimal: true),
+                                    decimal: true,
+                                  ),
                               validator: (v) {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Price is required';
@@ -498,11 +638,23 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           Expanded(
                             child: _buildTextField(
                               controller: _discountedPriceController,
-                              label: 'Sale Price',
+                              label: 'Sale Price (optional)',
                               hint: '0.00',
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                       decimal: true),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return null;
+                                final disc = double.tryParse(v.trim());
+                                if (disc == null) return 'Enter a valid number';
+                                if (disc <= 0) return 'Must be greater than 0';
+                                final base = double.tryParse(
+                                    _basePriceController.text.trim());
+                                if (base != null && disc >= base) {
+                                  return 'Must be less than regular price';
+                                }
+                                return null;
+                              },
                               onChanged: (_) => setState(() {}),
                             ),
                           ),
@@ -512,7 +664,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -520,8 +674,11 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.local_offer_rounded,
-                                  size: 14, color: AppColors.success),
+                              const Icon(
+                                Icons.local_offer_rounded,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '$discountPct% discount',
@@ -541,7 +698,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         label: 'Cost Price (optional, internal)',
                         hint: '0.00',
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                          decimal: true,
+                        ),
                       ),
                     ],
                   ),
@@ -601,7 +759,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                               hint: 'e.g. 2.5',
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                      decimal: true),
+                                    decimal: true,
+                                  ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -625,13 +784,17 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         value: _selectedPetType,
                         decoration: _inputDecoration('Pet Type'),
                         items: _petTypes
-                            .map((t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t, style: const TextStyle(fontSize: 14)),
-                                ))
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(
+                                  t,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            )
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedPetType = v),
+                        onChanged: (v) => setState(() => _selectedPetType = v),
                       ),
                       const SizedBox(height: 14),
                       _buildTextField(
@@ -648,7 +811,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                         title: const Text(
                           'Featured Product',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         subtitle: const Text(
                           'Featured products appear in the homepage spotlight',
@@ -681,13 +846,16 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.save_outlined, size: 18),
                           label: const Text(
                             'Save as Draft',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -719,7 +887,9 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           label: const Text(
                             'Publish Product',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -843,55 +1013,138 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                   color: AppColors.inputFill,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: index == 0
-                        ? AppColors.primary
-                        : AppColors.border,
+                    color: index == 0 ? AppColors.primary : AppColors.border,
                     width: index == 0 ? 2 : 1,
                   ),
                 ),
                 child: ListTile(
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      img.bytes,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                    ),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  leading: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          img.bytes,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      if (img.isUploading)
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   title: Text(
                     img.name,
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(
-                    index == 0 ? '⭐ Main Image' : 'Image ${index + 1}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: index == 0
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      fontWeight:
-                          index == 0 ? FontWeight.bold : FontWeight.normal,
-                    ),
+                  subtitle: Row(
+                    children: [
+                      Text(
+                        index == 0 ? '⭐ Main Image' : 'Image ${index + 1}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: index == 0
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                          fontWeight:
+                              index == 0 ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (img.isUploading)
+                        const Text(
+                          '• Uploading...',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.info,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        )
+                      else if (img.uploadedUrl != null)
+                        const Text(
+                          '• Ready',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        )
+                      else if (img.errorMessage != null)
+                        const Text(
+                          '• Upload failed',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (img.uploadedUrl != null)
-                        const Icon(Icons.cloud_done_outlined,
-                            size: 16, color: AppColors.success),
+                      if (img.uploadedUrl != null && !img.isUploading)
+                        const Icon(
+                          Icons.cloud_done_rounded,
+                          size: 18,
+                          color: AppColors.success,
+                        ),
+                      if (img.errorMessage != null && !img.isUploading)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.refresh_rounded,
+                            size: 20,
+                            color: AppColors.warning,
+                          ),
+                          tooltip: 'Retry upload',
+                          onPressed: () {
+                            setState(() {
+                              img.isUploading = true;
+                              img.errorMessage = null;
+                            });
+                            _uploadSingleImage(img);
+                          },
+                        ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            size: 18, color: AppColors.error),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                        tooltip: 'Remove',
                         onPressed: () => _removeImage(index),
                         visualDensity: VisualDensity.compact,
                       ),
-                      const Icon(Icons.drag_handle_rounded,
-                          size: 18, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.drag_handle_rounded,
+                        size: 18,
+                        color: AppColors.textMuted,
+                      ),
                     ],
                   ),
                 ),
@@ -902,7 +1155,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         // Add images button
         if (_selectedImages.length < _maxImages)
           InkWell(
-            onTap: _pickImages,
+            onTap: _isPickingImages ? null : _pickImages,
             borderRadius: BorderRadius.circular(12),
             child: Container(
               width: double.infinity,
@@ -943,15 +1196,19 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
   }
 }
 
-/// Internal helper to hold a picked image before/after upload.
+/// Internal helper to hold a picked image with upload state tracking.
 class _ProductImageEntry {
   final Uint8List bytes;
   final String name;
   String? uploadedUrl;
+  bool isUploading;
+  String? errorMessage;
 
   _ProductImageEntry({
     required this.bytes,
     required this.name,
     this.uploadedUrl,
+    this.isUploading = false,
+    this.errorMessage,
   });
 }

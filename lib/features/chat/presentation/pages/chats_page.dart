@@ -5,10 +5,10 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../home/presentation/pages/requests_page.dart';
 import '../../../home/presentation/providers/requests_provider.dart';
 import '../../data/models/match_conversation_model.dart';
+import '../../data/repositories/chat_repository.dart';
 import '../../domain/entities/chat_entities.dart';
 import '../providers/chat_provider.dart';
-import '../providers/presence_provider.dart';
-import '../providers/typing_provider.dart';
+import '../providers/chat_settings_provider.dart';
 import '../widgets/chat_privacy_settings_sheet.dart';
 import '../widgets/date_separator.dart';
 import '../widgets/matched_pair_avatar.dart';
@@ -20,8 +20,34 @@ class ChatsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Ensure presence service is active while chats page is open
-    ref.watch(activePresenceServiceProvider);
+    final myUid = ref.watch(currentFirebaseUidProvider);
+
+    // Mark delivery watermark for all conversations where new messages have
+    // arrived while the user is on this screen (not inside a specific chat).
+    // This advances deliveredAt so the sender sees grey double-ticks.
+    ref.listen<AsyncValue<List<FirestoreConversation>>>(
+      firestoreConversationsStreamProvider,
+      (_, next) {
+        final convs = next.value;
+        if (convs == null || myUid.isEmpty) return;
+        final repo = ref.read(chatRepositoryProvider);
+        for (final conv in convs) {
+          if (!conv.participantUids.contains(myUid)) continue;
+          if (conv.status != 'ACTIVE') continue;
+          final lastMsgAt = conv.lastMessageAt;
+          if (lastMsgAt == null ||
+              conv.lastMessageSenderUid == null ||
+              conv.lastMessageSenderUid == myUid) {
+            continue;
+          }
+          // Only mark delivered if there's a message we haven't delivered yet
+          final myDelivered = conv.deliveredAtFor(myUid);
+          if (myDelivered == null || lastMsgAt.isAfter(myDelivered)) {
+            repo.markDelivered(conv.matchId, myUid, lastMessageAt: lastMsgAt);
+          }
+        }
+      },
+    );
 
     final conversationsState = ref.watch(chatConversationsProvider);
     final requestsState = ref.watch(requestsProvider);
@@ -66,7 +92,11 @@ class ChatsPage extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.shield_outlined, color: AppColors.textSecondary, size: 22),
+                        icon: const Icon(
+                          Icons.shield_outlined,
+                          color: AppColors.textSecondary,
+                          size: 22,
+                        ),
                         tooltip: 'Chat Privacy',
                         onPressed: () => showChatPrivacySettingsSheet(context),
                       ),
@@ -162,8 +192,9 @@ class ChatsPage extends ConsumerWidget {
                   if (conversationsState.isLoading &&
                       conversationsState.conversations.isEmpty) {
                     return const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     );
                   }
 
@@ -181,8 +212,9 @@ class ChatsPage extends ConsumerWidget {
                           const SizedBox(height: 12),
                           Text(
                             'Failed to load matches: ${conversationsState.errorMessage}',
-                            style:
-                                const TextStyle(color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
@@ -280,25 +312,12 @@ class ChatsPage extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Column(
                   children: [
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final otherUid = conv.otherFirebaseUid ?? '';
-                        final presence = otherUid.isNotEmpty
-                            ? ref.watch(presenceStreamProvider(otherUid)).value
-                            : null;
-                        final isOnline = presence != null
-                            ? (presence.isOnline && presence.visible)
-                            : conv.isOnline;
-                        return MatchedPairAvatar(
-                          petImageUrl: conv.otherPet.imageUrl,
-                          petName: conv.otherPet.name,
-                          ownerImageUrl: conv.otherOwner.imageUrl,
-                          ownerName: conv.otherOwner.name,
-                          size: 60,
-                          showOnlineIndicator: true,
-                          isOnline: isOnline,
-                        );
-                      },
+                    MatchedPairAvatar(
+                      petImageUrl: conv.otherPet.imageUrl,
+                      petName: conv.otherPet.name,
+                      ownerImageUrl: conv.otherOwner.imageUrl,
+                      ownerName: conv.otherOwner.name,
+                      size: 60,
                     ),
                     const SizedBox(height: 6),
                     SizedBox(
@@ -338,38 +357,21 @@ class ChatsPage extends ConsumerWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ChatDetailPage(match: conv),
-          ),
+          MaterialPageRoute(builder: (_) => ChatDetailPage(match: conv)),
         );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-        ),
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: Row(
           children: [
             // Left: Slanted Overlapping Pet & Owner Avatar
-            Consumer(
-              builder: (context, ref, _) {
-                final otherUid = conv.otherFirebaseUid ?? '';
-                final presence = otherUid.isNotEmpty
-                    ? ref.watch(presenceStreamProvider(otherUid)).value
-                    : null;
-                final isOnline = presence != null
-                    ? (presence.isOnline && presence.visible)
-                    : conv.isOnline;
-                return MatchedPairAvatar(
-                  petImageUrl: conv.otherPet.imageUrl,
-                  petName: conv.otherPet.name,
-                  ownerImageUrl: conv.otherOwner.imageUrl,
-                  ownerName: conv.otherOwner.name,
-                  size: 56,
-                  showOnlineIndicator: true,
-                  isOnline: isOnline,
-                );
-              },
+            MatchedPairAvatar(
+              petImageUrl: conv.otherPet.imageUrl,
+              petName: conv.otherPet.name,
+              ownerImageUrl: conv.otherOwner.imageUrl,
+              ownerName: conv.otherOwner.name,
+              size: 56,
             ),
             const SizedBox(width: 14),
 
@@ -414,63 +416,64 @@ class ChatsPage extends ConsumerWidget {
                       Expanded(
                         child: Consumer(
                           builder: (context, ref, _) {
-                            final otherUid = conv.otherFirebaseUid ?? '';
-                            final isTyping = otherUid.isNotEmpty
-                                ? ref.watch(otherUserTypingProvider((
-                                    conversationId: conv.matchId,
-                                    otherUid: otherUid,
-                                  ))).value == true
-                                : false;
-
-                            if (isTyping) {
-                              return const Text(
-                                'typing…',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF2E7D32),
-                                  fontWeight: FontWeight.w600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              );
-                            }
-
                             // Show tick for my last message
                             final myUid = ref.watch(currentFirebaseUidProvider);
-                            final convAsync = ref.watch(singleConversationProvider(conv.matchId));
+                            final convAsync = ref.watch(
+                              singleConversationProvider(conv.matchId),
+                            );
                             final fConv = convAsync.value;
-                            final isMyLastMessage = fConv?.lastMessageSenderUid == myUid && myUid.isNotEmpty;
+                            final isMyLastMessage =
+                                fConv?.lastMessageSenderUid == myUid &&
+                                myUid.isNotEmpty;
 
-                            final snippet = conv.lastMessage ?? '🐾 Tap to start chatting...';
+                            final snippet =
+                                conv.lastMessage ??
+                                '🐾 Tap to start chatting...';
                             if (isMyLastMessage && fConv != null) {
-                              final readReceipts = ref.watch(readReceiptsSettingProvider);
+                              final readReceipts = ref.watch(
+                                readReceiptsSettingProvider,
+                              );
                               // Approximate status from conversation watermarks
                               final convOtherUid = fConv.otherUid(myUid);
                               MessageStatus listStatus = MessageStatus.sent;
                               if (readReceipts) {
                                 final otherSeen = fConv.seenAtFor(convOtherUid);
-                                if (otherSeen != null && fConv.lastMessageAt != null && !fConv.lastMessageAt!.isAfter(otherSeen)) {
+                                if (otherSeen != null &&
+                                    fConv.lastMessageAt != null &&
+                                    !fConv.lastMessageAt!.isAfter(otherSeen)) {
                                   listStatus = MessageStatus.read;
                                 }
                               }
                               if (listStatus != MessageStatus.read) {
-                                final otherDelivered = fConv.deliveredAtFor(convOtherUid);
-                                if (otherDelivered != null && fConv.lastMessageAt != null && !fConv.lastMessageAt!.isAfter(otherDelivered)) {
+                                final otherDelivered = fConv.deliveredAtFor(
+                                  convOtherUid,
+                                );
+                                if (otherDelivered != null &&
+                                    fConv.lastMessageAt != null &&
+                                    !fConv.lastMessageAt!.isAfter(
+                                      otherDelivered,
+                                    )) {
                                   listStatus = MessageStatus.delivered;
                                 }
                               }
                               return Row(
                                 children: [
-                                  MessageStatusWidget(status: listStatus, size: 14),
+                                  MessageStatusWidget(
+                                    status: listStatus,
+                                    size: 14,
+                                  ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       snippet,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: conv.unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
-                                        fontWeight: conv.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                                        color: conv.unreadCount > 0
+                                            ? AppColors.textPrimary
+                                            : AppColors.textSecondary,
+                                        fontWeight: conv.unreadCount > 0
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -536,30 +539,30 @@ class ChatsPage extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: AppColors.primary.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.chat_bubble_outline_rounded,
-                size: 40,
+                size: 32,
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             const Text(
               'No Matches Yet',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'When you and another pet parent swipe right on each other or accept a playdate request, you\'ll be matched and your conversations will appear here!',
+              'When you and another pet parent match or accept a playdate request, your conversations will appear here',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,

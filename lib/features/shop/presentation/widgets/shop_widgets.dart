@@ -64,6 +64,12 @@ class ShopImage extends StatelessWidget {
         url!,
         height: height,
         width: width,
+        cacheWidth: width == null
+            ? null
+            : (width! * MediaQuery.devicePixelRatioOf(context)).round(),
+        cacheHeight: height == null
+            ? null
+            : (height! * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -112,8 +118,49 @@ class ShopCategoryCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static String resolveCategoryImageUrl(String name, String? existingUrl) {
+    if (existingUrl != null && existingUrl.isNotEmpty) return existingUrl;
+    final lower = name.toLowerCase();
+    if (lower.contains('dog')) {
+      return 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('cat')) {
+      return 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('food') || lower.contains('treat') || lower.contains('nutrition')) {
+      return 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('toy') || lower.contains('play')) {
+      return 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('groom') || lower.contains('bath') || lower.contains('shampoo') || lower.contains('clean')) {
+      return 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('health') || lower.contains('med') || lower.contains('care')) {
+      return 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('bed') || lower.contains('cushion') || lower.contains('furniture') || lower.contains('sleep')) {
+      return 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('cloth') || lower.contains('wear') || lower.contains('apparel') || lower.contains('jacket')) {
+      return 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('bird') || lower.contains('parrot') || lower.contains('cage')) {
+      return 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('rabbit') || lower.contains('hamster') || lower.contains('small')) {
+      return 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=400&auto=format&fit=crop&q=80';
+    }
+    if (lower.contains('access') || lower.contains('collar') || lower.contains('leash') || lower.contains('harness')) {
+      return 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400&auto=format&fit=crop&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final effectiveImageUrl = resolveCategoryImageUrl(category.name, category.imageUrl);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -135,7 +182,7 @@ class ShopCategoryCard extends StatelessWidget {
             children: [
               // Background Image
               ShopImage(
-                url: category.imageUrl,
+                url: effectiveImageUrl,
                 borderRadius: BorderRadius.circular(16),
               ),
               // Dark Gradient Overlay for text readability
@@ -147,9 +194,9 @@ class ShopCategoryCard extends StatelessWidget {
                     colors: [
                       Colors.transparent,
                       Colors.black.withValues(alpha: 0.35),
-                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.8),
                     ],
-                    stops: const [0.3, 0.65, 1.0],
+                    stops: const [0.25, 0.6, 1.0],
                   ),
                 ),
               ),
@@ -197,11 +244,7 @@ class ShopProductCard extends ConsumerWidget {
   final ShopProduct product;
   final VoidCallback? onTap;
 
-  const ShopProductCard({
-    super.key,
-    required this.product,
-    this.onTap,
-  });
+  const ShopProductCard({super.key, required this.product, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -231,7 +274,7 @@ class ShopProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Top Image Container with Wishlist & Discount Badge
+            // Top Image Container with Wishlist, Discount Badge & Out-of-stock overlay
             Expanded(
               flex: 11,
               child: Stack(
@@ -241,22 +284,53 @@ class ShopProductCard extends ConsumerWidget {
                     color: AppColors.cream,
                     child: ShopImage(
                       url: product.images.firstOrNull,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                   ),
+                  // Out of stock overlay
+                  if (!product.hasStock)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'OUT OF STOCK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Discount badge
-                  if (product.discountPercentage != null && product.discountPercentage! > 0)
+                  if (product.discountPercentage != null &&
+                      product.discountPercentage! > 0)
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.terracotta,
                           borderRadius: BorderRadius.circular(6),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.terracotta.withValues(alpha: 0.3),
+                              color: AppColors.terracotta.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
@@ -277,7 +351,7 @@ class ShopProductCard extends ConsumerWidget {
                     top: 6,
                     right: 6,
                     child: Material(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.92),
                       shape: const CircleBorder(),
                       elevation: 1,
                       child: InkWell(
@@ -288,17 +362,25 @@ class ShopProductCard extends ConsumerWidget {
                             return;
                           }
                           if (isWishlisted) {
-                            await ref.read(shopWishlistProvider.notifier).remove(wishlistItem.id);
+                            await ref
+                                .read(shopWishlistProvider.notifier)
+                                .remove(wishlistItem.id);
                           } else {
-                            await ref.read(shopWishlistProvider.notifier).add(product.id);
+                            await ref
+                                .read(shopWishlistProvider.notifier)
+                                .add(product.id);
                           }
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(6),
                           child: Icon(
-                            isWishlisted ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            size: 17,
-                            color: isWishlisted ? AppColors.terracotta : AppColors.textSecondary,
+                            isWishlisted
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 16,
+                            color: isWishlisted
+                                ? AppColors.terracotta
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -309,13 +391,13 @@ class ShopProductCard extends ConsumerWidget {
             ),
             // Product Information
             Expanded(
-              flex: 10,
+              flex: 12,
               child: Padding(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Brand or Category
+                    // Brand & Rating
                     Row(
                       children: [
                         if (product.brand != null && product.brand!.isNotEmpty)
@@ -325,7 +407,7 @@ class ShopProductCard extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textMuted,
                                 letterSpacing: 0.5,
@@ -339,26 +421,39 @@ class ShopProductCard extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textMuted,
                                 letterSpacing: 0.5,
                               ),
                             ),
-                          ),
-                        const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
+                          )
+                        else
+                          const Spacer(),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 13,
+                          color: Colors.amber,
+                        ),
                         const SizedBox(width: 2),
-                        const Text(
-                          '4.8',
-                          style: TextStyle(
+                        Text(
+                          '${product.rating}',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
                           ),
                         ),
+                        Text(
+                          ' (${product.reviewCount})',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     // Product Name
                     Text(
                       product.name,
@@ -371,31 +466,78 @@ class ShopProductCard extends ConsumerWidget {
                         height: 1.25,
                       ),
                     ),
-                    const Spacer(),
-                    // Price Row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          formatShopPrice(product.displayPrice),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                        if (product.discountedPrice != null) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            formatShopPrice(product.basePrice),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              decoration: TextDecoration.lineThrough,
-                              color: AppColors.textMuted,
+                    // Seller Store Name
+                    if (product.storeName != null && product.storeName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront_outlined, size: 11, color: AppColors.primary),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              product.storeName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                    const Spacer(),
+                    // Price & Stock Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                formatShopPrice(product.displayPrice),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                              if (product.discountedPrice != null) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  formatShopPrice(product.basePrice),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    decoration: TextDecoration.lineThrough,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: (product.availableStock > 0 ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            product.availableStock > 5
+                                ? 'In Stock'
+                                : product.availableStock > 0
+                                    ? '${product.availableStock} left'
+                                    : 'Out',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: product.availableStock > 0 ? AppColors.success : AppColors.error,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -430,10 +572,14 @@ class ShopProductCard extends ConsumerWidget {
                                 }
                                 final messenger = ScaffoldMessenger.of(context);
                                 try {
-                                  await ref.read(shopCartProvider.notifier).add(product.id);
+                                  await ref
+                                      .read(shopCartProvider.notifier)
+                                      .add(product.id);
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text('${product.name} added to cart!'),
+                                      content: Text(
+                                        '${product.name} added to cart!',
+                                      ),
                                       backgroundColor: AppColors.success,
                                       duration: const Duration(seconds: 2),
                                     ),
@@ -461,8 +607,8 @@ class ShopProductCard extends ConsumerWidget {
                               !product.hasStock
                                   ? 'Out of Stock'
                                   : product.variants.isNotEmpty
-                                      ? 'Options'
-                                      : 'Add to Cart',
+                                  ? 'Options'
+                                  : 'Add to Cart',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -550,7 +696,11 @@ class ShopSection extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: 2),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 12,
+                          color: AppColors.primary,
+                        ),
                       ],
                     ),
                   ),
@@ -560,7 +710,7 @@ class ShopSection extends StatelessWidget {
           const SizedBox(height: 10),
           // Product Horizontal Carousel
           SizedBox(
-            height: 275,
+            height: 300,
             child: value.when(
               loading: () => ListView.separated(
                 scrollDirection: Axis.horizontal,
@@ -568,7 +718,7 @@ class ShopSection extends StatelessWidget {
                 itemCount: 4,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (_, _) => Container(
-                  width: 175,
+                  width: 180,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -589,7 +739,10 @@ class ShopSection extends StatelessWidget {
                   children: [
                     Text(
                       'Could not load $title.',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     TextButton(onPressed: onRetry, child: const Text('Retry')),
                   ],
@@ -599,7 +752,10 @@ class ShopSection extends StatelessWidget {
                   ? const Center(
                       child: Text(
                         'No products available yet.',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     )
                   : ListView.separated(
@@ -608,7 +764,7 @@ class ShopSection extends StatelessWidget {
                       itemCount: items.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) => SizedBox(
-                        width: 175,
+                        width: 180,
                         child: ShopProductCard(product: items[index]),
                       ),
                     ),
@@ -632,10 +788,7 @@ class ShopPromoBanner extends StatelessWidget {
       height: 155,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.primaryDark,
-            AppColors.primary,
-          ],
+          colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -686,7 +839,10 @@ class ShopPromoBanner extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.terracotta,
                           borderRadius: BorderRadius.circular(20),
@@ -727,7 +883,10 @@ class ShopPromoBanner extends StatelessWidget {
                         onTap: onShopNow,
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),

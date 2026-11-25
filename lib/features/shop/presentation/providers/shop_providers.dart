@@ -18,6 +18,15 @@ final shopNewArrivalsProvider = FutureProvider<List<ShopProduct>>(
 final shopRecommendedProvider = FutureProvider<List<ShopProduct>>(
   (ref) => ref.watch(shopRepositoryProvider).section('recommended'),
 );
+final shopDealsProvider = FutureProvider<List<ShopProduct>>(
+  (ref) async {
+    final raw = await ref.watch(shopRepositoryProvider).products({'page': 1, 'limit': 12});
+    final all = _products(raw);
+    final discounted = all.where((p) => p.discountedPrice != null).toList();
+    if (discounted.isNotEmpty) return discounted;
+    return all.take(6).toList();
+  },
+);
 final shopProductProvider = FutureProvider.family<ShopProduct, String>(
   (ref, id) => ref.watch(shopRepositoryProvider).product(id),
 );
@@ -152,8 +161,9 @@ class ShopCartState {
     this.totalQuantity = 0,
   });
 
-  int get totalCount =>
-      totalQuantity > 0 ? totalQuantity : items.fold(0, (sum, i) => sum + i.quantity);
+  int get totalCount => totalQuantity > 0
+      ? totalQuantity
+      : items.fold(0, (sum, i) => sum + i.quantity);
 }
 
 class ShopCartNotifier extends Notifier<ShopCartState> {
@@ -275,15 +285,19 @@ class ShopAddressesState {
     this.error,
   });
 
-  ShopAddress? get defaultAddress =>
-      items.firstWhere((a) => a.isDefault, orElse: () => items.firstOrNull ?? const ShopAddress(
-        id: '',
-        fullName: '',
-        phoneNumber: '',
-        addressLine1: '',
-        city: '',
-        province: '',
-      ));
+  ShopAddress? get defaultAddress => items.firstWhere(
+    (a) => a.isDefault,
+    orElse: () =>
+        items.firstOrNull ??
+        const ShopAddress(
+          id: '',
+          fullName: '',
+          phoneNumber: '',
+          addressLine1: '',
+          city: '',
+          province: '',
+        ),
+  );
 }
 
 class ShopAddressesNotifier extends Notifier<ShopAddressesState> {
@@ -302,7 +316,9 @@ class ShopAddressesNotifier extends Notifier<ShopAddressesState> {
 
   Future<ShopAddress?> add(ShopAddress address) async {
     try {
-      final created = await ref.read(shopRepositoryProvider).createAddress(address);
+      final created = await ref
+          .read(shopRepositoryProvider)
+          .createAddress(address);
       await load();
       return created;
     } catch (e) {
@@ -380,7 +396,9 @@ class ShopOrdersNotifier extends Notifier<ShopOrdersState> {
   }) async {
     state = ShopOrdersState(items: state.items, isPlacingOrder: true);
     try {
-      final order = await ref.read(shopRepositoryProvider).createOrder(
+      final order = await ref
+          .read(shopRepositoryProvider)
+          .createOrder(
             deliveryAddressId: deliveryAddressId,
             paymentMethod: paymentMethod,
             customerNotes: customerNotes,
@@ -397,7 +415,9 @@ class ShopOrdersNotifier extends Notifier<ShopOrdersState> {
 
   Future<bool> cancelOrder(String orderId, {String? reason}) async {
     try {
-      await ref.read(shopRepositoryProvider).cancelOrder(orderId, reason: reason);
+      await ref
+          .read(shopRepositoryProvider)
+          .cancelOrder(orderId, reason: reason);
       await load();
       return true;
     } catch (e) {
@@ -412,15 +432,17 @@ final shopOrdersProvider =
       ShopOrdersNotifier.new,
     );
 
-final shopOrderDetailProvider =
-    FutureProvider.family<ShopOrder, String>((ref, id) {
+final shopOrderDetailProvider = FutureProvider.family<ShopOrder, String>((
+  ref,
+  id,
+) {
   return ref.watch(shopRepositoryProvider).order(id);
 });
 
 final shopProductReviewsProvider =
     FutureProvider.family<ShopReviewSummary, String>((ref, id) {
-  return ref.watch(shopRepositoryProvider).reviews(id);
-});
+      return ref.watch(shopRepositoryProvider).reviews(id);
+    });
 
 double _number(dynamic value) => value == null
     ? 0

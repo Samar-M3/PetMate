@@ -48,16 +48,15 @@ class ShopRemoteDataSource {
     required String deliveryAddressId,
     required String paymentMethod,
     String? customerNotes,
-  }) =>
-      _api.post(
-        '/shop/orders',
-        body: {
-          'deliveryAddressId': deliveryAddressId,
-          'paymentMethod': paymentMethod,
-          if (customerNotes != null && customerNotes.isNotEmpty)
-            'customerNotes': customerNotes,
-        },
-      );
+  }) => _api.post(
+    '/shop/orders',
+    body: {
+      'deliveryAddressId': deliveryAddressId,
+      'paymentMethod': paymentMethod,
+      if (customerNotes != null && customerNotes.isNotEmpty)
+        'customerNotes': customerNotes,
+    },
+  );
   Future<dynamic> cancelOrder(String id, {String? reason}) =>
       _api.patch('/shop/orders/$id/cancel', body: {'reason': reason});
 
@@ -80,13 +79,12 @@ class ShopRemoteDataSource {
     required int rating,
     String? title,
     String? comment,
-  }) =>
-      _api.post(
-        '/shop/products/$productId/reviews',
-        body: {
-          'rating': rating,
-          if (title != null && title.isNotEmpty) 'title': title,
-          if (comment != null && comment.isNotEmpty) 'comment': comment,
-        },
-      );
+  }) => _api.post(
+    '/shop/products/$productId/reviews',
+    body: {
+      'rating': rating,
+      if (title != null && title.isNotEmpty) 'title': title,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    },
+  );
 }

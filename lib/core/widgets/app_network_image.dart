@@ -93,12 +93,21 @@ class AppNetworkImage extends StatelessWidget {
       width: tWidth,
       height: tHeight,
     );
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final decodeWidth = width != null
+        ? (width! * devicePixelRatio).round()
+        : transformationWidth;
+    final decodeHeight = height != null
+        ? (height! * devicePixelRatio).round()
+        : transformationHeight;
 
     Widget imageWidget = CachedNetworkImage(
       imageUrl: processedUrl,
       width: width,
       height: height,
       fit: fit,
+      memCacheWidth: decodeWidth,
+      memCacheHeight: decodeHeight,
       placeholder: (context, url) => Container(
         width: width,
         height: height,

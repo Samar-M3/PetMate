@@ -8,16 +8,20 @@ import {
 import {
   authenticateFirebase,
   requireInitializedUser,
+  requirePasswordSetupComplete,
+  requireRole,
+  Role,
 } from "../../middleware/auth.middleware.ts";
 
 const router = Router();
 
 router.use(authenticateFirebase);
 router.use(requireInitializedUser);
+router.use(requirePasswordSetupComplete);
 
 router.get("/", getAppointments);
 router.post("/", bookAppointment);
-router.patch("/:id/status", updateStatus);
+router.patch("/:id/status", requireRole(Role.VETERINARIAN, Role.ADMIN), updateStatus);
 router.get("/booked-slots", getBookedSlotsHandler);
 
 export default router;

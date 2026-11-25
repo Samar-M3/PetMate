@@ -1,8 +1,26 @@
 const List<String> _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
-const List<String> _weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const List<String> _weekdays = [
+  'MON',
+  'TUE',
+  'WED',
+  'THU',
+  'FRI',
+  'SAT',
+  'SUN',
+];
 
 /// Parses "Dec 05, 2026" or an ISO-8601 string into a calendar date
 /// (time of day and time zone are dropped so the day never shifts).
@@ -14,10 +32,14 @@ DateTime? parseCareDate(String? raw) {
       .firstMatch(s);
   if (match != null) {
     final month = _months.indexWhere(
-        (m) => m.toLowerCase() == match.group(1)!.toLowerCase());
+      (m) => m.toLowerCase() == match.group(1)!.toLowerCase(),
+    );
     if (month != -1) {
       return DateTime(
-          int.parse(match.group(3)!), month + 1, int.parse(match.group(2)!));
+        int.parse(match.group(3)!),
+        month + 1,
+        int.parse(match.group(2)!),
+      );
     }
   }
 
@@ -52,7 +74,8 @@ bool isSameDay(DateTime a, DateTime b) =>
 
 /// Minutes after midnight for "09:30 AM" / "2:30 pm"; null if unparseable.
 int? slotMinutes(String slot) {
-  final m = RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$').firstMatch(slot.trim());
+  final m = RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$')
+      .firstMatch(slot.trim());
   if (m == null) return null;
   var h = int.parse(m.group(1)!) % 12;
   if (m.group(3)!.toLowerCase() == 'pm') h += 12;
@@ -61,8 +84,9 @@ int? slotMinutes(String slot) {
 
 List<String> sortedSlots(Iterable<String> slots) {
   final list = slots.toSet().toList();
-  list.sort((a, b) =>
-      (slotMinutes(a) ?? 1 << 30).compareTo(slotMinutes(b) ?? 1 << 30));
+  list.sort(
+    (a, b) => (slotMinutes(a) ?? 1 << 30).compareTo(slotMinutes(b) ?? 1 << 30),
+  );
   return list;
 }
 

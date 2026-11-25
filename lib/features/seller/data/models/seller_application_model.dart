@@ -38,10 +38,9 @@ class SellerStoreModel {
   bool get isRejected => status == 'REJECTED';
   bool get isSuspended => status == 'SUSPENDED';
 
-  String get businessTypeLabel =>
-      businessType == 'REGISTERED_BUSINESS'
-          ? 'Registered Business'
-          : 'Individual Seller';
+  String get businessTypeLabel => businessType == 'REGISTERED_BUSINESS'
+      ? 'Registered Business'
+      : 'Individual Seller';
 
   factory SellerStoreModel.fromJson(Map<String, dynamic> json) {
     return SellerStoreModel(
@@ -74,13 +73,13 @@ class SellerStoreModel {
       submittedAt: json['submittedAt'] != null
           ? DateTime.tryParse(json['submittedAt'].toString())
           : (json['submitted_at'] != null
-              ? DateTime.tryParse(json['submitted_at'].toString())
-              : null),
+                ? DateTime.tryParse(json['submitted_at'].toString())
+                : null),
       reviewedAt: json['reviewedAt'] != null
           ? DateTime.tryParse(json['reviewedAt'].toString())
           : (json['reviewed_at'] != null
-              ? DateTime.tryParse(json['reviewed_at'].toString())
-              : null),
+                ? DateTime.tryParse(json['reviewed_at'].toString())
+                : null),
     );
   }
 
@@ -124,7 +123,8 @@ class SellerStatusResponseModel {
     this.store,
   });
 
-  bool get isApproved => applicationStatus == 'APPROVED' && (store?.isApproved ?? false);
+  bool get isApproved =>
+      applicationStatus == 'APPROVED' && (store?.isApproved ?? false);
   bool get isPending => applicationStatus == 'PENDING';
   bool get isRejected => applicationStatus == 'REJECTED';
   bool get isSuspended => applicationStatus == 'SUSPENDED' || !isActive;
@@ -132,7 +132,9 @@ class SellerStatusResponseModel {
   factory SellerStatusResponseModel.fromJson(Map<String, dynamic> json) {
     SellerStoreModel? storeModel;
     if (json['store'] != null && json['store'] is Map<String, dynamic>) {
-      storeModel = SellerStoreModel.fromJson(json['store'] as Map<String, dynamic>);
+      storeModel = SellerStoreModel.fromJson(
+        json['store'] as Map<String, dynamic>,
+      );
     }
 
     return SellerStatusResponseModel(
@@ -175,10 +177,7 @@ class SellerDashboardData {
   final SellerStoreModel store;
   final SellerDashboardMetrics metrics;
 
-  const SellerDashboardData({
-    required this.store,
-    required this.metrics,
-  });
+  const SellerDashboardData({required this.store, required this.metrics});
 
   factory SellerDashboardData.fromJson(Map<String, dynamic> json) {
     return SellerDashboardData(

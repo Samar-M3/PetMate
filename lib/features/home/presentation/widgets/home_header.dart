@@ -22,7 +22,7 @@ class HomeHeader extends ConsumerWidget {
         : 'P';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -31,71 +31,74 @@ class HomeHeader extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.primaryDark.withValues(alpha: 0.2),
+                    width: 1,
                   ),
-                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: const Icon(Icons.pets, color: Colors.white, size: 22),
+                child: const Icon(Icons.pets, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
-              Text.rich(
-                const TextSpan(
+              const Text.rich(
+                TextSpan(
                   text: 'Pet',
                   children: [
                     TextSpan(
                       text: 'Mate',
                       style: TextStyle(
                         color: AppColors.terracotta,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                   color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
 
-          // User Profile Avatar
-          Container(
-            padding: const EdgeInsets.all(2.5),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.terracotta.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+          // User Profile Avatar with quiet neutral hairline
+          GestureDetector(
+            onTap: onProfileTap,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.border,
+                  width: 1.5,
                 ),
-              ],
-            ),
-            child: UserAvatar(
-              imageUrl: avatarUrl,
-              radius: 18,
-              initials: initial,
-              onTap: onProfileTap,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: UserAvatar(
+                imageUrl: avatarUrl,
+                radius: 17,
+                initials: initial,
+                onTap: onProfileTap,
+              ),
             ),
           ),
         ],

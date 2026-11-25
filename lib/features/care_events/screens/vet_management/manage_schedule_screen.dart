@@ -62,11 +62,14 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Toggle Active In-Clinic Slots',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: CareTheme.charcoal)),
+            const Text(
+              'Toggle Active In-Clinic Slots',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: CareTheme.charcoal,
+              ),
+            ),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
@@ -102,7 +105,8 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
                   backgroundColor: CareTheme.terracotta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: _saving ? null : _saveSlots,
                 child: _saving
@@ -110,11 +114,17 @@ class _ManageScheduleScreenState extends ConsumerState<ManageScheduleScreen> {
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5),
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
                       )
-                    : const Text('Save Clinic Schedule',
+                    : const Text(
+                        'Save Clinic Schedule',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],

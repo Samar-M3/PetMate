@@ -23,14 +23,19 @@ PreferredSizeWidget careAppBar(
   );
 }
 
-void showCareSnackBar(BuildContext context, String message,
-    {bool isError = false}) {
+void showCareSnackBar(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: isError ? Colors.red.shade700 : CareTheme.deepOlive,
-    ));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade700 : CareTheme.deepOlive,
+      ),
+    );
 }
 
 Future<bool> confirmCareAction(
@@ -47,12 +52,15 @@ Future<bool> confirmCareAction(
       content: Text(message),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(cancelLabel)),
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(cancelLabel),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text(confirmLabel,
-              style: const TextStyle(color: CareTheme.terracotta)),
+          child: Text(
+            confirmLabel,
+            style: const TextStyle(color: CareTheme.terracotta),
+          ),
         ),
       ],
     ),
@@ -65,8 +73,8 @@ class CareLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Center(
-        child: CircularProgressIndicator(color: CareTheme.terracotta),
-      );
+    child: CircularProgressIndicator(color: CareTheme.terracotta),
+  );
 }
 
 class CareMessage extends StatelessWidget {
@@ -75,13 +83,15 @@ class CareMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: CareTheme.mutedText)),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: CareTheme.mutedText),
+      ),
+    ),
+  );
 }
 
 class CareErrorRetry extends StatelessWidget {
@@ -91,25 +101,27 @@ class CareErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(error.toString().replaceFirst('Exception: ', ''),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: CareTheme.charcoal)),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CareTheme.terracotta,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: onRetry,
-                child: const Text('Try again'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            error.toString().replaceFirst('Exception: ', ''),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: CareTheme.charcoal),
           ),
-        ),
-      );
+          const SizedBox(height: 12),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CareTheme.terracotta,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: onRetry,
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -33,7 +33,7 @@ export interface SlotPaymentProvider {
 export class MockOrSandboxGatewayProvider implements SlotPaymentProvider {
   name: string;
 
-  constructor(gatewayName: "esewa" | "khalti" | "mock" = "esewa") {
+  constructor(gatewayName: "esewa" | "fonepay" | "mock" = "esewa") {
     this.name = gatewayName;
   }
 
@@ -44,27 +44,18 @@ export class MockOrSandboxGatewayProvider implements SlotPaymentProvider {
     description: string;
   }): Promise<SlotPaymentInitiation> {
     const transactionId = `txn_${params.paymentId}_${Date.now()}`;
-    const baseUrl =
-      this.name === "khalti"
-        ? "https://a.khalti.com/api/v2/epayment/initiate/"
-        : "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
-
     return {
       paymentId: params.paymentId,
       gateway: this.name,
       amount: params.amount,
       transactionId,
-      paymentUrl: baseUrl,
+      // No external gateway is called until the real payment integration is enabled.
+      paymentUrl: `mock://${this.name}/checkout/${params.paymentId}`,
       params: {
-        amt: params.amount,
-        psc: 0,
-        pdc: 0,
-        txAmt: 0,
-        tAmt: params.amount,
-        pid: transactionId,
-        scd: process.env.ESEWA_MERCHANT_CODE || "EPAYTEST",
-        su: "https://petmate.local/payment/success",
-        fu: "https://petmate.local/payment/failure",
+        gateway: this.name,
+        amount: params.amount,
+        transactionId,
+        mode: "mock",
       },
     };
   }
@@ -74,7 +65,7 @@ export class MockOrSandboxGatewayProvider implements SlotPaymentProvider {
     transactionId?: string;
     gatewayPayload?: any;
   }): Promise<SlotPaymentVerificationResult> {
-    // In test/sandbox environment, simulate a successful verification if valid id provided
+    // Mock mode intentionally accepts the simulated checkout and lets the API grant the slot.
     return {
       success: true,
       transactionId: params.transactionId || `txn_${params.paymentId}`,
@@ -86,8 +77,8 @@ export class MockOrSandboxGatewayProvider implements SlotPaymentProvider {
 
 export function getSlotPaymentProvider(gatewayName?: string): SlotPaymentProvider {
   const chosen = (gatewayName || process.env.SLOT_PURCHASE_PROVIDER || "esewa").toLowerCase();
-  if (chosen === "khalti") {
-    return new MockOrSandboxGatewayProvider("khalti");
+  if (chosen !== "esewa" && chosen !== "fonepay") {
+    throw new Error("Unsupported slot payment method. Choose eSewa or Fonepay.");
   }
-  return new MockOrSandboxGatewayProvider("esewa");
+  return new MockOrSandboxGatewayProvider(chosen);
 }
