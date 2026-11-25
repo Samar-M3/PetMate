@@ -660,6 +660,7 @@ class _ResubmitApplicationSheetState
   String? _registrationDocUrl;
   String? _identityDocUrl;
   bool _isUploadingDoc = false;
+  bool _isPickingDoc = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -693,6 +694,8 @@ class _ResubmitApplicationSheetState
   }
 
   Future<void> _pickAndUpload(bool isRegDoc) async {
+    if (_isPickingDoc) return;
+    _isPickingDoc = true;
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -736,6 +739,8 @@ class _ResubmitApplicationSheetState
           ),
         );
       }
+    } finally {
+      _isPickingDoc = false;
     }
   }
 

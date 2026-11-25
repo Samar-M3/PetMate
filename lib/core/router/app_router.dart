@@ -65,12 +65,16 @@ class RouterNotifier extends ChangeNotifier {
 
     // 3. Authenticated -> decide first screen from role BEFORE anything else
     if (authState.isAuthenticated) {
-      // 3.0. If backend sync is still loading OR user profile not yet fetched,
-      //      stay on splash until we have definitive role info. This prevents
-      //      prematurely routing ADMIN/SELLER to the pet-owner flow when the
-      //      backend response is delayed or temporarily unavailable.
-      if (authState.isLoading || authState.user == null) {
+      // 3.0. If user profile is not yet fetched, stay on / redirect to splash.
+      // This prevents prematurely routing ADMIN/SELLER to the pet-owner flow
+      // before role information is resolved from the backend.
+      if (authState.user == null) {
         return isSplashPage ? null : '/splash';
+      }
+
+      // If already on the splash screen and still performing initial load, stay on splash.
+      if (isSplashPage && authState.isLoading) {
+        return null;
       }
 
       final role = authState.user?.role;

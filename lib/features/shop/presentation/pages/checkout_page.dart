@@ -17,6 +17,7 @@ class ShopCheckoutPage extends ConsumerStatefulWidget {
 class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
   String? _selectedAddressId;
   String _paymentMethod = 'CASH_ON_DELIVERY';
+  String _deliveryMethod = 'STANDARD';
   final _notesController = TextEditingController();
 
   @override
@@ -291,7 +292,10 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
     final cartState = ref.watch(shopCartProvider);
     final ordersState = ref.watch(shopOrdersProvider);
 
-    final deliveryFee = cartState.subtotal >= 1500 ? 0 : 100;
+    final isStandardFree = _deliveryMethod == 'STANDARD' && cartState.subtotal >= 1500;
+    final deliveryFee = _deliveryMethod == 'EXPRESS'
+        ? 200
+        : (isStandardFree ? 0 : 100);
     final total = cartState.subtotal + deliveryFee;
 
     return Scaffold(
@@ -517,7 +521,72 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Section 3: Payment Method
+                  // Section 3: Delivery Method
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Delivery Method',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const Divider(color: AppColors.border),
+                        const SizedBox(height: 8),
+                        RadioListTile<String>(
+                          value: 'STANDARD',
+                          groupValue: _deliveryMethod,
+                          activeColor: AppColors.primary,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Standard Delivery (2-3 Days)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text(
+                                isStandardFree ? 'FREE' : 'Rs. 100',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isStandardFree ? AppColors.success : AppColors.primaryDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: const Text('Regular safe doorstep courier shipping', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          onChanged: (val) => setState(() => _deliveryMethod = val!),
+                        ),
+                        RadioListTile<String>(
+                          value: 'EXPRESS',
+                          groupValue: _deliveryMethod,
+                          activeColor: AppColors.primary,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Express Priority (Next Day)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text('Rs. 200', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryDark)),
+                            ],
+                          ),
+                          subtitle: const Text('Fast priority dispatch for urgent pet supplies', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          onChanged: (val) => setState(() => _deliveryMethod = val!),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 4: Payment Method
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -627,7 +696,10 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Delivery Charge', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                            Text(
+                              _deliveryMethod == 'EXPRESS' ? 'Express Delivery' : 'Delivery Charge',
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            ),
                             Text(
                               deliveryFee == 0 ? 'FREE' : formatShopPrice(deliveryFee.toDouble()),
                               style: TextStyle(
@@ -638,6 +710,16 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                             ),
                           ],
                         ),
+                        if (isStandardFree) ...[
+                          const SizedBox(height: 8),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Delivery Discount', style: TextStyle(color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
+                              Text('-Rs. 100 (FREE)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.success)),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         const Divider(color: AppColors.border),
                         const SizedBox(height: 8),

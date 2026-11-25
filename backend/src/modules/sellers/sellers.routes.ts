@@ -5,6 +5,13 @@ import {
   resubmit,
   requestPasswordReset,
   getDashboard,
+  createProduct,
+  getProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+  updateStock,
+  toggleStatus,
 } from "./sellers.controller.ts";
 import {
   authenticateFirebase,
@@ -34,6 +41,57 @@ router.get(
   requireInitializedUser,
   requireApprovedSeller,
   getDashboard
+);
+
+// Protected seller product management (approved sellers only)
+router.post(
+  "/products",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  createProduct
+);
+router.get(
+  "/products",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  getProducts
+);
+router.get(
+  "/products/:id",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  getProductById
+);
+router.patch(
+  "/products/:id",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  updateProduct
+);
+router.delete(
+  "/products/:id",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  deleteProduct
+);
+router.patch(
+  "/products/:id/stock",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  updateStock
+);
+router.patch(
+  "/products/:id/status",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  toggleStatus
 );
 
 export default router;

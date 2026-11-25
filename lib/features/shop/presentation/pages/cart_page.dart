@@ -273,6 +273,22 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        // Continue Shopping Button
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary, width: 1.5),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: () => context.go('/shop'),
+          icon: const Icon(Icons.storefront_rounded, size: 18),
+          label: const Text(
+            'Continue Shopping',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ),
       ],
     );
   }
@@ -329,6 +345,27 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                     ),
                   ],
                 ),
+                if (line.product.storeName != null && line.product.storeName!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.storefront_outlined, size: 12, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          line.product.storeName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (line.variant != null) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -336,6 +373,11 @@ class _ShopCartPageState extends ConsumerState<ShopCartPage> {
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
+                const SizedBox(height: 4),
+                Text(
+                  'Unit: ${formatShopPrice(line.unitPrice)}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
