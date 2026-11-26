@@ -360,6 +360,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       }
       state = state.copyWith(isLoading: false, errorMessage: msg);
       return null;
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Sign-in timed out. Please check your internet connection and try again.',
+      );
+      return null;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return null;
@@ -372,6 +379,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       final cred = await _authService.signInWithGoogle();
       await _syncBackendProfile(cred.user!);
       return state.onboardingStatus?.nextStep ?? 'PET_INFO';
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Google sign-in timed out. Please check your internet connection and try again.',
+      );
+      return null;
     } catch (e) {
       String msg = e.toString();
       if (msg.contains('ApiException: 7') || msg.contains('network_error')) {
@@ -412,6 +426,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         msg = e.message!;
       }
       state = state.copyWith(isLoading: false, errorMessage: msg);
+      return false;
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Registration timed out. Please check your internet connection and try again.',
+      );
       return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());

@@ -35,24 +35,30 @@ class FirebaseAuthService {
     return await _auth.currentUser?.getIdToken(forceRefresh);
   }
 
+  static const Duration _authTimeout = Duration(seconds: 20);
+
   Future<UserCredential> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
+    return await _auth
+        .signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        )
+        .timeout(_authTimeout);
   }
 
   Future<UserCredential> createUserWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
-    return await _auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
+    return await _auth
+        .createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        )
+        .timeout(_authTimeout);
   }
 
   Future<UserCredential> signInWithGoogle() async {
@@ -68,7 +74,7 @@ class FirebaseAuthService {
       idToken: googleAuth.idToken,
     );
 
-    return await _auth.signInWithCredential(credential);
+    return await _auth.signInWithCredential(credential).timeout(_authTimeout);
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
