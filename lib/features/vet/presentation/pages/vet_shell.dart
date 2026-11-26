@@ -118,7 +118,7 @@ class _VetShellState extends ConsumerState<VetShell> {
             ),
             tooltip: 'Log Out',
             onPressed: () async {
-              await _handleLogout(context, ref);
+              await VetShell._handleLogout(context, ref);
             },
           ),
         ],

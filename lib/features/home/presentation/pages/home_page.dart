@@ -107,7 +107,69 @@ class _HomePageState extends ConsumerState<HomePage>
             if (_selectedNavIndex != 3)
               HomeHeader(onProfileTap: () => context.push('/profile')),
 
-            // 2. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
+            // 2. Active Pet Switcher (if user has several active pets)
+            if (userPets.length > 1 && _selectedNavIndex == 0)
+              Container(
+                height: 38,
+                margin: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: userPets.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final pet = userPets[index];
+                    final isSelected = pet.id == discoveryState.activePetId;
+                    return InkWell(
+                      onTap: () => discoveryNotifier.setActivePet(pet.id),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.terracotta
+                                : AppColors.border,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 13,
+                              color: isSelected
+                                  ? AppColors.terracotta
+                                  : AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              pet.name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.terracotta
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
             Expanded(
               child: IndexedStack(
                 index: _selectedNavIndex,
