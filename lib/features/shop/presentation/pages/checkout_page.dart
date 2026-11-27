@@ -274,7 +274,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           .read(shopAddressesProvider.notifier)
                           .add(addr);
                       if (ctx.mounted) Navigator.pop(ctx);
-                      if (created != null && mounted) {
+if (created != null && mounted) {
                         _applySavedAddress(created);
                       }
                     },

@@ -22,6 +22,7 @@ class DiscoveryPet {
   final String? ownerAge;
   final String ownerLocation;
   final String? ownerAvatarUrl;
+  final String? species;
 
   const DiscoveryPet({
     required this.id,
@@ -47,5 +48,6 @@ class DiscoveryPet {
     this.ownerAge,
     required this.ownerLocation,
     this.ownerAvatarUrl,
+    this.species,
   });
 }
