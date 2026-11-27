@@ -196,6 +196,10 @@ model Profile {
   area                  String?
   city                  String?
   district              String?
+  latitude              Float?
+  longitude             Float?
+  locationEnabled       Boolean   @default(false) @map("location_enabled")
+  locationUpdatedAt     DateTime? @map("location_updated_at")
   bio                   String?
   onboardingStep        Int       @default(1) @map("onboarding_step")
   onboardingCompleted   Boolean   @default(false) @map("onboarding_completed")
@@ -208,6 +212,7 @@ model Profile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([locationEnabled, latitude, longitude])
   @@map("profiles")
 }
 

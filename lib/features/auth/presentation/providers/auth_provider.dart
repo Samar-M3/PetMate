@@ -176,12 +176,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     }
 
     try {
-      final status = await _repository.getOnboardingStatus();
+      var status = await _repository.getOnboardingStatus();
       UserModel? userDetails;
       if (status.isInitialized) {
         userDetails = await _repository.getMe();
       } else {
         userDetails = await _repository.initializeUser();
+        status = await _repository.getOnboardingStatus();
       }
 
       state = state.copyWith(
@@ -387,7 +388,11 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     try {
       final cred = await _authService.signInWithGoogle();
       await _syncBackendProfile(cred.user!);
-      return state.onboardingStatus?.nextStep ?? 'PET_INFO';
+      if (state.user?.registrationCompleted == true ||
+          state.isOnboardingCompleted) {
+        return 'COMPLETED';
+      }
+      return state.onboardingStatus?.nextStep ?? 'OWNER_INFO';
     } on TimeoutException {
       state = state.copyWith(
         isLoading: false,
@@ -396,7 +401,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       );
       return null;
     } catch (e) {
-      String msg = e.toString();
+      final raw = e.toString();
+      if (raw.toLowerCase().contains('cancelled') ||
+          raw.toLowerCase().contains('canceled')) {
+        state = state.copyWith(isLoading: false, errorMessage: null);
+        return null;
+      }
+      String msg = raw;
       if (msg.contains('ApiException: 7') || msg.contains('network_error')) {
         msg = 'Google network error (Code 7). Please ensure your phone has an active internet connection (Wi-Fi or Mobile Data) to reach Google services.';
       } else if (msg.contains('ApiException: 10') ||

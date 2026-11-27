@@ -20,7 +20,6 @@ import '../widgets/incoming_request_tile.dart';
 import '../widgets/matched_pair_avatar.dart';
 import '../widgets/message_status_widget.dart';
 import '../widgets/outgoing_request_tile.dart';
-import 'chat_detail_page.dart';
 
 class ChatsPage extends ConsumerStatefulWidget {
   const ChatsPage({super.key});
@@ -545,10 +544,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ChatDetailPage(match: conv)),
-        );
+        context.push('/chat/${conv.matchId}');
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

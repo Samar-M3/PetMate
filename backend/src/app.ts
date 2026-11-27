@@ -15,6 +15,7 @@ import veterinariansRoutes from "./modules/veterinarians/veterinarians.routes.ts
 import sellersRoutes from "./modules/sellers/sellers.routes.ts";
 import appointmentsRoutes from "./modules/appointments/appointments.routes.ts";
 import { devicesRouter, notificationsRouter } from "./modules/notifications/notifications.routes.ts";
+import ownersRoutes from "./modules/owners/owners.routes.ts";
 import { errorHandler, AppError } from "./middleware/errorHandler.ts";
 import { sendSuccess } from "./utils/apiResponse.ts";
 
@@ -87,6 +88,9 @@ app.use("/api/v1/auth", authRoutes);
 
 app.use("/api/users", usersRoutes);
 app.use("/api/v1/users", usersRoutes);
+
+app.use("/api/owners", ownersRoutes);
+app.use("/api/v1/owners", ownersRoutes);
 
 app.use("/api/profile", profileRoutes);
 app.use("/api/v1/profile", profileRoutes);

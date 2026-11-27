@@ -110,12 +110,9 @@ export function calculateAgeString(dob?: Date | null): string {
     return "Less than a month";
   }
   if (years <= 0) {
-    return `${months} ${months === 1 ? "month" : "months"} old`;
+    return `${months} ${months === 1 ? "month" : "months"}`;
   }
-  if (months === 0) {
-    return `${years} ${years === 1 ? "year" : "years"} old`;
-  }
-  return `${years} yr ${months} mo old`;
+  return `${years}.${months} years`;
 }
 
 export interface DeckFeedParams {
@@ -259,9 +256,8 @@ export const getDeckFeed = async ({
       ...(breed ? { breed: { contains: breed, mode: "insensitive" } } : {}),
       // Optional Age filter
       ...(dobCondition ? { dateOfBirth: dobCondition } : {}),
-      // Candidate pet must be active, complete, not neutered, and open to mating
+      // Candidate pet must be active with a name and at least one photo
       isActive: true,
-      ...MATCHABLE_PET_WHERE,
       name: { not: "" },
       OR: [
         { imageUrl: { not: null } },
@@ -276,22 +272,36 @@ export const getDeckFeed = async ({
       id: true,
       name: true,
       animalType: true,
+      species: true,
+      speciesOther: true,
       breed: true,
       gender: true,
       dateOfBirth: true,
       color: true,
+      colorCoat: true,
       personality: true,
+      temperament: true,
+      purpose: true,
+      isNeutered: true,
+      weightKg: true,
+      sizeCategory: true,
       vaccinationStatus: true,
-      allergies: true,
+      vaccinationLevel: true,
+      rabiesVaccineDate: true,
+      bio: true,
+      city: true,
+      district: true,
       description: true,
       imageUrl: true,
       profilePictureUrl: true,
       createdAt: true,
       images: {
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
         select: {
           id: true,
           imageUrl: true,
           isMain: true,
+          isPrimary: true,
         },
       },
       user: {
@@ -338,8 +348,28 @@ export const getDeckFeed = async ({
     }
 
     const areaString =
+      [p.city, p.district].filter(Boolean).join(", ") ||
       [profile?.area, profile?.location].filter(Boolean).join(", ") ||
       "Kathmandu, Nepal";
+
+    const resolvedVaccinationStatus =
+      p.vaccinationStatus?.trim() ||
+      (p.vaccinationLevel === "FULL"
+        ? "Fully Vaccinated"
+        : p.vaccinationLevel === "PARTIAL"
+          ? "Partially Vaccinated"
+          : null);
+
+    const combinedPersonality = Array.from(
+      new Set([
+        ...(p.personality || []).map((t) => t.trim()).filter(Boolean),
+        ...(p.temperament || []).map((t) => t.trim()).filter(Boolean),
+      ])
+    );
+
+    const resolvedBio = p.bio?.trim() || p.description?.trim() || "";
+    const resolvedSpecies =
+      p.speciesOther?.trim() || p.animalType?.trim() || p.species || "Pet";
 
     return {
       id: p.id,
@@ -347,17 +377,22 @@ export const getDeckFeed = async ({
       petName: p.name,
       petAge: calculateAgeString(p.dateOfBirth),
       dateOfBirth: p.dateOfBirth,
-      animalType: p.animalType || "Dog",
+      species: resolvedSpecies,
+      animalType: resolvedSpecies,
       breed: p.breed || "",
       petBreed: p.breed || "",
       gender: p.gender || "Unknown",
       petGender: p.gender || "Unknown",
-      color: p.color,
-      personality: p.personality,
-      vaccinationStatus: p.vaccinationStatus,
-      allergies: p.allergies,
-      bio: p.description || "",
-      petBio: p.description || "",
+      color: p.colorCoat?.trim() || p.color?.trim() || null,
+      personality: combinedPersonality,
+      purpose: p.purpose,
+      isNeutered: p.isNeutered,
+      weightKg: p.weightKg,
+      sizeCategory: p.sizeCategory,
+      vaccinationStatus: resolvedVaccinationStatus,
+      lastVaccinatedDate: p.rabiesVaccineDate ? p.rabiesVaccineDate.toISOString() : null,
+      bio: resolvedBio,
+      petBio: resolvedBio,
       imageUrl: effectiveImageUrl,
       petImageUrl: effectiveImageUrl,
       photos: allPhotos,
@@ -368,8 +403,7 @@ export const getDeckFeed = async ({
       ownerAvatarUrl: profile?.profilePictureUrl || profile?.imageUrl || null,
       ownerLocation: areaString,
       healthBadges: [
-        ...(p.vaccinationStatus ? [p.vaccinationStatus] : []),
-        ...(p.allergies ? [`Allergies: ${p.allergies}`] : []),
+        ...(resolvedVaccinationStatus ? [resolvedVaccinationStatus] : []),
       ],
       createdAt: p.createdAt,
     };

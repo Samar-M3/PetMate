@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/shop_models.dart';
 import '../providers/shop_providers.dart';
@@ -83,7 +84,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
   }
 
   void _showAddAddressDialog() {
-    final formKey = GlobalKey<FormState>();
+    final formController = ValidatedFormController();
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final addr1Ctrl = TextEditingController();
@@ -110,8 +111,8 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
           ),
           child: SingleChildScrollView(
             child: Form(
-              key: formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
+              key: formController.formKey,
+              autovalidateMode: formController.autovalidateMode,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -253,7 +254,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                       ),
                     ),
                     onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
+                      if (!formController.validate(() => setSheetState(() {}))) return;
                       final addr = ShopAddress(
                         id: '',
                         fullName: nameCtrl.text.trim(),

@@ -38,6 +38,7 @@ import '../../features/shop/presentation/pages/wishlist_page.dart';
 import '../../features/chat/presentation/pages/chat_route_page.dart';
 import '../../features/chat/presentation/pages/message_request_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/nearby/screens/nearby_screen.dart';
 import '../../features/profile/presentation/pages/notification_settings_page.dart';
 import '../../features/care_events/screens/vet_login_screen.dart';
 import '../../features/care_events/screens/vet_home_screen.dart';
@@ -310,6 +311,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsPage(),
+      ),
+      GoRoute(
+        path: '/nearby',
+        builder: (context, state) => const NearbyScreen(),
       ),
       GoRoute(
         path: '/settings/notifications',

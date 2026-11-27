@@ -6,7 +6,16 @@ class DiscoveryPet {
   final String petGender;
   final String petBio;
   final String petImageUrl;
+  final List<String> photos;
   final List<String> personality;
+  final String? species;
+  final String? color;
+  final String? purpose;
+  final bool? isNeutered;
+  final double? weightKg;
+  final String? sizeCategory;
+  final String? vaccinationStatus;
+  final String? lastVaccinatedDate;
   final String ownerName;
   final String? ownerUsername;
   final String? ownerId;
@@ -22,7 +31,16 @@ class DiscoveryPet {
     required this.petGender,
     required this.petBio,
     required this.petImageUrl,
+    this.photos = const [],
     required this.personality,
+    this.species,
+    this.color,
+    this.purpose,
+    this.isNeutered,
+    this.weightKg,
+    this.sizeCategory,
+    this.vaccinationStatus,
+    this.lastVaccinatedDate,
     required this.ownerName,
     this.ownerUsername,
     this.ownerId,

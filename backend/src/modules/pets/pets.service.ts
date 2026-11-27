@@ -853,7 +853,7 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
   const pet = await prisma.pet.findUnique({
     where: { id: trimmedId },
     include: {
-      images: { orderBy: { createdAt: "asc" } },
+      images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
       user: {
         include: {
           profile: true,
@@ -974,9 +974,9 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
     }
   }
 
-  // If not owner and not exception: must be active AND complete
+  // If not owner and not exception: must be active
   if (!isOwner && !hasMatchOrRequest) {
-    if (!pet.isActive || !isComplete) {
+    if (!pet.isActive) {
       throw new AppError("Pet is not available", 404);
     }
   }
@@ -1012,9 +1012,17 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
   const uniquePhotos = Array.from(new Set(photos));
 
   // Health badges (NEVER include private allergies / healthNotes / vetRecordUrls)
+  const resolvedVaccinationStatus =
+    pet.vaccinationStatus?.trim() ||
+    (pet.vaccinationLevel === "FULL"
+      ? "Fully Vaccinated"
+      : pet.vaccinationLevel === "PARTIAL"
+        ? "Partially Vaccinated"
+        : null);
+
   const healthBadges: string[] = [];
-  if (pet.vaccinationStatus && pet.vaccinationStatus.trim()) {
-    healthBadges.push(pet.vaccinationStatus.trim());
+  if (resolvedVaccinationStatus) {
+    healthBadges.push(resolvedVaccinationStatus);
   }
 
   const ageMonths = calculateAgeInMonths(pet.dateOfBirth);
@@ -1028,29 +1036,45 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
   };
 
   const area =
-    pet.city ||
-    pet.district ||
-    ownerProfile?.city ||
-    ownerProfile?.district ||
+    [pet.city, pet.district].filter(Boolean).join(", ") ||
+    [ownerProfile?.city, ownerProfile?.district].filter(Boolean).join(", ") ||
     ownerProfile?.area ||
     ownerProfile?.location ||
     "Kathmandu, Nepal";
+
+  const combinedPersonality = Array.from(
+    new Set([
+      ...(pet.personality || []).map((t) => t.trim()).filter(Boolean),
+      ...(pet.temperament || []).map((t) => t.trim()).filter(Boolean),
+    ])
+  );
 
   // Explicit allowlist payload (never spread Prisma object)
   return {
     id: pet.id,
     name: pet.name,
-    species: pet.animalType || "Pet",
+    species: pet.speciesOther?.trim() || pet.animalType || pet.species || "Pet",
     breed: pet.breed || "Mixed",
     sex: pet.gender || "Unknown",
     ageMonths,
     ageString,
-    weight: null,
+    weight: pet.weightKg != null ? `${pet.weightKg} kg` : null,
+    weightKg: pet.weightKg,
+    sizeCategory: pet.sizeCategory,
+    color: pet.colorCoat?.trim() || pet.color?.trim() || null,
+    purpose: pet.purpose,
+    isNeutered: pet.isNeutered,
+    hasLitters: pet.hasLitters,
+    litterCount: pet.litterCount,
+    hasPedigree: pet.hasPedigree,
+    vaccinationStatus: resolvedVaccinationStatus,
+    lastVaccinatedDate: pet.rabiesVaccineDate ? pet.rabiesVaccineDate.toISOString() : null,
+    lastCheckup: pet.lastCheckup,
     area,
-    about: pet.description || "",
+    about: pet.bio?.trim() || pet.description?.trim() || "",
     photos: uniquePhotos,
     healthBadges,
-    personality: pet.personality || [],
+    personality: combinedPersonality,
     owner: ownerSummary,
     relationship,
     canSwipe,

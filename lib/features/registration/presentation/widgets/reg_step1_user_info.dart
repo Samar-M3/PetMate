@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/nepal_districts.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/registration_provider.dart';
 
 class RegStep1UserInfo extends ConsumerStatefulWidget {
@@ -40,10 +41,22 @@ class RegStep1UserInfoState extends ConsumerState<RegStep1UserInfo> {
   void initState() {
     super.initState();
     final regState = ref.read(registrationProvider);
+    final authState = ref.read(authStateProvider);
+    final fbUser = authState.firebaseUser;
 
-    _nameController = TextEditingController(text: regState.fullName);
-    _emailController = TextEditingController(text: regState.email);
-    _phoneController = TextEditingController(text: regState.phoneNumber);
+    final initialName = regState.fullName.isNotEmpty
+        ? regState.fullName
+        : (fbUser?.displayName ?? '');
+    final initialEmail = regState.email.isNotEmpty
+        ? regState.email
+        : (fbUser?.email ?? '');
+    final initialPhone = regState.phoneNumber.isNotEmpty
+        ? regState.phoneNumber
+        : (authState.user?.phoneNumber ?? '');
+
+    _nameController = TextEditingController(text: initialName);
+    _emailController = TextEditingController(text: initialEmail);
+    _phoneController = TextEditingController(text: initialPhone);
     _passwordController = TextEditingController(text: regState.password);
     _confirmPasswordController =
         TextEditingController(text: regState.confirmPassword);
@@ -102,7 +115,7 @@ class RegStep1UserInfoState extends ConsumerState<RegStep1UserInfo> {
         }
 
         setState(() {
-          _avatarFile = File(picked.path);
+          _avatarFile = kIsWeb ? null : File(picked.path);
           _avatarBytes = bytes;
         });
         _persistLocalState();
@@ -322,6 +335,11 @@ class RegStep1UserInfoState extends ConsumerState<RegStep1UserInfo> {
   @override
   Widget build(BuildContext context) {
     final regState = ref.watch(registrationProvider);
+    final authState = ref.watch(authStateProvider);
+    final isAuthenticatedUser = authState.isAuthenticated;
+    final googleEmail = regState.email.isNotEmpty
+        ? regState.email
+        : (authState.firebaseUser?.email ?? '');
 
     return Form(
       key: _formKey,
@@ -414,27 +432,61 @@ class RegStep1UserInfoState extends ConsumerState<RegStep1UserInfo> {
           ),
           const SizedBox(height: 16),
 
-          // Email
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email Address *',
-              hintText: 'name@example.com',
-              prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+          // Email (hidden for authenticated Google/Firebase users)
+          if (isAuthenticatedUser) ...[
+            if (googleEmail.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.verified_user_outlined,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Signed in as $googleEmail',
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ] else ...[
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email Address *',
+                hintText: 'name@example.com',
+                prefixIcon: Icon(Icons.email_outlined, color: AppColors.primary),
+              ),
+              onChanged: (_) => _persistLocalState(),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Please enter your email address';
+                }
+                final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                if (!regex.hasMatch(v.trim())) {
+                  return 'Please enter a valid email address';
+                }
+                return null;
+              },
             ),
-            onChanged: (_) => _persistLocalState(),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Please enter your email address';
-              }
-              final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-              if (!regex.hasMatch(v.trim())) {
-                return 'Please enter a valid email address';
-              }
-              return null;
-            },
-          ),
+          ],
           const SizedBox(height: 16),
 
           // Phone Number (Nepal format)
@@ -464,62 +516,63 @@ class RegStep1UserInfoState extends ConsumerState<RegStep1UserInfo> {
           ),
           const SizedBox(height: 16),
 
-          // Password
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Password *',
-              hintText: 'Minimum 8 characters',
-              prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: AppColors.textMuted,
+          // Password & Confirm Password (only for non-authenticated email/password registration)
+          if (!isAuthenticatedUser) ...[
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Password *',
+                hintText: 'Minimum 8 characters',
+                prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.textMuted,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
+              onChanged: (_) => _persistLocalState(),
+              validator: (v) {
+                if (v == null || v.isEmpty) {
+                  return 'Please create a password';
+                }
+                if (v.length < 8) {
+                  return 'Password must be at least 8 characters';
+                }
+                return null;
+              },
             ),
-            onChanged: (_) => _persistLocalState(),
-            validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Please create a password';
-              }
-              if (v.length < 8) {
-                return 'Password must be at least 8 characters';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Confirm Password
-          TextFormField(
-            controller: _confirmPasswordController,
-            obscureText: _obscureConfirmPassword,
-            decoration: InputDecoration(
-              labelText: 'Confirm Password *',
-              prefixIcon: const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: AppColors.textMuted,
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: _obscureConfirmPassword,
+              decoration: InputDecoration(
+                labelText: 'Confirm Password *',
+                prefixIcon: const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.textMuted,
+                  ),
+                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                 ),
-                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
+              onChanged: (_) => _persistLocalState(),
+              validator: (v) {
+                if (v == null || v.isEmpty) {
+                  return 'Please confirm your password';
+                }
+                if (v != _passwordController.text) {
+                  return 'Passwords do not match';
+                }
+                return null;
+              },
             ),
-            onChanged: (_) => _persistLocalState(),
-            validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Please confirm your password';
-              }
-              if (v != _passwordController.text) {
-                return 'Passwords do not match';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           // District / City Dropdown
           InkWell(

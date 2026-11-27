@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../domain/entities/user_role.dart';
 import '../providers/auth_provider.dart';
 
@@ -14,7 +15,7 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -28,15 +29,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   void _handleNavigation(String? nextStep) {
     if (!mounted) return;
-    final role = ref.read(authStateProvider).user?.role;
+    final authState = ref.read(authStateProvider);
+    final role = authState.user?.role;
+    if (role == UserRole.admin) {
+      context.go('/admin');
+      return;
+    }
     if (role == UserRole.veterinarian) {
       context.go('/vet');
       return;
     }
-    if (nextStep == 'PET_INFO') {
-      context.go('/onboarding/pet');
-    } else if (nextStep == 'OWNER_INFO') {
-      context.go('/onboarding/owner');
+    if (role == UserRole.seller) {
+      context.go('/seller');
+      return;
+    }
+    final isCompleted =
+        (authState.user?.registrationCompleted ?? false) ||
+        authState.isOnboardingCompleted ||
+        nextStep == 'COMPLETED';
+    if (!isCompleted) {
+      context.go('/register/pet-owner');
     } else {
       final destination = GoRouterState.of(context).uri.queryParameters['from'];
       context.go(
@@ -48,7 +60,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _submitLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
 
     final nextStep = await ref
         .read(authStateProvider.notifier)
@@ -155,8 +167,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Form(
-              key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
+              key: _formController.formKey,
+              autovalidateMode: _formController.autovalidateMode,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,28 +176,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   // App Icon Mark
                   Center(
                     child: Container(
-                      width: 52,
-                      height: 52,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppColors.primaryDark.withValues(alpha: 0.15),
-                          width: 1,
-                        ),
+                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.pets,
-                          size: 26,
-                          color: Colors.white,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/icons/petmate-logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),

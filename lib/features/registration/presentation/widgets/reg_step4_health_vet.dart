@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -86,10 +84,11 @@ class RegStep4HealthVetState extends ConsumerState<RegStep4HealthVet> {
       );
       if (picked == null) return;
 
+      final bytes = await picked.readAsBytes();
       setState(() => _isUploadingRecord = true);
 
       final asset = await ref.read(registrationServiceProvider).uploadPrivateImage(
-            file: File(picked.path),
+            bytes: bytes,
             filename: 'vet_record_${DateTime.now().millisecondsSinceEpoch}.jpg',
           );
 
