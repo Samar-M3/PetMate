@@ -47,7 +47,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
       text: pet != null && pet.ageYears > 0 ? pet.ageYears.toString() : '',
     );
     _monthsController = TextEditingController(
-      text: pet != null && pet.ageMonths > 0 ? pet.ageMonths.toString() : '',
+      text: (pet?.ageMonths ?? 0).toString(),
     );
 
     if (pet != null && pet.species.isNotEmpty) {
@@ -213,6 +213,9 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
 
     final years = int.tryParse(_yearsController.text.trim()) ?? 0;
     final months = int.tryParse(_monthsController.text.trim()) ?? 0;
+    if (_monthsController.text.trim().isEmpty) {
+      _monthsController.text = '0';
+    }
 
     if (years == 0 && months == 0) {
       ScaffoldMessenger.of(context).showSnackBar(

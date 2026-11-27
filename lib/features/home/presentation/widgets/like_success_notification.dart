@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../providers/discovery_provider.dart';
 
 class LikeSuccessNotification extends StatefulWidget {
@@ -25,8 +25,16 @@ class LikeSuccessNotification extends StatefulWidget {
 }
 
 class _LikeSuccessNotificationState extends State<LikeSuccessNotification>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with TickerProviderStateMixin {
+  static const Duration _displayDuration = Duration(seconds: 5);
+  static const Color _primaryTeal = Color(0xFF0B625B);
+  static const Color _coralAccent = Color(0xFFE8795B);
+  static const Color _charcoalText = Color(0xFF26332F);
+  static const Color _mutedText = Color(0xFF7B8880);
+  static const Color _softBorder = Color(0xFFE5E8E2);
+
+  late final AnimationController _entranceController;
+  late final AnimationController _progressController;
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
   Timer? _dismissTimer;
@@ -34,20 +42,26 @@ class _LikeSuccessNotificationState extends State<LikeSuccessNotification>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 240),
+      duration: const Duration(milliseconds: 220),
+    );
+    _progressController = AnimationController(
+      vsync: this,
+      duration: _displayDuration,
     );
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.25),
+      begin: const Offset(0, 0.2),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic),
+    );
     _fadeAnimation = CurvedAnimation(
-      parent: _controller,
+      parent: _entranceController,
       curve: Curves.easeOut,
     );
 
-    _controller.forward();
+    _entranceController.forward();
     _startTimer();
   }
 
@@ -56,13 +70,14 @@ class _LikeSuccessNotificationState extends State<LikeSuccessNotification>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.event.eventId != widget.event.eventId) {
       _startTimer();
-      _controller.forward(from: 0.4);
+      _entranceController.forward(from: 0.4);
     }
   }
 
   void _startTimer() {
     _dismissTimer?.cancel();
-    _dismissTimer = Timer(const Duration(milliseconds: 3600), () {
+    _progressController.forward(from: 0.0);
+    _dismissTimer = Timer(_displayDuration, () {
       if (mounted) {
         _dismissSmoothly();
       }
@@ -71,137 +86,192 @@ class _LikeSuccessNotificationState extends State<LikeSuccessNotification>
 
   Future<void> _dismissSmoothly() async {
     _dismissTimer?.cancel();
+    _progressController.stop();
     try {
-      await _controller.reverse();
+      await _entranceController.reverse();
     } catch (_) {}
     if (mounted) {
       widget.onDismiss();
     }
   }
 
+  void _handleAction() {
+    _dismissTimer?.cancel();
+    _progressController.stop();
+    if (widget.event.matched) {
+      widget.onOpenMatchChat();
+    } else {
+      widget.onAddMessage();
+    }
+  }
+
   @override
   void dispose() {
     _dismissTimer?.cancel();
-    _controller.dispose();
+    _entranceController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isMatch = widget.event.matched;
+    final hasImage = (widget.event.petImageUrl ?? '').trim().isNotEmpty;
 
     return SlideTransition(
       position: _slideAnimation,
       child: FadeTransition(
         opacity: _fadeAnimation,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F5C57),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+        child: Dismissible(
+          key: ValueKey('dismiss-${widget.event.eventId}'),
+          direction: DismissDirection.horizontal,
+          onDismissed: (_) {
+            _dismissTimer?.cancel();
+            widget.onDismiss();
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _handleAction,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _softBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF8A65).withValues(alpha: 0.22),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isMatch ? Icons.auto_awesome : Icons.favorite_rounded,
-                    color: const Color(0xFFFF8A65),
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isMatch
-                            ? "It's a match with ${widget.event.petName}! 🎉"
-                            : 'You liked ${widget.event.petName}! ❤️',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.cream,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      GestureDetector(
-                        onTap: () {
-                          _dismissTimer?.cancel();
-                          if (isMatch) {
-                            widget.onOpenMatchChat();
-                          } else {
-                            widget.onAddMessage();
-                          }
-                        },
-                        child: Text(
-                          isMatch
-                              ? 'Tap to say hello in chat'
-                              : 'Want to introduce yourself? Add a message',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFFFFB199),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Color(0xFFFFB199),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                      child: Row(
+                        children: [
+                          // Pet thumbnail or subtle status icon
+                          if (hasImage)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: AppNetworkImage(
+                                  imageUrl: widget.event.petImageUrl,
+                                  fit: BoxFit.cover,
+                                  fallbackIcon: isMatch
+                                      ? Icons.auto_awesome_outlined
+                                      : Icons.favorite_border_rounded,
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: (isMatch ? _primaryTeal : _coralAccent)
+                                    .withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isMatch
+                                    ? Icons.auto_awesome_outlined
+                                    : Icons.favorite_border_rounded,
+                                color: isMatch ? _primaryTeal : _coralAccent,
+                                size: 20,
+                              ),
+                            ),
+                          const SizedBox(width: 12),
+
+                          // Title & clear action prompt
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isMatch
+                                      ? 'Matched with ${widget.event.petName}'
+                                      : 'Liked ${widget.event.petName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _charcoalText,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isMatch
+                                      ? 'Tap to open chat'
+                                      : 'Tap to send an intro message',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _mutedText,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+
+                          // Primary action button
+                          ElevatedButton(
+                            onPressed: _handleAction,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryTeal,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              isMatch ? 'Chat' : 'Message',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Subtle 5-second countdown bar
+                    AnimatedBuilder(
+                      animation: _progressController,
+                      builder: (context, _) {
+                        return LinearProgressIndicator(
+                          value: 1.0 - _progressController.value,
+                          minHeight: 2.5,
+                          backgroundColor: _softBorder.withValues(alpha: 0.5),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isMatch ? _primaryTeal : _coralAccent,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                TextButton(
-                  onPressed: () {
-                    _dismissTimer?.cancel();
-                    if (isMatch) {
-                      widget.onOpenMatchChat();
-                    } else {
-                      widget.onAddMessage();
-                    }
-                  },
-                  style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A65),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    isMatch ? 'Chat' : 'Add',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-
 enum ChatFilterTab { active, liked, all }
+
+// Design tokens
+const _primaryTeal = Color(0xFF0B625B);
+const _warmIvory = Color(0xFFF8F6F0);
+const _charcoalText = Color(0xFF26332F);
+const _mutedText = Color(0xFF7B8880);
+const _softBorder = Color(0xFFE5E8E2);
+const _coralAccent = Color(0xFFE8795B);
 
 class ChatFilterTabs extends StatelessWidget {
   final ChatFilterTab selectedTab;
@@ -18,24 +24,16 @@ class ChatFilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.creamDark,
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          _buildTab(
-            tab: ChatFilterTab.active,
-            label: 'Active',
-          ),
-          _buildTab(
-            tab: ChatFilterTab.liked,
-            label: 'Liked',
-          ),
-          _buildTab(
+          _buildPill(tab: ChatFilterTab.active, label: 'Active'),
+          const SizedBox(width: 8),
+          _buildPill(tab: ChatFilterTab.liked, label: 'Liked'),
+          const SizedBox(width: 8),
+          _buildPill(
             tab: ChatFilterTab.all,
             label: 'All',
             badgeCount: incomingRequestsCount,
@@ -45,71 +43,59 @@ class ChatFilterTabs extends StatelessWidget {
     );
   }
 
-  Widget _buildTab({
+  Widget _buildPill({
     required ChatFilterTab tab,
     required String label,
     int badgeCount = 0,
   }) {
     final isSelected = selectedTab == tab;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTabSelected(tab),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0F5C57) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF0F5C57).withValues(alpha: 0.18),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
+    return GestureDetector(
+      onTap: () => onTabSelected(tab),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? _primaryTeal : _softBorder.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Colors.white : _charcoalText,
+              ),
+            ),
+            if (badgeCount > 0) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : _coralAccent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              if (badgeCount > 0) ...[
-                const SizedBox(width: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1.5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFFFF8A65)
-                        : AppColors.terracotta,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    badgeCount > 99 ? '99+' : '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
             ],
-          ),
+          ],
         ),
       ),
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../home/data/models/connection_request_model.dart';
 import '../../../home/presentation/providers/requests_provider.dart';
 import '../../../home/presentation/widgets/intro_message_sheet.dart';
@@ -20,6 +19,14 @@ import '../widgets/incoming_request_tile.dart';
 import '../widgets/matched_pair_avatar.dart';
 import '../widgets/message_status_widget.dart';
 import '../widgets/outgoing_request_tile.dart';
+
+// Design tokens
+const _primaryTeal = Color(0xFF0B625B);
+const _coralAccent = Color(0xFFE8795B);
+const _warmIvory = Color(0xFFF8F6F0);
+const _charcoalText = Color(0xFF26332F);
+const _mutedText = Color(0xFF7B8880);
+const _softBorder = Color(0xFFE5E8E2);
 
 class ChatsPage extends ConsumerStatefulWidget {
   const ChatsPage({super.key});
@@ -83,14 +90,14 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
     final pendingCount = requestsState.pendingCount;
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: _warmIvory,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Clean Top Header
+            // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 14),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -100,17 +107,18 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                       Text(
                         'Chats',
                         style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: _charcoalText,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Matches, Likes & Requests',
+                        'Your conversations',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: _mutedText,
                         ),
                       ),
                     ],
@@ -118,25 +126,25 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                   IconButton(
                     icon: const Icon(
                       Icons.shield_outlined,
-                      color: AppColors.textSecondary,
-                      size: 22,
+                      color: _mutedText,
+                      size: 21,
                     ),
-                    tooltip: 'Chat Privacy',
+                    tooltip: 'Chat privacy',
                     onPressed: () => showChatPrivacySettingsSheet(context),
                   ),
                 ],
               ),
             ),
 
-            // 2. Three Primary Filters: Active (default), Liked, All
+            // Filter pills
             ChatFilterTabs(
               selectedTab: _selectedTab,
               onTabSelected: _onTabSelected,
               incomingRequestsCount: pendingCount,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // 3. Tab Content
+            // Tab content
             Expanded(
               child: switch (_selectedTab) {
                 ChatFilterTab.active => _buildActiveTab(context),
@@ -160,7 +168,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
     if (conversationsState.isLoading &&
         conversationsState.conversations.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0F5C57)),
+        child: CircularProgressIndicator(color: _primaryTeal),
       );
     }
 
@@ -177,19 +185,26 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
     if (conversations.isEmpty) {
       return _buildEmptyState(
         icon: Icons.chat_bubble_outline_rounded,
-        title: 'No Active Chats Yet',
+        title: 'No active chats yet',
         subtitle:
             'When a pet owner accepts your request or you accept theirs, your conversation will appear here.',
       );
     }
 
     return RefreshIndicator(
+      color: _primaryTeal,
       onRefresh: () =>
           ref.read(chatConversationsProvider.notifier).loadConversations(),
-      child: ListView.builder(
+      child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
         itemCount: conversations.length,
+        separatorBuilder: (_, __) => const Divider(
+          height: 1,
+          indent: 76,
+          endIndent: 20,
+          color: _softBorder,
+        ),
         itemBuilder: (context, index) =>
             _buildConversationTile(context, conversations[index]),
       ),
@@ -205,7 +220,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
 
     if (outgoingState.isLoading && outgoingState.requests.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0F5C57)),
+        child: CircularProgressIndicator(color: _primaryTeal),
       );
     }
 
@@ -222,13 +237,14 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
     if (requests.isEmpty) {
       return _buildEmptyState(
         icon: Icons.favorite_border_rounded,
-        title: 'No Liked Pets Yet',
+        title: 'No liked pets yet',
         subtitle:
             'Pets you like in Discover will appear here so you can track requests or add an introductory message.',
       );
     }
 
     return RefreshIndicator(
+      color: _primaryTeal,
       onRefresh: () => ref
           .read(outgoingRequestsProvider.notifier)
           .loadOutgoingRequests(refresh: true),
@@ -236,8 +252,12 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
         itemCount: requests.length,
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, indent: 76, endIndent: 20),
+        separatorBuilder: (_, __) => const Divider(
+          height: 1,
+          indent: 76,
+          endIndent: 20,
+          color: _softBorder,
+        ),
         itemBuilder: (context, index) {
           final req = requests[index];
           return OutgoingRequestTile(
@@ -266,7 +286,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
 
     return allAsync.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0F5C57)),
+        child: CircularProgressIndicator(color: _primaryTeal),
       ),
       error: (err, _) => _buildErrorView(
         message: 'Failed to load connections: $err',
@@ -276,13 +296,14 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
         if (items.isEmpty) {
           return _buildEmptyState(
             icon: Icons.pets_rounded,
-            title: 'No Connections Yet',
+            title: 'No connections yet',
             subtitle:
                 'Your active chats, incoming requests, and liked pets will all appear here.',
           );
         }
 
         return RefreshIndicator(
+          color: _primaryTeal,
           onRefresh: () async {
             ref.invalidate(allConnectionsProvider);
             await ref
@@ -293,8 +314,12 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: 4, bottom: 24),
             itemCount: items.length,
-            separatorBuilder: (_, _) =>
-                const Divider(height: 1, indent: 76, endIndent: 20),
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              indent: 76,
+              endIndent: 20,
+              color: _softBorder,
+            ),
             itemBuilder: (context, index) {
               final item = items[index];
               switch (item.itemType) {
@@ -371,7 +396,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Introductory message saved for ${req.receiverPetName}'),
-            backgroundColor: const Color(0xFF0F5C57),
+            backgroundColor: _primaryTeal,
           ),
         );
       }
@@ -381,9 +406,9 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
   void _showPendingOutgoingSheet(OutgoingRequestModel req) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.cream,
+      backgroundColor: _warmIvory,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetCtx) {
         return SafeArea(
@@ -398,7 +423,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
+                      color: _softBorder,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -407,9 +432,9 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                 Text(
                   'Request to ${req.receiverPetName}',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: _charcoalText,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -417,7 +442,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                   'Waiting for ${req.receiverOwnerName} to respond',
                   style: const TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: _mutedText,
                   ),
                 ),
                 if (req.hasInitialMessage) ...[
@@ -426,14 +451,14 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _softBorder),
                     ),
                     child: Text(
                       req.initialMessage!,
                       style: const TextStyle(
                         fontSize: 14,
-                        color: AppColors.textPrimary,
+                        color: _charcoalText,
                       ),
                     ),
                   ),
@@ -447,16 +472,16 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                   icon: const Icon(Icons.edit_note_rounded, size: 20),
                   label: Text(
                     req.hasInitialMessage
-                        ? 'Edit Introductory Message'
-                        : 'Add Introductory Message',
+                        ? 'Edit introductory message'
+                        : 'Add introductory message',
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F5C57),
+                    backgroundColor: _primaryTeal,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -470,14 +495,14 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                           context.push('/pet/${req.receiverPetId}');
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.border),
+                          foregroundColor: _charcoalText,
+                          side: const BorderSide(color: _softBorder),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('View Pet'),
+                        child: const Text('View pet'),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -501,23 +526,23 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Failed to cancel: $e'),
-                                  backgroundColor: AppColors.error,
+                                  backgroundColor: Colors.red,
                                 ),
                               );
                             }
                           }
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
+                          foregroundColor: Colors.red,
                           side: BorderSide(
-                            color: AppColors.error.withValues(alpha: 0.4),
+                            color: Colors.red.withValues(alpha: 0.4),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Cancel Request'),
+                        child: const Text('Cancel request'),
                       ),
                     ),
                   ],
@@ -555,7 +580,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
               petName: conv.otherPet.name,
               ownerImageUrl: conv.otherOwner.imageUrl,
               ownerName: conv.otherOwner.name,
-              size: 56,
+              size: 54,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -567,13 +592,13 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${conv.otherPet.name} • ${conv.otherOwner.name}',
+                          '${conv.otherPet.name} \u2022 ${conv.otherOwner.name}',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: conv.unreadCount > 0
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            color: AppColors.textPrimary,
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: _charcoalText,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -581,12 +606,12 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                       Text(
                         timeStr,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           color: conv.unreadCount > 0
-                              ? AppColors.terracotta
-                              : AppColors.textMuted,
+                              ? _coralAccent
+                              : _mutedText,
                           fontWeight: conv.unreadCount > 0
-                              ? FontWeight.bold
+                              ? FontWeight.w600
                               : FontWeight.normal,
                         ),
                       ),
@@ -609,7 +634,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
 
                             final snippet =
                                 conv.lastMessage ??
-                                '🐾 Tap to start chatting...';
+                                'Tap to start chatting...';
                             if (isMyLastMessage && fConv != null) {
                               final readReceipts = ref.watch(
                                 readReceiptsSettingProvider,
@@ -649,10 +674,10 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: conv.unreadCount > 0
-                                            ? AppColors.textPrimary
-                                            : AppColors.textSecondary,
+                                            ? _charcoalText
+                                            : _mutedText,
                                         fontWeight: conv.unreadCount > 0
-                                            ? FontWeight.w600
+                                            ? FontWeight.w500
                                             : FontWeight.normal,
                                       ),
                                       maxLines: 1,
@@ -668,10 +693,10 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: conv.unreadCount > 0
-                                    ? AppColors.textPrimary
-                                    : AppColors.textSecondary,
+                                    ? _charcoalText
+                                    : _mutedText,
                                 fontWeight: conv.unreadCount > 0
-                                    ? FontWeight.w600
+                                    ? FontWeight.w500
                                     : FontWeight.normal,
                               ),
                               maxLines: 1,
@@ -682,21 +707,20 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
                       ),
                       if (conv.unreadCount > 0)
                         Container(
-                          margin: const EdgeInsets.only(left: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          margin: const EdgeInsets.only(left: 8),
+                          width: 20,
+                          height: 20,
                           decoration: const BoxDecoration(
-                            color: AppColors.terracotta,
+                            color: _coralAccent,
                             shape: BoxShape.circle,
                           ),
+                          alignment: Alignment.center,
                           child: Text(
                             '${conv.unreadCount}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -718,30 +742,22 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F5C57).withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: const Color(0xFF0F5C57),
-              ),
+            Icon(
+              icon,
+              size: 40,
+              color: _mutedText.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
               title,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _charcoalText,
               ),
             ),
             const SizedBox(height: 8),
@@ -750,8 +766,8 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
+                height: 1.5,
+                color: _mutedText,
               ),
             ),
           ],
@@ -766,29 +782,34 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.chat_bubble_outline_rounded,
-              size: 48,
-              color: AppColors.textMuted,
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 36,
+              color: _mutedText.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F5C57),
-                foregroundColor: Colors.white,
+              style: const TextStyle(
+                fontSize: 13,
+                color: _mutedText,
               ),
-              child: const Text('Try Again'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: _primaryTeal,
+              ),
+              child: const Text(
+                'Try again',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),

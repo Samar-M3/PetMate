@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:petmatee/features/care_events/screens/events_home_screen.dart';
 import 'package:petmatee/features/care_events/screens/vet_appts_home_screen.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -9,6 +8,7 @@ import '../../../../core/services/in_app_notification_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
+import '../../../profile/presentation/pages/profile_page.dart';
 import '../providers/discovery_provider.dart';
 import '../providers/requests_provider.dart';
 import '../../data/repositories/matching_repository.dart';
@@ -102,6 +102,16 @@ class _HomePageState extends ConsumerState<HomePage>
 
     final unreadChatsCount = ref.watch(unreadChatsCountProvider);
 
+    // Compute profile avatar info for bottom nav
+    final profile = user?.profile;
+    final avatarUrl = profile?.effectiveImageUrl ?? profile?.profilePictureUrl;
+    final profileInitial =
+        (profile?.fullName != null && profile!.fullName!.isNotEmpty)
+            ? profile.fullName![0].toUpperCase()
+            : (user?.email != null && user!.email!.isNotEmpty)
+                ? user.email![0].toUpperCase()
+                : 'P';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F0),
       body: DiscoverPawBackground(
@@ -110,9 +120,9 @@ class _HomePageState extends ConsumerState<HomePage>
           bottom: false,
           child: Column(
           children: [
-            // 1. Top Header Section (PetMate logo & user avatar)
-            if (_selectedNavIndex != 3)
-              HomeHeader(onProfileTap: () => context.push('/profile')),
+            // 1. Top Header Section (PetMate logo, notification bell, location)
+            if (_selectedNavIndex != 2 && _selectedNavIndex != 4)
+              const HomeHeader(),
 
             // 2. Active Pet Switcher (if user has several active pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
@@ -181,7 +191,7 @@ class _HomePageState extends ConsumerState<HomePage>
               child: IndexedStack(
                 index: _selectedNavIndex,
                 children: [
-                  // Tab 0: Home (Real Discover Feed)
+                  // Tab 0: Discover Feed
                   _buildDiscoveryTab(
                     context: context,
                     allPetsCount: allUserPets.length,
@@ -190,24 +200,24 @@ class _HomePageState extends ConsumerState<HomePage>
                     discoveryNotifier: discoveryNotifier,
                   ),
 
-                  // Tab 1: Chats & Matches (with Requests in top right)
+                  // Tab 1: Chats & Matches
                   _visitedNavTabs.contains(1)
                       ? const ChatsPage()
                       : const SizedBox.shrink(),
 
-                  // Tab 2: Events (Events Screen)
+                  // Tab 2: Shop
                   _visitedNavTabs.contains(2)
-                      ? const EventsHomeScreen()
-                      : const SizedBox.shrink(),
-
-                  // Tab 3: Shop
-                  _visitedNavTabs.contains(3)
                       ? const ShopHomePage()
                       : const SizedBox.shrink(),
 
-                  // Tab 4: Vet Appointments (Vet Appts Screen)
-                  _visitedNavTabs.contains(4)
+                  // Tab 3: Vets
+                  _visitedNavTabs.contains(3)
                       ? const VetApptsHomeScreen()
+                      : const SizedBox.shrink(),
+
+                  // Tab 4: Profile
+                  _visitedNavTabs.contains(4)
+                      ? const ProfilePage(embeddedInTab: true)
                       : const SizedBox.shrink(),
                 ],
               ),
@@ -218,6 +228,8 @@ class _HomePageState extends ConsumerState<HomePage>
               selectedIndex: _selectedNavIndex,
               pendingRequestsCount:
                   requestsState.pendingCount + unreadChatsCount,
+              avatarUrl: avatarUrl,
+              profileInitial: profileInitial,
               onItemSelected: (index) {
                 setState(() {
                   _selectedNavIndex = index;

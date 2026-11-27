@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/app_exception.dart';
+import '../../../../core/utils/pet_age_formatter.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
 import '../../../profile/data/repositories/public_profile_repository.dart';
@@ -422,8 +423,8 @@ class _PetDetailsPageState extends ConsumerState<PetDetailsPage> {
                               pet.species.toLowerCase() !=
                                   pet.breed.toLowerCase())
                             pet.species.trim(),
-                          if (pet.ageString.trim().isNotEmpty)
-                            pet.ageString.trim(),
+                          if (formatPetAge(pet.ageString).isNotEmpty)
+                            formatPetAge(pet.ageString),
                         ].join(' • '),
                         style: const TextStyle(
                           fontSize: 15.5,
@@ -893,7 +894,7 @@ class _PetDetailsPageState extends ConsumerState<PetDetailsPage> {
       _DetailFact(
         icon: Icons.cake_outlined,
         label: 'Age',
-        value: pet.ageString,
+        value: formatPetAge(pet.ageString),
       ),
       if (pet.species.trim().isNotEmpty)
         _DetailFact(

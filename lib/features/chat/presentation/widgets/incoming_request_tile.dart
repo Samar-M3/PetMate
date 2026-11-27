@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../home/data/models/connection_request_model.dart';
+
+// Design tokens
+const _primaryTeal = Color(0xFF0B625B);
+const _coralAccent = Color(0xFFE8795B);
+const _charcoalText = Color(0xFF26332F);
+const _mutedText = Color(0xFF7B8880);
+const _softBorder = Color(0xFFE5E8E2);
 
 class IncomingRequestTile extends StatelessWidget {
   final ConnectionRequestModel request;
@@ -22,23 +28,23 @@ class IncomingRequestTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        color: const Color(0xFFFF8A65).withValues(alpha: 0.05),
+        color: _coralAccent.withValues(alpha: 0.04),
         child: Row(
           children: [
             Stack(
               clipBehavior: Clip.none,
               children: [
                 CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.creamDark,
+                  radius: 27,
+                  backgroundColor: _softBorder,
                   backgroundImage: hasImage
                       ? NetworkImage(request.senderPetImageUrl!)
                       : null,
                   child: !hasImage
                       ? const Icon(
                           Icons.pets,
-                          color: Color(0xFF0F5C57),
-                          size: 24,
+                          color: _primaryTeal,
+                          size: 22,
                         )
                       : null,
                 ),
@@ -46,14 +52,14 @@ class IncomingRequestTile extends StatelessWidget {
                   right: -2,
                   bottom: -2,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(3.5),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFF8A65),
+                      color: _coralAccent,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.favorite_rounded,
-                      size: 11,
+                      size: 10,
                       color: Colors.white,
                     ),
                   ),
@@ -69,32 +75,32 @@ class IncomingRequestTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${request.senderPetName} • ${request.senderUsername}',
+                          '${request.senderPetName} \u2022 ${request.senderUsername}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            color: _charcoalText,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
+                          horizontal: 7,
+                          vertical: 2.5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F5C57).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                          color: _primaryTeal.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
                           'Request',
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F5C57),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: _primaryTeal,
                           ),
                         ),
                       ),
@@ -112,16 +118,16 @@ class IncomingRequestTile extends StatelessWidget {
                       fontStyle: request.hasInitialMessage
                           ? FontStyle.italic
                           : FontStyle.normal,
-                      color: AppColors.textSecondary,
+                      color: _mutedText,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             const Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textMuted,
+              color: _mutedText,
               size: 20,
             ),
           ],

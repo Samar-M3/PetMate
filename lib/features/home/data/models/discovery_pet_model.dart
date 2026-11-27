@@ -50,7 +50,7 @@ class DiscoveryPetModel extends DiscoveryPet {
     return DiscoveryPetModel(
       id: json['id'] as String? ?? '',
       petName: json['petName'] as String? ?? json['name'] as String? ?? '',
-      petAge: json['petAge'] as String? ?? '1.0 years',
+      petAge: json['petAge'] as String? ?? '1 year',
       petBreed: json['petBreed'] as String? ?? json['breed'] as String? ?? '',
       petGender:
           json['petGender'] as String? ?? json['gender'] as String? ?? 'Male',

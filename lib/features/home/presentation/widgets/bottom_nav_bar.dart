@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/app_network_image.dart';
+
 class PetMateBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final int pendingRequestsCount;
+  final String? avatarUrl;
+  final String profileInitial;
 
   const PetMateBottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
     this.pendingRequestsCount = 0,
+    this.avatarUrl,
+    this.profileInitial = 'P',
   });
 
   static const Color _deepTeal = Color(0xFF0F5C57);
   static const Color _sageGreen = Color(0xFFE8F0EA);
   static const Color _softCoral = Color(0xFFE16F52);
   static const Color _darkText = Color(0xFF293A37);
+  static const Color _inactiveGrey = Color(0xFF6B7B76);
 
   @override
   Widget build(BuildContext context) {
@@ -54,22 +61,17 @@ class PetMateBottomNavBar extends StatelessWidget {
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.calendar_today_outlined,
-                activeIcon: Icons.calendar_month_rounded,
-                label: 'Events',
-              ),
-              _buildNavItem(
-                index: 3,
                 icon: Icons.storefront_outlined,
                 activeIcon: Icons.storefront_rounded,
                 label: 'Shop',
               ),
               _buildNavItem(
-                index: 4,
+                index: 3,
                 icon: Icons.medical_services_outlined,
                 activeIcon: Icons.medical_services_rounded,
-                label: 'Vet Appts',
+                label: 'Vets',
               ),
+              _buildProfileNavItem(),
             ],
           ),
         ),
@@ -85,8 +87,8 @@ class PetMateBottomNavBar extends StatelessWidget {
     int badgeCount = 0,
   }) {
     final isSelected = selectedIndex == index;
-    final iconColor = isSelected ? _deepTeal : const Color(0xFF6B7B76);
-    final labelColor = isSelected ? _darkText : const Color(0xFF6B7B76);
+    final iconColor = isSelected ? _deepTeal : _inactiveGrey;
+    final labelColor = isSelected ? _darkText : _inactiveGrey;
 
     return Expanded(
       child: InkWell(
@@ -129,6 +131,55 @@ class PetMateBottomNavBar extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: labelColor,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileNavItem() {
+    final isSelected = selectedIndex == 4;
+    final labelColor = isSelected ? _darkText : _inactiveGrey;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => onItemSelected(4),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? _deepTeal : Colors.transparent,
+                    width: 2.0,
+                  ),
+                ),
+                child: UserAvatar(
+                  imageUrl: avatarUrl,
+                  radius: 13,
+                  initials: profileInitial,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Profile',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
