@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petmatee/core/services/api_client.dart';
 import 'package:petmatee/features/chat/data/repositories/chat_repository.dart';
 
-class MockApiClient extends Fake implements ApiClient {}
+class MockApiClient extends Fake implements ApiClient {
+  @override
+  Future<dynamic> post(String path, {dynamic body}) async => null;
+}
 
 void main() {
   late FakeFirebaseFirestore fakeFirestore;
