@@ -79,3 +79,32 @@ export const parseWishlistBody = (body: unknown): string => {
   if (!productId) throw new AppError("productId is required", 400);
   return productId;
 };
+
+export const parseCreateOrderBody = (body: unknown) => {
+  const input = objectBody(body);
+  const deliveryAddressId = stringValue(input.deliveryAddressId, "deliveryAddressId");
+  const fullName = stringValue(input.fullName, "fullName");
+  const phoneNumber = stringValue(input.phoneNumber, "phoneNumber");
+  const deliveryAddress = stringValue(input.deliveryAddress, "deliveryAddress");
+  const landmark = stringValue(input.landmark, "landmark");
+  const deliveryInstructions = stringValue(input.deliveryInstructions, "deliveryInstructions");
+  const idempotencyKey = stringValue(input.idempotencyKey, "idempotencyKey");
+  const paymentMethod = stringValue(input.paymentMethod, "paymentMethod");
+  const customerNotes = stringValue(input.customerNotes, "customerNotes");
+
+  if (!deliveryAddressId && (!fullName || !phoneNumber || !deliveryAddress)) {
+    throw new AppError("Please provide delivery details (fullName, phoneNumber, deliveryAddress) or select a saved address", 400);
+  }
+
+  return {
+    deliveryAddressId,
+    fullName,
+    phoneNumber,
+    deliveryAddress,
+    landmark,
+    deliveryInstructions,
+    idempotencyKey,
+    paymentMethod,
+    customerNotes,
+  };
+};

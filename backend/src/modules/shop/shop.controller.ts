@@ -40,6 +40,7 @@ import {
 } from "./shop.service.ts";
 import {
   parseAddCartItemBody,
+  parseCreateOrderBody,
   parseProductListQuery,
   parseUpdateCartItemBody,
   parseWishlistBody,
@@ -153,15 +154,8 @@ export const wishlistRemove = handle(async (req, res) => {
 
 // Orders
 export const ordersCreate = handle(async (req, res) => {
-  const { deliveryAddressId, paymentMethod, customerNotes } = req.body;
-  if (!deliveryAddressId) {
-    throw new AppError("deliveryAddressId is required", 400);
-  }
-  const order = await createOrderFromCart(requireUserId(req), {
-    deliveryAddressId,
-    paymentMethod,
-    customerNotes,
-  });
+  const parsed = parseCreateOrderBody(req.body);
+  const order = await createOrderFromCart(requireUserId(req), parsed);
   sendSuccess(res, { statusCode: 201, message: "Order placed successfully", data: { order } });
 });
 

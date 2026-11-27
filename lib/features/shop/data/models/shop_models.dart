@@ -288,6 +288,55 @@ class ShopAddress {
       '$addressLine1, $city, $province${postalCode != null ? ' - $postalCode' : ''}';
 }
 
+class ShopSellerOrder {
+  final String id;
+  final String orderId;
+  final String storeId;
+  final String storeName;
+  final double subtotal;
+  final double deliveryCharge;
+  final String orderStatus;
+  final DateTime? receivedAt;
+  final DateTime? deliveredAt;
+  final List<ShopOrderItem> items;
+
+  const ShopSellerOrder({
+    required this.id,
+    required this.orderId,
+    required this.storeId,
+    required this.storeName,
+    required this.subtotal,
+    required this.deliveryCharge,
+    required this.orderStatus,
+    this.receivedAt,
+    this.deliveredAt,
+    this.items = const [],
+  });
+
+  factory ShopSellerOrder.fromJson(Map<String, dynamic> json) {
+    final store = json['store'] as Map<String, dynamic>?;
+    return ShopSellerOrder(
+      id: json['id']?.toString() ?? '',
+      orderId: json['orderId']?.toString() ?? '',
+      storeId: json['storeId']?.toString() ?? '',
+      storeName: store?['name']?.toString() ?? 'PetMate Store',
+      subtotal: _number(json['subtotal']) ?? 0,
+      deliveryCharge: _number(json['deliveryCharge']) ?? 0,
+      orderStatus: json['orderStatus']?.toString() ?? 'PENDING',
+      receivedAt: json['receivedAt'] != null
+          ? DateTime.tryParse(json['receivedAt'].toString())
+          : null,
+      deliveredAt: json['deliveredAt'] != null
+          ? DateTime.tryParse(json['deliveredAt'].toString())
+          : null,
+      items: (json['items'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(ShopOrderItem.fromJson)
+          .toList(),
+    );
+  }
+}
+
 class ShopOrderItem {
   final String id;
   final String productId;
@@ -295,6 +344,7 @@ class ShopOrderItem {
   final String productName;
   final String? productImage;
   final String? variantName;
+  final String? storeName;
   final int quantity;
   final double unitPrice;
   final double totalPrice;
@@ -306,6 +356,7 @@ class ShopOrderItem {
     required this.productName,
     this.productImage,
     this.variantName,
+    this.storeName,
     required this.quantity,
     required this.unitPrice,
     required this.totalPrice,
@@ -319,14 +370,19 @@ class ShopOrderItem {
         : null;
 
     final variant = json['variant'] as Map<String, dynamic>?;
+    final store = (json['sellerOrder'] is Map ? json['sellerOrder']['store'] as Map<String, dynamic>? : null) ??
+        prod?['store'] as Map<String, dynamic>?;
 
     return ShopOrderItem(
       id: json['id']?.toString() ?? '',
       productId: json['productId']?.toString() ?? '',
       variantId: json['variantId']?.toString(),
-      productName: prod?['name']?.toString() ?? 'Pet Product',
-      productImage: firstImage,
+      productName: json['productName']?.toString() ??
+          prod?['name']?.toString() ??
+          'Pet Product',
+      productImage: json['productImage']?.toString() ?? firstImage,
       variantName: variant?['optionKey']?.toString(),
+      storeName: store?['name']?.toString(),
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
       unitPrice: _number(json['unitPrice']) ?? 0,
       totalPrice: _number(json['totalPrice']) ?? 0,
@@ -345,9 +401,15 @@ class ShopOrder {
   final double discount;
   final double totalAmount;
   final String? customerNotes;
+  final String? fullName;
+  final String? phoneNumber;
+  final String? deliveryAddressText;
+  final String? landmark;
+  final String? deliveryInstructions;
   final DateTime createdAt;
   final ShopAddress? deliveryAddress;
   final List<ShopOrderItem> items;
+  final List<ShopSellerOrder> sellerOrders;
 
   const ShopOrder({
     required this.id,
@@ -360,9 +422,15 @@ class ShopOrder {
     required this.discount,
     required this.totalAmount,
     this.customerNotes,
+    this.fullName,
+    this.phoneNumber,
+    this.deliveryAddressText,
+    this.landmark,
+    this.deliveryInstructions,
     required this.createdAt,
     this.deliveryAddress,
     this.items = const [],
+    this.sellerOrders = const [],
   });
 
   factory ShopOrder.fromJson(Map<String, dynamic> json) => ShopOrder(
@@ -376,6 +444,11 @@ class ShopOrder {
     discount: _number(json['discount']) ?? 0,
     totalAmount: _number(json['totalAmount']) ?? 0,
     customerNotes: json['customerNotes'] as String?,
+    fullName: json['fullName'] as String?,
+    phoneNumber: json['phoneNumber'] as String?,
+    deliveryAddressText: json['deliveryAddressText'] as String?,
+    landmark: json['landmark'] as String?,
+    deliveryInstructions: json['deliveryInstructions'] as String?,
     createdAt: json['createdAt'] != null
         ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
         : DateTime.now(),
@@ -385,6 +458,10 @@ class ShopOrder {
     items: (json['items'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(ShopOrderItem.fromJson)
+        .toList(),
+    sellerOrders: (json['sellerOrders'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopSellerOrder.fromJson)
         .toList(),
   );
 

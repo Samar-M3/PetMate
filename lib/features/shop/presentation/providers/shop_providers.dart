@@ -390,7 +390,13 @@ class ShopOrdersNotifier extends Notifier<ShopOrdersState> {
   }
 
   Future<ShopOrder?> placeOrder({
-    required String deliveryAddressId,
+    String? deliveryAddressId,
+    String? fullName,
+    String? phoneNumber,
+    String? deliveryAddress,
+    String? landmark,
+    String? deliveryInstructions,
+    String? idempotencyKey,
     required String paymentMethod,
     String? customerNotes,
   }) async {
@@ -400,6 +406,12 @@ class ShopOrdersNotifier extends Notifier<ShopOrdersState> {
           .read(shopRepositoryProvider)
           .createOrder(
             deliveryAddressId: deliveryAddressId,
+            fullName: fullName,
+            phoneNumber: phoneNumber,
+            deliveryAddress: deliveryAddress,
+            landmark: landmark,
+            deliveryInstructions: deliveryInstructions,
+            idempotencyKey: idempotencyKey,
             paymentMethod: paymentMethod,
             customerNotes: customerNotes,
           );

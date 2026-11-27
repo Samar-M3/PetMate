@@ -21,6 +21,7 @@ class ShopOrderDetailPage extends ConsumerWidget {
         return AppColors.error;
       case 'SHIPPED':
         return Colors.orange;
+      case 'RECEIVED':
       case 'PROCESSING':
       case 'CONFIRMED':
         return AppColors.primary;
@@ -32,6 +33,8 @@ class ShopOrderDetailPage extends ConsumerWidget {
   int _statusStepIndex(String status) {
     switch (status.toUpperCase()) {
       case 'PENDING':
+        return 0;
+      case 'RECEIVED':
       case 'CONFIRMED':
         return 0;
       case 'PROCESSING':
@@ -288,7 +291,7 @@ class ShopOrderDetailPage extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Delivery Address & Customer Notes
-          if (order.deliveryAddress != null)
+          if (order.deliveryAddress != null || order.deliveryAddressText != null)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -306,7 +309,7 @@ class ShopOrderDetailPage extends ConsumerWidget {
                   const Divider(color: AppColors.border),
                   const SizedBox(height: 6),
                   Text(
-                    order.deliveryAddress!.fullName,
+                    order.fullName ?? order.deliveryAddress?.fullName ?? 'Recipient',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
@@ -314,19 +317,20 @@ class ShopOrderDetailPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    order.deliveryAddress!.formattedSummary,
+                    order.deliveryAddressText ?? order.deliveryAddress?.formattedSummary ?? '',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  Text(
-                    'Phone: ${order.deliveryAddress!.phoneNumber}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  if (order.phoneNumber != null || order.deliveryAddress?.phoneNumber != null)
+                    Text(
+                      'Phone: ${order.phoneNumber ?? order.deliveryAddress?.phoneNumber}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
                   if (order.customerNotes != null &&
                       order.customerNotes!.isNotEmpty) ...[
                     const SizedBox(height: 8),
