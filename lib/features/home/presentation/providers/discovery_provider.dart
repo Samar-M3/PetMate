@@ -7,6 +7,7 @@ import '../../data/repositories/matching_repository.dart';
 import '../../domain/entities/discovery_pet.dart';
 
 enum SwipeDirection { left, right }
+enum DiscoveryFilter { all, forYou }
 
 class DiscoveryState {
   final List<DiscoveryPet> pets;
@@ -20,6 +21,13 @@ class DiscoveryState {
   final String? snackbarMessage;
   final String? lastSwipedPetName;
   final SwipeDirection? lastDirection;
+  final DiscoveryFilter currentFilter;
+  final String? forYouSpecies;
+  final String? forYouNextCursor;
+  final bool forYouHasMoreServer;
+  final List<DiscoveryPet> forYouPets;
+  final int forYouCurrentIndex;
+  final bool isForYouLoading;
 
   const DiscoveryState({
     this.pets = const [],
@@ -33,21 +41,52 @@ class DiscoveryState {
     this.snackbarMessage,
     this.lastSwipedPetName,
     this.lastDirection,
+    this.currentFilter = DiscoveryFilter.all,
+    this.forYouSpecies,
+    this.forYouNextCursor,
+    this.forYouHasMoreServer = false,
+    this.forYouPets = const [],
+    this.forYouCurrentIndex = 0,
+    this.isForYouLoading = false,
   });
 
-  DiscoveryPet? get currentPet =>
-      (currentIndex >= 0 && currentIndex < pets.length)
-      ? pets[currentIndex]
-      : null;
+  DiscoveryPet? get currentPet {
+    if (currentFilter == DiscoveryFilter.forYou) {
+      return (forYouCurrentIndex >= 0 && forYouCurrentIndex < forYouPets.length)
+          ? forYouPets[forYouCurrentIndex]
+          : null;
+    }
+    return (currentIndex >= 0 && currentIndex < pets.length)
+        ? pets[currentIndex]
+        : null;
+  }
 
-  DiscoveryPet? get nextPet =>
-      (currentIndex + 1 >= 0 && currentIndex + 1 < pets.length)
-      ? pets[currentIndex + 1]
-      : null;
+  DiscoveryPet? get nextPet {
+    if (currentFilter == DiscoveryFilter.forYou) {
+      return (forYouCurrentIndex + 1 >= 0 && forYouCurrentIndex + 1 < forYouPets.length)
+          ? forYouPets[forYouCurrentIndex + 1]
+          : null;
+    }
+    return (currentIndex + 1 >= 0 && currentIndex + 1 < pets.length)
+        ? pets[currentIndex + 1]
+        : null;
+  }
 
-  bool get hasMore => currentIndex < pets.length;
+  bool get hasMore {
+    if (currentFilter == DiscoveryFilter.forYou) {
+      return forYouCurrentIndex < forYouPets.length;
+    }
+    return currentIndex < pets.length;
+  }
 
-  int get remainingCount => (pets.length - currentIndex).clamp(0, pets.length);
+  int get remainingCount {
+    if (currentFilter == DiscoveryFilter.forYou) {
+      return (forYouPets.length - forYouCurrentIndex).clamp(0, forYouPets.length);
+    }
+    return (pets.length - currentIndex).clamp(0, pets.length);
+  }
+
+  bool get isCurrentLoading => currentFilter == DiscoveryFilter.forYou ? isForYouLoading : isLoading;
 
   DiscoveryState copyWith({
     List<DiscoveryPet>? pets,
@@ -62,6 +101,13 @@ class DiscoveryState {
     bool clearSnackbar = false,
     String? lastSwipedPetName,
     SwipeDirection? lastDirection,
+    DiscoveryFilter? currentFilter,
+    String? forYouSpecies,
+    String? forYouNextCursor,
+    bool? forYouHasMoreServer,
+    List<DiscoveryPet>? forYouPets,
+    int? forYouCurrentIndex,
+    bool? isForYouLoading,
   }) {
     return DiscoveryState(
       pets: pets ?? this.pets,
@@ -77,6 +123,13 @@ class DiscoveryState {
           : (snackbarMessage ?? this.snackbarMessage),
       lastSwipedPetName: lastSwipedPetName ?? this.lastSwipedPetName,
       lastDirection: lastDirection ?? this.lastDirection,
+      currentFilter: currentFilter ?? this.currentFilter,
+      forYouSpecies: forYouSpecies ?? this.forYouSpecies,
+      forYouNextCursor: forYouNextCursor ?? this.forYouNextCursor,
+      forYouHasMoreServer: forYouHasMoreServer ?? this.forYouHasMoreServer,
+      forYouPets: forYouPets ?? this.forYouPets,
+      forYouCurrentIndex: forYouCurrentIndex ?? this.forYouCurrentIndex,
+      isForYouLoading: isForYouLoading ?? this.isForYouLoading,
     );
   }
 }
@@ -98,6 +151,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       errorMessage: null,
       currentIndex: 0,
       pets: [],
+      currentFilter: DiscoveryFilter.all,
     );
 
     try {
@@ -118,6 +172,43 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Unable to load pet recommendations. Please try again.',
+      );
+    }
+  }
+
+  Future<void> loadForYou(String petId, String species) async {
+    state = state.copyWith(
+      activePetId: petId,
+      isForYouLoading: true,
+      errorMessage: null,
+      forYouCurrentIndex: 0,
+      forYouPets: [],
+      forYouSpecies: species,
+      currentFilter: DiscoveryFilter.forYou,
+    );
+
+    try {
+      final result = await _repository.getDiscover(
+        petId: petId,
+        limit: 10,
+        species: species,
+      );
+      state = state.copyWith(
+        isForYouLoading: false,
+        forYouPets: result.pets,
+        forYouNextCursor: result.nextCursor,
+        forYouHasMoreServer: result.hasMore,
+        errorMessage: null,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[Discovery] ❌ Failed to load For You feed for pet $petId (species: $species): $e',
+        );
+      }
+      state = state.copyWith(
+        isForYouLoading: false,
+        errorMessage: 'Unable to load recommended pets. Please try again.',
       );
     }
   }
@@ -158,9 +249,60 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     }
   }
 
+  Future<void> _prefetchForYouNextPage() async {
+    final petId = state.activePetId;
+    final cursor = state.forYouNextCursor;
+    final species = state.forYouSpecies;
+
+    if (petId == null ||
+        cursor == null ||
+        !state.forYouHasMoreServer ||
+        state.isForYouLoading) {
+      return;
+    }
+
+    state = state.copyWith(isForYouLoading: true);
+
+    try {
+      final result = await _repository.getDiscover(
+        petId: petId,
+        cursor: cursor,
+        limit: 10,
+        species: species,
+      );
+
+      final combined = List<DiscoveryPet>.from(state.forYouPets)..addAll(result.pets);
+
+      state = state.copyWith(
+        isForYouLoading: false,
+        forYouPets: combined,
+        forYouNextCursor: result.nextCursor,
+        forYouHasMoreServer: result.hasMore,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Discovery] ⚠️ For You prefetch error: $e');
+      }
+      state = state.copyWith(isForYouLoading: false);
+    }
+  }
+
   void setActivePet(String petId) {
     if (state.activePetId == petId && state.pets.isNotEmpty) return;
     loadInitial(petId);
+  }
+
+  void setFilter(DiscoveryFilter filter, {String? species}) {
+    if (state.currentFilter == filter) return;
+    
+    if (filter == DiscoveryFilter.forYou) {
+      final activePetId = state.activePetId;
+      final targetSpecies = species ?? state.forYouSpecies;
+      if (activePetId != null && targetSpecies != null) {
+        loadForYou(activePetId, targetSpecies);
+      }
+    }
+    state = state.copyWith(currentFilter: filter);
   }
 
   void swipeRight() {
@@ -191,17 +333,32 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     }
 
     // 1. Optimistic UI update immediately
-    state = state.copyWith(
-      currentIndex: state.currentIndex + 1,
-      lastSwipedPetName: targetPet.petName,
-      lastDirection: direction,
-    );
+    if (state.currentFilter == DiscoveryFilter.forYou) {
+      state = state.copyWith(
+        forYouCurrentIndex: state.forYouCurrentIndex + 1,
+        lastSwipedPetName: targetPet.petName,
+        lastDirection: direction,
+      );
 
-    // 2. Prefetch next page when ~3 cards remain
-    if (state.remainingCount <= 3 &&
-        state.hasMoreServer &&
-        !state.isPrefetching) {
-      _prefetchNextPage();
+      // 2. Prefetch next page when ~3 cards remain
+      if (state.remainingCount <= 3 &&
+          state.forYouHasMoreServer &&
+          !state.isForYouLoading) {
+        _prefetchForYouNextPage();
+      }
+    } else {
+      state = state.copyWith(
+        currentIndex: state.currentIndex + 1,
+        lastSwipedPetName: targetPet.petName,
+        lastDirection: direction,
+      );
+
+      // 2. Prefetch next page when ~3 cards remain
+      if (state.remainingCount <= 3 &&
+          state.hasMoreServer &&
+          !state.isPrefetching) {
+        _prefetchNextPage();
+      }
     }
 
     // 3. Fire-and-forget background write with single retry
@@ -267,12 +424,21 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       return;
     }
 
-    state = state.copyWith(
-      isLoading: true,
-      errorMessage: null,
-      currentIndex: 0,
-      pets: [],
-    );
+    if (state.currentFilter == DiscoveryFilter.forYou) {
+      state = state.copyWith(
+        isForYouLoading: true,
+        errorMessage: null,
+        forYouCurrentIndex: 0,
+        forYouPets: [],
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: true,
+        errorMessage: null,
+        currentIndex: 0,
+        pets: [],
+      );
+    }
 
     try {
       await _repository.resetPassSwipes(petId: petId);
@@ -282,13 +448,32 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       }
     }
 
-    await loadInitial(petId);
+    if (state.currentFilter == DiscoveryFilter.forYou) {
+      final species = state.forYouSpecies;
+      if (species != null) {
+        await loadForYou(petId, species);
+      } else {
+        await loadInitial(petId);
+        state = state.copyWith(currentFilter: DiscoveryFilter.all);
+      }
+    } else {
+      await loadInitial(petId);
+    }
   }
 
   void retryLoad() {
     final petId = state.activePetId;
     if (petId != null) {
-      loadInitial(petId);
+      if (state.currentFilter == DiscoveryFilter.forYou) {
+        final species = state.forYouSpecies;
+        if (species != null) {
+          loadForYou(petId, species);
+        } else {
+          loadInitial(petId);
+        }
+      } else {
+        loadInitial(petId);
+      }
     }
   }
 }

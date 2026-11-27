@@ -274,7 +274,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           .add(addr);
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (created != null) {
-                        setState(() => _selectedAddressId = created.id);
+                        setState(() => _selectedSavedAddressId = created.id);
                       }
                     },
                     child: const Text(
