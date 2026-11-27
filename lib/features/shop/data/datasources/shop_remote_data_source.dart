@@ -45,13 +45,30 @@ class ShopRemoteDataSource {
   Future<dynamic> orders() => _api.get('/shop/orders');
   Future<dynamic> order(String id) => _api.get('/shop/orders/$id');
   Future<dynamic> createOrder({
-    required String deliveryAddressId,
+    String? deliveryAddressId,
+    String? fullName,
+    String? phoneNumber,
+    String? deliveryAddress,
+    String? landmark,
+    String? deliveryInstructions,
+    String? idempotencyKey,
     required String paymentMethod,
     String? customerNotes,
   }) => _api.post(
     '/shop/orders',
     body: {
-      'deliveryAddressId': deliveryAddressId,
+      if (deliveryAddressId != null && deliveryAddressId.isNotEmpty)
+        'deliveryAddressId': deliveryAddressId,
+      if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
+      if (phoneNumber != null && phoneNumber.isNotEmpty)
+        'phoneNumber': phoneNumber,
+      if (deliveryAddress != null && deliveryAddress.isNotEmpty)
+        'deliveryAddress': deliveryAddress,
+      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+      if (deliveryInstructions != null && deliveryInstructions.isNotEmpty)
+        'deliveryInstructions': deliveryInstructions,
+      if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        'idempotencyKey': idempotencyKey,
       'paymentMethod': paymentMethod,
       if (customerNotes != null && customerNotes.isNotEmpty)
         'customerNotes': customerNotes,

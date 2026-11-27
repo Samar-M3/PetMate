@@ -12,6 +12,9 @@ import {
   deleteProduct,
   updateStock,
   toggleStatus,
+  getOrders,
+  getOrderDetail,
+  updateOrderStatus,
 } from "./sellers.controller.ts";
 import {
   authenticateFirebase,
@@ -92,6 +95,29 @@ router.patch(
   requireInitializedUser,
   requireApprovedSeller,
   toggleStatus
+);
+
+// Protected seller order management (approved sellers only)
+router.get(
+  "/orders",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  getOrders
+);
+router.get(
+  "/orders/:id",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  getOrderDetail
+);
+router.patch(
+  "/orders/:id/status",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireApprovedSeller,
+  updateOrderStatus
 );
 
 export default router;

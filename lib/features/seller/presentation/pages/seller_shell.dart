@@ -236,6 +236,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                                 '${dashboard?.metrics.totalOrders ?? 0}',
                                             icon: Icons.shopping_bag_outlined,
                                             color: AppColors.terracotta,
+                                            onTap: () => context.go('/seller/orders'),
                                           ),
                                         ),
                                       ],
@@ -272,6 +273,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                           '${dashboard?.metrics.totalOrders ?? 0}',
                                       icon: Icons.shopping_bag_outlined,
                                       color: AppColors.terracotta,
+                                      onTap: () => context.go('/seller/orders'),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -311,6 +313,15 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                _buildActionTile(
+                                  icon: Icons.receipt_long_outlined,
+                                  iconColor: AppColors.terracotta,
+                                  title: 'Customer Orders',
+                                  subtitle:
+                                      'View and update status for incoming product orders',
+                                  onTap: () => context.go('/seller/orders'),
+                                ),
+                                const SizedBox(height: 8),
                                 _buildActionTile(
                                   icon: Icons.add_circle_outline_rounded,
                                   iconColor: AppColors.info,
@@ -355,9 +366,13 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     required String value,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -398,8 +413,9 @@ class _SellerShellState extends ConsumerState<SellerShell> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildActionTile({
     required IconData icon,

@@ -16,6 +16,8 @@ import '../../features/pets/presentation/pages/my_pets_page.dart';
 import '../../features/pets/presentation/pages/pet_details_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
 import '../../features/seller/presentation/pages/seller_add_product_page.dart';
+import '../../features/seller/presentation/pages/seller_orders_page.dart';
+import '../../features/seller/presentation/pages/seller_order_detail_page.dart';
 import '../../features/profile/presentation/pages/owner_profile_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/seller/presentation/pages/seller_registration_page.dart';
@@ -192,6 +194,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/seller/products/add',
         builder: (context, state) => const SellerAddProductPage(),
+      ),
+      GoRoute(
+        path: '/seller/orders',
+        builder: (context, state) => const SellerOrdersPage(),
+      ),
+      GoRoute(
+        path: '/seller/orders/:id',
+        builder: (context, state) => SellerOrderDetailPage(
+          orderId: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/my-pets',
