@@ -760,33 +760,3 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 }
-
-/// Simplified Events Preview Tab
-class _EventsPreviewTab extends ConsumerWidget {
-  const _EventsPreviewTab({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const EventsHomeScreen();
-  }
-}
-
-/// Simplified Shop Preview Tab
-class _ShopPreviewTab extends ConsumerWidget {
-  const _ShopPreviewTab({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const ShopHomePage();
-  }
-}
-
-/// Simplified Vet Appointments Preview Tab
-class _VetApptsPreviewTab extends ConsumerWidget {
-  const _VetApptsPreviewTab({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const VetApptsHomeScreen();
-  }
-}

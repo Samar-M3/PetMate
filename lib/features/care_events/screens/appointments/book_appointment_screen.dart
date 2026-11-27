@@ -310,7 +310,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               )
             else
               DropdownButtonFormField<PetEntity>(
-                value: _selectedPet,
+                initialValue: _selectedPet,
                 decoration: _inputDecoration('Select your pet'),
                 isExpanded: true,
                 items: userPets.map((pet) {

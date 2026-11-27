@@ -396,7 +396,7 @@ class _AdminVetsTabState extends ConsumerState<AdminVetsTab> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: vets.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 height: 1,
                 thickness: 1,
                 color: AdminColors.borderLight,
@@ -522,7 +522,7 @@ class _AdminVetsTabState extends ConsumerState<AdminVetsTab> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: vets.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final vet = vets[index];
         return Container(
@@ -868,7 +868,7 @@ class _VetFormDialogState extends State<_VetFormDialog> {
                     ),
                   ),
                   value: _accepting,
-                  activeColor: AdminColors.primary,
+                  activeThumbColor: AdminColors.primary,
                   onChanged: (val) => setState(() => _accepting = val),
                 ),
                 const SizedBox(height: 20),

@@ -551,7 +551,7 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: users.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 height: 1,
                 thickness: 1,
                 color: AdminColors.borderLight,
@@ -767,7 +767,7 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: users.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final user = users[index];
         final isMe = user.id == currentUserId;

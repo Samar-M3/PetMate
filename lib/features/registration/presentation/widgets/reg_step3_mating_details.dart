@@ -324,7 +324,7 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
               ),
               Switch(
                 value: _isNeutered,
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
                 onChanged: (val) => setState(() => _isNeutered = val),
               ),
             ],
@@ -379,7 +379,7 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
                 ),
                 Switch(
                   value: _hasLitters,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: (val) => setState(() => _hasLitters = val),
                 ),
               ],
@@ -469,7 +469,7 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _sizeCategory,
+                  initialValue: _sizeCategory,
                   decoration: const InputDecoration(
                     labelText: 'Size Category',
                   ),
@@ -522,7 +522,7 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
                 const SizedBox(width: 12),
                 Switch(
                   value: _hasPedigree,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   onChanged: (val) => setState(() => _hasPedigree = val),
                 ),
               ],

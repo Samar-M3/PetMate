@@ -139,8 +139,9 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
     int count = 0;
     if (_categoryId != null) count++;
     if (_brand != null) count++;
-    if (_minController.text.isNotEmpty || _maxController.text.isNotEmpty)
+    if (_minController.text.isNotEmpty || _maxController.text.isNotEmpty) {
       count++;
+    }
     if (_sort != 'newest') count++;
     return count;
   }
@@ -192,7 +193,7 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
               const SizedBox(height: 12),
               // Category Picker
               DropdownButtonFormField<String?>(
-                value: _categoryId,
+                initialValue: _categoryId,
                 decoration: InputDecoration(
                   labelText: 'Category',
                   filled: true,
@@ -218,7 +219,7 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
               const SizedBox(height: 12),
               // Brand Picker
               DropdownButtonFormField<String?>(
-                value: _brand,
+                initialValue: _brand,
                 decoration: InputDecoration(
                   labelText: 'Brand',
                   filled: true,
@@ -279,7 +280,7 @@ class _ShopListingPageState extends ConsumerState<ShopListingPage> {
               const SizedBox(height: 12),
               // Sort Option
               DropdownButtonFormField<String>(
-                value: _sort,
+                initialValue: _sort,
                 decoration: InputDecoration(
                   labelText: 'Sort By',
                   filled: true,

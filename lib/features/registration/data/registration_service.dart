@@ -187,7 +187,7 @@ class RegistrationService {
     final response = await apiClient.post(
       '/profile/complete',
       body: {
-        if (petId != null) 'petId': petId,
+        'petId': ?petId,
       },
     );
 

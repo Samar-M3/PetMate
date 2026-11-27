@@ -186,9 +186,8 @@ class FcmService {
     );
 
     // 5. Token refresh listener
-    // ignore: deprecated_member_use
     _subscriptions.add(
-      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      FirebaseMessaging.instance.onRegistered.listen((newToken) {
         syncToken(force: true);
       }),
     );

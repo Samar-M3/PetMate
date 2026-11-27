@@ -199,7 +199,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
         itemCount: conversations.length,
-        separatorBuilder: (_, __) => const Divider(
+        separatorBuilder: (_, _) => const Divider(
           height: 1,
           indent: 76,
           endIndent: 20,
@@ -252,7 +252,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
         itemCount: requests.length,
-        separatorBuilder: (_, __) => const Divider(
+        separatorBuilder: (_, _) => const Divider(
           height: 1,
           indent: 76,
           endIndent: 20,
@@ -314,7 +314,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: 4, bottom: 24),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(
+            separatorBuilder: (_, _) => const Divider(
               height: 1,
               indent: 76,
               endIndent: 20,

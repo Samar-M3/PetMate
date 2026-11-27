@@ -532,7 +532,7 @@ class _AdminApplicationsTabState extends ConsumerState<AdminApplicationsTab> {
       child: ListView.separated(
         padding: const EdgeInsets.all(24),
         itemCount: state.applications.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        separatorBuilder: (_, _) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           final app = state.applications[index];
           return _buildApplicationCard(app);

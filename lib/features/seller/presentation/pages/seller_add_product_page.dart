@@ -157,7 +157,6 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
       }
 
       final picker = ImagePicker();
-      final remaining = _maxImages - _selectedImages.length;
       List<XFile> picked = [];
 
       try {
@@ -274,7 +273,6 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
 
   void _reorderImages(int oldIndex, int newIndex) {
     setState(() {
-      if (newIndex > oldIndex) newIndex--;
       final item = _selectedImages.removeAt(oldIndex);
       _selectedImages.insert(newIndex, item);
     });
@@ -549,7 +547,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                               ),
                             )
                           : DropdownButtonFormField<String>(
-                              value: _selectedCategoryId,
+                              initialValue: _selectedCategoryId,
                               decoration: _inputDecoration('Category'),
                               items: _categories.map((cat) {
                                 final isChild = cat['isChild'] as bool;
@@ -783,7 +781,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: _selectedPetType,
+                        initialValue: _selectedPetType,
                         decoration: _inputDecoration('Pet Type'),
                         items: _petTypes
                             .map(
@@ -821,7 +819,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
                           'Featured products appear in the homepage spotlight',
                           style: TextStyle(fontSize: 11),
                         ),
-                        activeColor: AppColors.primary,
+                        activeThumbColor: AppColors.primary,
                       ),
                     ],
                   ),
@@ -1005,7 +1003,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _selectedImages.length,
-            onReorder: _reorderImages,
+            onReorderItem: _reorderImages,
             itemBuilder: (context, index) {
               final img = _selectedImages[index];
               return Container(
@@ -1209,8 +1207,6 @@ class _ProductImageEntry {
   _ProductImageEntry({
     required this.bytes,
     required this.name,
-    this.uploadedUrl,
     this.isUploading = false,
-    this.errorMessage,
   });
 }

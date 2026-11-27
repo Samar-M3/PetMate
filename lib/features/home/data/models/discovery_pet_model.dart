@@ -25,7 +25,6 @@ class DiscoveryPetModel extends DiscoveryPet {
     super.ownerAge,
     required super.ownerLocation,
     super.ownerAvatarUrl,
-    super.species,
   });
 
   factory DiscoveryPetModel.fromJson(Map<String, dynamic> json) {
@@ -69,7 +68,7 @@ class DiscoveryPetModel extends DiscoveryPet {
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      species: json['species'] as String? ?? json['animalType'] as String?,
+      species: json['species'] as String? ?? json['petType'] as String? ?? json['animalType'] as String?,
       color: json['color'] as String? ?? json['colorCoat'] as String?,
       purpose: json['purpose'] as String?,
       isNeutered: json['isNeutered'] as bool?,
@@ -90,7 +89,6 @@ class DiscoveryPetModel extends DiscoveryPet {
           json['area'] as String? ??
           'Kathmandu, Nepal',
       ownerAvatarUrl: json['ownerAvatarUrl'] as String?,
-      species: json['species'] as String? ?? json['petType'] as String? ?? json['animalType'] as String?,
     );
   }
 
@@ -119,7 +117,6 @@ class DiscoveryPetModel extends DiscoveryPet {
       'ownerAge': ownerAge,
       'ownerLocation': ownerLocation,
       'ownerAvatarUrl': ownerAvatarUrl,
-      'species': species,
     };
   }
 

@@ -974,11 +974,11 @@ class _ProductDetailsPageState extends ConsumerState<ProductDetailsPage> {
                                     variantId: _variant?.id,
                                     quantity: _quantity,
                                   );
-                              if (context.mounted) {
+                              if (mounted) {
                                 context.push('/shop/checkout');
                               }
                             } catch (e) {
-                              if (context.mounted) {
+                              if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(e.toString()),

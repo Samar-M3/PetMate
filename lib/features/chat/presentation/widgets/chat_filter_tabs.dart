@@ -4,9 +4,7 @@ enum ChatFilterTab { active, liked, all }
 
 // Design tokens
 const _primaryTeal = Color(0xFF0B625B);
-const _warmIvory = Color(0xFFF8F6F0);
 const _charcoalText = Color(0xFF26332F);
-const _mutedText = Color(0xFF7B8880);
 const _softBorder = Color(0xFFE5E8E2);
 const _coralAccent = Color(0xFFE8795B);
 

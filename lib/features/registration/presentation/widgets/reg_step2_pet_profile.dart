@@ -279,7 +279,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
 
           // Species Dropdown
           DropdownButtonFormField<String>(
-            value: _selectedSpecies,
+            initialValue: _selectedSpecies,
             decoration: const InputDecoration(
               labelText: 'Species *',
               prefixIcon: Icon(Icons.category_outlined, color: AppColors.primary),
@@ -315,7 +315,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
           // Breed Dropdown
           if (_currentBreedList.isNotEmpty)
             DropdownButtonFormField<String>(
-              value: _currentBreedList.contains(_selectedBreed)
+              initialValue: _currentBreedList.contains(_selectedBreed)
                   ? _selectedBreed
                   : _currentBreedList.first,
               decoration: const InputDecoration(
