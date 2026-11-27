@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "contacts": {
+      ".read": false,
+      ".write": false
+    },
+    "conversationMembers": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

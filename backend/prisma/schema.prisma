@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -19,24 +14,842 @@ enum Role {
   ADMIN
 }
 
-enum UserStatus {
+enum SwipeAction {
+  LIKE
+  PASS
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REJECTED
+  EXPIRED
+}
+
+enum MatchStatus {
   ACTIVE
+  ENDED
+}
+
+enum ApplicationType {
+  SELLER
+  VETERINARIAN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  INACTIVE
+}
+
+enum AppointmentStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum StoreStatus {
+  PENDING
+  APPROVED
+  REJECTED
   SUSPENDED
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  password     String
-  fullName     String
-  phoneNumber  String?
-  role         Role       @default(PET_OWNER)
-  status       UserStatus @default(ACTIVE)
-  profileImage String?
-  address      String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                  String   @id @default(uuid())
+  firebaseUid         String   @unique @map("firebase_uid")
+  email               String?
+  phoneNumber         String?  @map("phone_number")
+  role                Role     @default(PET_OWNER)
+  isActive            Boolean  @default(true) @map("is_active")
+  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
+  mustChangePassword  Boolean  @default(false) @map("must_change_password")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  profile                Profile?
+  pets                   Pet[]
+  store                  Store?
+  cart                   Cart?
+  wishlist               Wishlist?
+  addresses              DeliveryAddress[]
+  orders                 Order[]
+  reviews                Review[]
+  actionsPerformed       AdminAuditLog[]            @relation("ActorAdminAudit")
+  auditLogs              AdminAuditLog[]            @relation("TargetUserAudit")
+  swipesGiven            PetSwipe[]                 @relation("SwipesGiven")
+  swipesReceived         PetSwipe[]                 @relation("SwipesReceived")
+  requestsSent           ConnectionRequest[]        @relation("RequestsSent")
+  requestsReceived       ConnectionRequest[]        @relation("RequestsReceived")
+  applications           RoleApplication[]          @relation("UserApplications")
+  reviewedApplications   RoleApplication[]          @relation("ReviewedApplications")
+  slotEntitlements       ActiveSlotEntitlement[]
+  payments               SlotPayment[]
+  downgradeMessages      UserDowngradeMessage[]
+  blocksGiven            UserBlock[]                @relation("BlocksGiven")
+  blocksReceived         UserBlock[]                @relation("BlocksReceived")
+  chatReports            ChatReport[]
+  eventRsvps          EventRsvp[]
+  eventBookmarks      EventBookmark[]
+  deviceTokens        DeviceToken[]
+  notificationPreference NotificationPreference?
+  appointments           Appointment[]
+  veterinarian           Veterinarian?
+  passwordSetup          VeterinarianPasswordSetup?
 
   @@map("users")
 }
 
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  actorId   String   @map("actor_id")
+  targetId  String   @map("target_id")
+  action    String
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor  User @relation("ActorAdminAudit", fields: [actorId], references: [id], onDelete: Cascade)
+  target User @relation("TargetUserAudit", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@map("admin_audit_logs")
+}
+
+model Profile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  username          String?  @unique
+  fullName          String?  @map("full_name")
+  profilePictureUrl String?  @map("profile_picture_url")
+  imageUrl          String?  @map("image_url")
+  imagePublicId     String?  @map("image_public_id")
+  location          String?
+  area              String?
+  bio               String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Pet {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  name              String
+  profilePictureUrl String?   @map("profile_picture_url")
+  imageUrl          String?   @map("image_url")
+  imagePublicId     String?   @map("image_public_id")
+  animalType        String?   @map("animal_type")
+  breed             String?
+  gender            String?
+  dateOfBirth       DateTime? @map("date_of_birth")
+  color             String?
+  personality       String[]  @default([])
+  vaccinationStatus String?   @map("vaccination_status")
+  allergies         String?
+  description       String?
+  isActive          Boolean   @default(false) @map("is_active")
+  activatedAt       DateTime? @map("activated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images           PetImage[]
+  swipesGiven      PetSwipe[]          @relation("PetSwipesGiven")
+  swipesReceived   PetSwipe[]          @relation("PetSwipesReceived")
+  requestsSent     ConnectionRequest[] @relation("PetRequestsSent")
+  requestsReceived ConnectionRequest[] @relation("PetRequestsReceived")
+  matchesAsPetA    Match[]             @relation("MatchesAsPetA")
+  matchesAsPetB    Match[]             @relation("MatchesAsPetB")
+
+  @@index([userId])
+  @@index([animalType, gender])
+  @@map("pets")
+}
+
+model PetImage {
+  id            String   @id @default(uuid())
+  petId         String   @map("pet_id")
+  imageUrl      String   @map("image_url")
+  imagePublicId String   @map("image_public_id")
+  isMain        Boolean  @default(false) @map("is_main")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("pet_images")
+}
+
+model PetSwipe {
+  id           String      @id @default(uuid())
+  swiperUserId String      @map("swiper_user_id")
+  swiperPetId  String      @map("swiper_pet_id")
+  targetPetId  String      @map("target_pet_id")
+  targetUserId String      @map("target_user_id")
+  action       SwipeAction
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  swiperUser User @relation("SwipesGiven", fields: [swiperUserId], references: [id], onDelete: Cascade)
+  targetUser User @relation("SwipesReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+  swiperPet  Pet  @relation("PetSwipesGiven", fields: [swiperPetId], references: [id], onDelete: Cascade)
+  targetPet  Pet  @relation("PetSwipesReceived", fields: [targetPetId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperPetId, targetPetId])
+  @@index([swiperPetId, action, createdAt])
+  @@index([swiperPetId])
+  @@index([targetPetId])
+  @@map("pet_swipes")
+}
+
+model ConnectionRequest {
+  id             String        @id @default(uuid())
+  senderUserId   String        @map("sender_user_id")
+  senderPetId    String        @map("sender_pet_id")
+  receiverUserId String        @map("receiver_user_id")
+  receiverPetId  String        @map("receiver_pet_id")
+  status         RequestStatus @default(PENDING)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  respondedAt    DateTime?     @map("responded_at")
+  expiresAt      DateTime?     @map("expires_at")
+
+  senderUser   User @relation("RequestsSent", fields: [senderUserId], references: [id], onDelete: Cascade)
+  receiverUser User @relation("RequestsReceived", fields: [receiverUserId], references: [id], onDelete: Cascade)
+  senderPet    Pet  @relation("PetRequestsSent", fields: [senderPetId], references: [id], onDelete: Cascade)
+  receiverPet  Pet  @relation("PetRequestsReceived", fields: [receiverPetId], references: [id], onDelete: Cascade)
+
+  @@unique([senderPetId, receiverPetId])
+  @@index([receiverUserId, status, createdAt])
+  @@index([senderPetId, receiverPetId])
+  @@index([senderUserId, status])
+  @@index([status, expiresAt])
+  @@index([senderUserId])
+  @@index([receiverUserId])
+  @@map("connection_requests")
+}
+
+model Match {
+  id        String      @id @default(uuid())
+  petAId    String      @map("pet_a_id")
+  petBId    String      @map("pet_b_id")
+  status    MatchStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at")
+  endedAt   DateTime?   @map("ended_at")
+  endedBy   String?     @map("ended_by")
+
+  petA    Pet          @relation("MatchesAsPetA", fields: [petAId], references: [id], onDelete: Cascade)
+  petB    Pet          @relation("MatchesAsPetB", fields: [petBId], references: [id], onDelete: Cascade)
+  reports ChatReport[]
+
+  @@unique([petAId, petBId])
+  @@index([petAId, status])
+  @@index([petBId, status])
+  @@map("matches")
+}
+
+model RoleApplication {
+  id         String            @id @default(uuid())
+  userId     String            @map("user_id")
+  type       ApplicationType
+  status     ApplicationStatus @default(PENDING)
+  notes      String?
+  reviewedBy String?           @map("reviewed_by")
+  reviewedAt DateTime?         @map("reviewed_at")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  user     User  @relation("UserApplications", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReviewedApplications", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+  @@index([userId])
+  @@map("role_applications")
+}
+
+model ActiveSlotEntitlement {
+  id        String            @id @default(uuid())
+  ownerId   String            @map("owner_id")
+  paymentId String?           @map("payment_id")
+  startsAt  DateTime          @default(now()) @map("starts_at")
+  expiresAt DateTime          @map("expires_at")
+  status    EntitlementStatus @default(ACTIVE)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  owner   User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  payment SlotPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, status, expiresAt])
+  @@map("active_slot_entitlements")
+}
+
+model SlotPayment {
+  id            String        @id @default(uuid())
+  userId        String        @map("user_id")
+  amount        Float
+  quantity      Int
+  gateway       String
+  transactionId String?       @unique @map("transaction_id")
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlements ActiveSlotEntitlement[]
+
+  @@index([userId, status])
+  @@map("slot_payments")
+}
+
+model UserDowngradeMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@map("user_downgrade_messages")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model ChatReport {
+  id             String   @id @default(uuid())
+  reporterId     String   @map("reporter_id")
+  conversationId String   @map("conversation_id")
+  messageId      String?  @map("message_id")
+  reason         String
+  snapshot       Json?
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  reporter User  @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  match    Match @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([reporterId])
+  @@index([status, createdAt])
+  @@map("chat_reports")
+}
+
+model Event {
+  id            String   @id @default(uuid())
+  title         String
+  category      String   @default("MEETUP")
+  dayName       String?  @map("day_name")
+  dayNum        String?  @map("day_num")
+  fullDate      String   @map("full_date")
+  time          String
+  location      String
+  description   String
+  attendeeCount Int      @default(0) @map("attendee_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  rsvps         EventRsvp[]
+  bookmarks     EventBookmark[]
+
+  @@map("events")
+}
+
+/// One row = one user holding a spot at one event.
+model EventRsvp {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  eventId   String   @map("event_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@map("event_rsvps")
+}
+
+/// One row = one user bookmarking one event.
+model EventBookmark {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  eventId   String   @map("event_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@map("event_bookmarks")
+}
+
+model Veterinarian {
+  id                  String   @id @default(uuid())
+  name                String
+  email               String?  @unique @map("email")
+  passwordHash        String?  @map("password_hash")
+  clinicName          String   @map("clinic_name")
+  specialty           String
+  address             String
+  licenseNumber       String?  @map("license_number")
+  rating              Float    @default(5.0)
+  fee                 Int      @default(500)
+  isVerified          Boolean  @default(true) @map("is_verified")
+  isAcceptingBookings Boolean  @default(true) @map("is_accepting_bookings")
+  availableSlots      String[] @default(["10:00 AM", "01:00 PM", "03:30 PM"]) @map("available_slots")
+  userId              String?  @unique @map("user_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@map("veterinarians")
+}
+
+model VeterinarianPasswordSetup {
+  userId                String   @id @map("user_id")
+  temporaryPasswordHash String   @map("temporary_password_hash")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("veterinarian_password_setups")
+}
+
+model Appointment {
+  id             String            @id @default(uuid())
+  userId         String            @map("user_id")
+  vetId          String            @map("vet_id")
+  petName        String            @map("pet_name")
+  date           String
+  timeSlot       String            @map("time_slot")
+  reason         String            @default("General Checkup")
+  status         AppointmentStatus @default(UPCOMING)
+  vetNotes       String?           @map("vet_notes")
+  nextVaccineDue String?           @map("next_vaccine_due")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vet  Veterinarian @relation(fields: [vetId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([vetId, status])
+  @@index([date, timeSlot])
+  @@map("appointments")
+}
+
+model Store {
+  id                 String      @id @default(uuid())
+  userId             String      @unique @map("user_id")
+  name               String
+  slug               String      @unique
+  description        String?
+  imageUrl           String?     @map("image_url")
+  cloudinaryPublicId String?     @map("cloudinary_public_id")
+  status             StoreStatus @default(PENDING)
+  businessType       String      @default("INDIVIDUAL") @map("business_type")
+  businessAddress    String?     @map("business_address")
+  city               String?
+  province           String?
+  postalCode         String?     @map("postal_code")
+  registrationDocUrl String?     @map("registration_doc_url")
+  identityDocUrl     String?     @map("identity_doc_url")
+  rejectionReason    String?     @map("rejection_reason")
+  submittedAt        DateTime    @default(now()) @map("submitted_at")
+  reviewedAt         DateTime?   @map("reviewed_at")
+  reviewedBy         String?     @map("reviewed_by")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  owner        User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  products     Product[]
+  sellerOrders SellerOrder[]
+
+  @@index([status])
+  @@map("stores")
+}
+
+model Category {
+  id                 String   @id @default(uuid())
+  name               String
+  slug               String   @unique
+  description        String?
+  imageUrl           String?  @map("image_url")
+  cloudinaryPublicId String?  @map("cloudinary_public_id")
+  parentId           String?  @map("parent_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id                String        @id @default(uuid())
+  name              String
+  slug              String        @unique
+  sku               String?
+  description       String?
+  shortDescription  String?       @map("short_description")
+  brand             String?
+  basePrice         Decimal       @map("base_price") @db.Decimal(12, 2)
+  discountedPrice   Decimal?      @map("discounted_price") @db.Decimal(12, 2)
+  costPrice         Decimal?      @map("cost_price") @db.Decimal(12, 2)
+  currency          String        @default("NPR") @db.VarChar(3)
+  /// When variants exist, stock is tracked only on ProductVariant; otherwise this field is authoritative.
+  availableStock    Int           @default(0) @map("available_stock")
+  lowStockThreshold Int           @default(5) @map("low_stock_threshold")
+  status            ProductStatus @default(DRAFT)
+  isFeatured        Boolean       @default(false) @map("is_featured")
+  categoryId        String        @map("category_id")
+  subcategoryId     String?       @map("subcategory_id")
+  storeId           String        @map("store_id")
+  specifications    Json?         @db.JsonB
+  shippingWeight    Float?        @map("shipping_weight")
+  packageDimensions String?       @map("package_dimensions")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  store         Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  images        ProductImage[]
+  variants      ProductVariant[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+
+  @@index([categoryId, status])
+  @@index([storeId, status])
+  @@index([status, createdAt])
+  @@index([isFeatured, status])
+  @@index([brand])
+  @@index([sku])
+  @@map("products")
+}
+
+model ProductImage {
+  id                 String   @id @default(uuid())
+  productId          String   @map("product_id")
+  imageUrl           String   @map("image_url")
+  cloudinaryPublicId String   @map("cloudinary_public_id")
+  displayOrder       Int      @default(0) @map("display_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, displayOrder])
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id             String   @id @default(uuid())
+  productId      String   @map("product_id")
+  optionValues   Json     @map("option_values") @db.JsonB
+  optionKey      String   @map("option_key")
+  priceOverride  Decimal? @map("price_override") @db.Decimal(12, 2)
+  availableStock Int      @default(0) @map("available_stock")
+  isAvailable    Boolean  @default(true) @map("is_available")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, optionKey])
+  @@unique([id, productId])
+  @@index([productId, isAvailable])
+  @@map("product_variants")
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String   @map("cart_id")
+  productId String   @map("product_id")
+  variantId String?  @map("variant_id")
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant? @relation(fields: [variantId, productId], references: [id, productId], onDelete: Restrict)
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([variantId])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+
+  @@map("wishlists")
+}
+
+enum OrderStatus {
+  PENDING
+  RECEIVED
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderPaymentMethod {
+  CASH_ON_DELIVERY
+  ESEWA
+  KHALTI
+  BANK_TRANSFER
+}
+
+model DeliveryAddress {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  fullName     String   @map("full_name")
+  phoneNumber  String   @map("phone_number")
+  addressLine1 String   @map("address_line1")
+  addressLine2 String?  @map("address_line2")
+  city         String
+  province     String
+  postalCode   String?  @map("postal_code")
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+  @@map("delivery_addresses")
+}
+
+model Order {
+  id                   String             @id @default(uuid())
+  orderNumber          String             @unique @map("order_number")
+  userId               String             @map("user_id")
+  deliveryAddressId    String?            @map("delivery_address_id")
+  fullName             String?            @map("full_name")
+  phoneNumber          String?            @map("phone_number")
+  deliveryAddressText  String?            @map("delivery_address")
+  landmark             String?
+  deliveryInstructions String?            @map("delivery_instructions")
+  idempotencyKey       String?            @map("idempotency_key")
+  status               OrderStatus        @default(PENDING)
+  paymentMethod        OrderPaymentMethod @default(CASH_ON_DELIVERY) @map("payment_method")
+  paymentStatus        PaymentStatus      @default(UNPAID) @map("payment_status")
+  subtotal             Decimal            @db.Decimal(12, 2)
+  deliveryCharge       Decimal            @default(0) @map("delivery_charge") @db.Decimal(12, 2)
+  discount             Decimal            @default(0) @db.Decimal(12, 2)
+  totalAmount          Decimal            @map("total_amount") @db.Decimal(12, 2)
+  customerNotes        String?            @map("customer_notes")
+  cancelledReason      String?            @map("cancelled_reason")
+  trackingNumber       String?            @map("tracking_number")
+  shippingCarrier      String?            @map("shipping_carrier")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  deliveryAddress DeliveryAddress?     @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  sellerOrders    SellerOrder[]
+  statusHistory   OrderStatusHistory[]
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([idempotencyKey])
+  @@map("orders")
+}
+
+model SellerOrder {
+  id             String      @id @default(uuid())
+  orderId        String      @map("order_id")
+  storeId        String      @map("store_id")
+  subtotal       Decimal     @db.Decimal(12, 2)
+  deliveryCharge Decimal     @default(0) @map("delivery_charge") @db.Decimal(12, 2)
+  orderStatus    OrderStatus @default(PENDING) @map("order_status")
+  receivedAt     DateTime?   @map("received_at")
+  deliveredAt    DateTime?   @map("delivered_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  store         Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@unique([orderId, storeId])
+  @@index([storeId, orderStatus, createdAt])
+  @@map("seller_orders")
+}
+
+model OrderItem {
+  id            String   @id @default(uuid())
+  orderId       String   @map("order_id")
+  sellerOrderId String?  @map("seller_order_id")
+  productId     String   @map("product_id")
+  variantId     String?  @map("variant_id")
+  productName   String?  @map("product_name")
+  productImage  String?  @map("product_image")
+  quantity      Int
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
+  totalPrice    Decimal  @map("total_price") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerOrder SellerOrder?    @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([sellerOrderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id              String       @id @default(uuid())
+  orderId         String       @map("order_id")
+  sellerOrderId   String?      @map("seller_order_id")
+  fromStatus      OrderStatus? @map("from_status")
+  toStatus        OrderStatus  @map("to_status")
+  changedByUserId String?      @map("changed_by_user_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerOrder SellerOrder? @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([sellerOrderId, createdAt])
+  @@map("order_status_history")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  rating    Int      @default(5)
+  title     String?
+  comment   String?
+  images    String[] @default([])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId, rating])
+  @@map("reviews")
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String   @map("wishlist_id")
+  productId  String   @map("product_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  platform   String   @default("android")
+  appVersion String?  @map("app_version")
+  locale     String   @default("en")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model NotificationPreference {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  messages     Boolean  @default(true)
+  requests     Boolean  @default(true)
+  matches      Boolean  @default(true)
+  orders       Boolean  @default(true)
+  system       Boolean  @default(true)
+  showPreviews Boolean  @default(true) @map("show_previews")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}

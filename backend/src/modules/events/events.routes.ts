@@ -1,0 +1,46 @@
+import { Router } from "express";
+import { getEvents, addEvent, removeEvent, editEvent, bookmarkEvent, rsvpEvent } from "./events.controller.ts";
+import {
+  authenticateAdmin,
+  authenticateFirebase,
+  authenticateOptionalFirebase,
+  requireInitializedUser,
+  requireRole,
+  Role,
+} from "../../middleware/auth.middleware.ts";
+
+const router = Router();
+
+// Public / User read
+router.get("/", authenticateOptionalFirebase, getEvents);
+
+// User actions
+router.post("/:id/bookmark", authenticateFirebase, requireInitializedUser, bookmarkEvent);
+router.post("/:id/rsvp", authenticateFirebase, requireInitializedUser, rsvpEvent);
+
+// Admin-only management
+router.post(
+  "/",
+  authenticateAdmin,
+  requireInitializedUser,
+  requireRole(Role.ADMIN),
+  addEvent
+);
+
+router.delete(
+  "/:id",
+  authenticateAdmin,
+  requireInitializedUser,
+  requireRole(Role.ADMIN),
+  removeEvent
+);
+
+router.patch(
+  "/:id",
+  authenticateAdmin,
+  requireInitializedUser,
+  requireRole(Role.ADMIN),
+  editEvent
+);
+
+export default router;
