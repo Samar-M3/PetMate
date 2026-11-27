@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import authRoutes from "./modules/auth/auth.routes.ts";
 import usersRoutes from "./modules/users/users.routes.ts";
+import profileRoutes from "./modules/profile/profile.routes.ts";
 import petsRoutes from "./modules/pets/pets.routes.ts";
 import uploadsRoutes from "./modules/uploads/uploads.routes.ts";
 import shopRoutes from "./modules/shop/shop.routes.ts";
@@ -80,8 +82,14 @@ app.get("/api/health", healthHandler);
 app.get("/api/v1/health", healthHandler);
 
 // Feature Routes (support both /api and /api/v1 prefixes)
+app.use("/api/auth", authRoutes);
+app.use("/api/v1/auth", authRoutes);
+
 app.use("/api/users", usersRoutes);
 app.use("/api/v1/users", usersRoutes);
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/v1/profile", profileRoutes);
 
 app.use("/api/pets", petsRoutes);
 app.use("/api/v1/pets", petsRoutes);

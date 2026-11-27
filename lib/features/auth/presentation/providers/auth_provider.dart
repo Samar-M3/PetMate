@@ -11,6 +11,8 @@ import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../care_events/providers/care_events_provider.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
+import '../../../onboarding/presentation/providers/onboarding_provider.dart';
+import '../../../registration/presentation/providers/registration_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/entities/user_role.dart';
@@ -292,6 +294,16 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         }
       }
 
+      // 3b. Invalidate onboarding & registration state so next login starts fresh
+      try {
+        ref.invalidate(onboardingProvider);
+        ref.invalidate(registrationProvider);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Provider invalidate error: $e');
+        }
+      }
+
       // 4. Move state to unauthenticated
       state = const AuthState(
         status: AuthStatus.unauthenticated,
@@ -545,6 +557,10 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
     if (fbUser == null) return;
     await _syncBackendProfile(fbUser, isBackground: true);
   }
+
+  /// Public alias used by OnboardingNotifier after completing the onboarding
+  /// flow so the router re-evaluates the destination with fresh onboarding state.
+  Future<void> refreshUser() => refreshUserProfile();
 
   Future<void> completeInitialVeterinarianPassword(String newPassword) async {
     final updatedUser = await _repository.completeInitialVeterinarianPassword(

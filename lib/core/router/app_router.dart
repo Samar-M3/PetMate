@@ -10,8 +10,11 @@ import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/requests_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_flow_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
 import '../../features/onboarding/presentation/pages/pet_info_page.dart';
+import '../../features/registration/presentation/pages/pet_owner_registration_flow_page.dart';
+import '../../features/registration/presentation/pages/role_selection_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
 import '../../features/pets/presentation/pages/pet_details_page.dart';
 import '../../features/pets/presentation/pages/slots_purchase_page.dart';
@@ -54,6 +57,7 @@ class RouterNotifier extends ChangeNotifier {
     final isAuthPage =
         location == '/login' ||
         location == '/register' ||
+        location == '/register/pet-owner' ||
         location == '/seller/register' ||
         location == '/vet-login';
     final isSplashPage = location == '/splash';
@@ -127,21 +131,23 @@ class RouterNotifier extends ChangeNotifier {
         }
       }
 
-      // 3.4. PET_OWNER (and default): Pet setup if no pets, else normal Home
+      // 3.4. PET_OWNER (and default): Registration flow if not completed, else normal Home
       if (role == UserRole.petOwner || role == null) {
-        final hasPets =
-            (authState.user?.pets.isNotEmpty ?? false) ||
-            (authState.onboardingStatus?.hasPets ?? false);
+        final registrationCompleted =
+            authState.user?.registrationCompleted ??
+            authState.isOnboardingCompleted;
 
-        if (!hasPets) {
-          if (location != '/onboarding/pet' &&
+        if (!registrationCompleted) {
+          if (location != '/register/pet-owner' &&
+              location != '/onboarding' &&
+              location != '/onboarding/pet' &&
               location != '/onboarding/owner') {
-            return '/onboarding/pet';
+            return '/register/pet-owner';
           }
           return null;
         }
 
-        if (isAuthPage || isSplashPage) {
+        if (isAuthPage || isSplashPage || location == '/register/pet-owner' || location.startsWith('/onboarding')) {
           final destination = state.uri.queryParameters['from'];
           if (destination != null && destination.startsWith('/shop/')) {
             return destination;
@@ -172,7 +178,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterPage(),
+        builder: (context, state) => const RoleSelectionPage(),
+      ),
+      GoRoute(
+        path: '/register/pet-owner',
+        builder: (context, state) => const PetOwnerRegistrationFlowPage(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingFlowPage(),
       ),
       GoRoute(
         path: '/onboarding/pet',

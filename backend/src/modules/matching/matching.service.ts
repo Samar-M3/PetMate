@@ -3,7 +3,19 @@ import {
   SwipeAction,
   RequestStatus,
   MatchStatus,
+  PetProfileStatus,
+  PetPurpose,
 } from "../../generated/prisma/client.ts";
+
+/**
+ * Computed matchability rule used by every mating results query:
+ * A pet is matchable only if profileStatus = COMPLETE AND isNeutered = false AND purpose is MATING or BOTH.
+ */
+export const MATCHABLE_PET_WHERE = {
+  profileStatus: PetProfileStatus.COMPLETE,
+  isNeutered: false,
+  purpose: { in: [PetPurpose.MATING, PetPurpose.BOTH] },
+};
 import { AppError } from "../../middleware/errorHandler.ts";
 import matchingConfig from "../../config/matching.config.ts";
 import { expireOldRequests } from "./matching.expiry.ts";
@@ -243,8 +255,9 @@ export const getDeckFeed = async ({
       ...(breed ? { breed: { contains: breed, mode: "insensitive" } } : {}),
       // Optional Age filter
       ...(dobCondition ? { dateOfBirth: dobCondition } : {}),
-      // Candidate pet must be active and complete (has a valid name and image)
+      // Candidate pet must be active, complete, not neutered, and open to mating
       isActive: true,
+      ...MATCHABLE_PET_WHERE,
       name: { not: "" },
       OR: [
         { imageUrl: { not: null } },

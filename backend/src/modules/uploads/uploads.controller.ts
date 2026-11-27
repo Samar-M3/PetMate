@@ -51,3 +51,29 @@ export const uploadImage = async (
     next(error);
   }
 };
+
+export const uploadPrivateImage = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const folder = (req.body?.folder as string) || "vet_records";
+
+    if (req.file && req.file.buffer) {
+      const result = await uploadImageStream(req.file.buffer, folder, undefined, true);
+      return void sendSuccess(res, {
+        statusCode: 200,
+        message: "Private image uploaded successfully",
+        data: {
+          url: result.imageUrl,
+          publicId: result.imagePublicId,
+        },
+      });
+    }
+
+    return next(new AppError("No image file provided in form-data field 'image'.", 400));
+  } catch (error) {
+    next(error);
+  }
+};

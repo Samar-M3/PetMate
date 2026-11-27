@@ -29,6 +29,7 @@ class _HomePageState extends ConsumerState<HomePage>
   final Set<int> _visitedNavTabs = {0};
   final GlobalKey<SwipeableCardDeckState> _deckKey =
       GlobalKey<SwipeableCardDeckState>();
+  bool _showEmailVerifyBanner = true;
 
   @override
   void initState() {
@@ -106,6 +107,55 @@ class _HomePageState extends ConsumerState<HomePage>
             // 1. Top Header Section (PetMate logo & user avatar)
             if (_selectedNavIndex != 3)
               HomeHeader(onProfileTap: () => context.push('/profile')),
+
+            // Email verification banner if unverified
+            if (user != null && !user.isEmailVerified && _showEmailVerifyBanner && _selectedNavIndex == 0)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.mark_email_unread_outlined, color: AppColors.info, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Please verify your email address. Check your inbox.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Verification link sent to your email.'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: AppColors.info,
+                      ),
+                      child: const Text('Resend', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _showEmailVerifyBanner = false),
+                    ),
+                  ],
+                ),
+              ),
 
             // 2. Active Pet Switcher (if user has several active pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)

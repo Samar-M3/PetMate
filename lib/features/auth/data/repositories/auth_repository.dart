@@ -17,6 +17,7 @@ class OnboardingStatusResult {
   final bool hasPets;
   final bool hasProfile;
   final String nextStep; // "INITIALIZE", "PET_INFO", "OWNER_INFO", "COMPLETED"
+  final int onboardingStep; // 1–4, persisted per step completion
 
   OnboardingStatusResult({
     required this.isInitialized,
@@ -25,6 +26,7 @@ class OnboardingStatusResult {
     required this.hasPets,
     required this.hasProfile,
     required this.nextStep,
+    this.onboardingStep = 1,
   });
 
   factory OnboardingStatusResult.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class OnboardingStatusResult {
       hasPets: json['hasPets'] as bool? ?? false,
       hasProfile: json['hasProfile'] as bool? ?? false,
       nextStep: json['nextStep'] as String? ?? 'PET_INFO',
+      onboardingStep: json['onboardingStep'] as int? ?? 1,
     );
   }
 }
