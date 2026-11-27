@@ -6,7 +6,10 @@ import 'package:petmatee/features/chat/data/repositories/chat_repository.dart';
 import 'package:petmatee/features/chat/domain/entities/chat_entities.dart';
 import 'package:petmatee/features/chat/presentation/widgets/date_separator.dart';
 
-class MockApiClient extends Fake implements ApiClient {}
+class MockApiClient extends Fake implements ApiClient {
+  @override
+  Future<dynamic> post(String path, {dynamic body}) async => null;
+}
 
 void main() {
   group('Date and Timestamp Formatting', () {
