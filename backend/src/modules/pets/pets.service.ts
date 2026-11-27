@@ -2,7 +2,17 @@ import prisma from "../../config/db.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 import { uploadImage, deleteImage } from "../../services/image.service.ts";
 import matchingConfig from "../../config/matching.config.ts";
-import { RequestStatus, MatchStatus, EntitlementStatus } from "../../generated/prisma/client.ts";
+import {
+  RequestStatus,
+  MatchStatus,
+  EntitlementStatus,
+  PetProfileStatus,
+  PetSpecies,
+} from "../../generated/prisma/client.ts";
+import type {
+  CreateOnboardingPetInput,
+  PatchPetInput,
+} from "./pets.validation.ts";
 import { calculateAgeInMonths, calculateAgeString } from "../matching/matching.service.ts";
 import { endConversation } from "../../services/firestore.service.ts";
 
@@ -69,6 +79,242 @@ export function checkPetProfileCompleteness(pet: {
 
   return missing;
 }
+
+export function calculateEstimatedDob(ageYears: number, ageMonths: number): Date {
+  const dob = new Date();
+  dob.setFullYear(dob.getFullYear() - ageYears);
+  dob.setMonth(dob.getMonth() - ageMonths);
+  return dob;
+}
+
+const SPECIES_LABEL_MAP: Record<PetSpecies, string> = {
+  DOG: "Dog",
+  CAT: "Cat",
+  BIRD: "Bird",
+  RABBIT: "Rabbit",
+  HAMSTER: "Hamster",
+  OTHER: "Other",
+};
+
+export const createOnboardingPet = async (
+  userId: string,
+  input: CreateOnboardingPetInput
+) => {
+  const estimatedDob = calculateEstimatedDob(input.ageYears, input.ageMonths);
+  const sortedPhotos = [...input.photos].sort((a, b) => a.position - b.position);
+  const primaryPhoto = sortedPhotos[0];
+  const animalTypeLabel =
+    input.species === PetSpecies.OTHER && input.speciesOther
+      ? input.speciesOther.trim()
+      : SPECIES_LABEL_MAP[input.species];
+
+  return await prisma.$transaction(async (tx) => {
+    const existingCount = await tx.pet.count({ where: { userId } });
+    if (existingCount >= matchingConfig.MAX_PETS_PER_OWNER) {
+      throw new AppError(
+        `Owner cannot exceed maximum of ${matchingConfig.MAX_PETS_PER_OWNER} pets`,
+        400
+      );
+    }
+
+    const ownerProfile = await tx.profile.findUnique({ where: { userId } });
+
+    const pet = await tx.pet.create({
+      data: {
+        userId,
+        name: input.name.trim(),
+        species: input.species,
+        speciesOther: input.speciesOther?.trim() || null,
+        animalType: animalTypeLabel,
+        breed: input.breed.trim(),
+        gender: input.gender === "MALE" ? "Male" : "Female",
+        dateOfBirth: estimatedDob,
+        imageUrl: primaryPhoto?.url || null,
+        profilePictureUrl: primaryPhoto?.url || null,
+        imagePublicId: primaryPhoto?.publicId || null,
+        city: ownerProfile?.city || ownerProfile?.location || null,
+        district: ownerProfile?.district || ownerProfile?.area || null,
+        profileStatus: PetProfileStatus.DRAFT,
+        isActive: false,
+        images: {
+          create: sortedPhotos.map((photo, index) => ({
+            imageUrl: photo.url,
+            imagePublicId: photo.publicId,
+            position: index,
+            isMain: index === 0,
+          })),
+        },
+      },
+      include: {
+        images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
+      },
+    });
+
+    // Advance onboarding step to 3 (or keep higher step if resuming)
+    await tx.profile.upsert({
+      where: { userId },
+      update: {
+        onboardingStep: Math.max(ownerProfile?.onboardingStep ?? 1, 3),
+      },
+      create: {
+        userId,
+        onboardingStep: 3,
+      },
+    });
+
+    return pet;
+  });
+};
+
+export const patchPetForUser = async (
+  userId: string,
+  petId: string,
+  input: PatchPetInput
+) => {
+  return await prisma.$transaction(async (tx) => {
+    const existing = await tx.pet.findFirst({
+      where: { id: petId, userId },
+    });
+
+    if (!existing) {
+      throw new AppError("Pet not found or unauthorized", 404);
+    }
+
+    let estimatedDob: Date | undefined;
+    if (input.ageYears !== undefined || input.ageMonths !== undefined) {
+      estimatedDob = calculateEstimatedDob(
+        input.ageYears ?? 0,
+        input.ageMonths ?? 0
+      );
+    }
+
+    let animalTypeLabel: string | undefined;
+    if (input.species !== undefined) {
+      animalTypeLabel =
+        input.species === PetSpecies.OTHER && input.speciesOther
+          ? input.speciesOther.trim()
+          : SPECIES_LABEL_MAP[input.species];
+    }
+
+    let primaryPhotoUrl: string | undefined;
+    let primaryPublicId: string | undefined;
+    if (input.photos && input.photos.length > 0) {
+      const sorted = [...input.photos].sort((a, b) => a.position - b.position);
+      primaryPhotoUrl = sorted[0].url;
+      primaryPublicId = sorted[0].publicId;
+
+      await tx.petImage.deleteMany({ where: { petId } });
+      await tx.petImage.createMany({
+        data: sorted.map((photo, idx) => ({
+          petId,
+          imageUrl: photo.url,
+          imagePublicId: photo.publicId,
+          position: idx,
+          isMain: idx === 0,
+        })),
+      });
+    }
+
+    const updatedPet = await tx.pet.update({
+      where: { id: petId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.species !== undefined ? { species: input.species } : {}),
+        ...(input.speciesOther !== undefined
+          ? { speciesOther: input.speciesOther?.trim() || null }
+          : {}),
+        ...(animalTypeLabel !== undefined ? { animalType: animalTypeLabel } : {}),
+        ...(input.breed !== undefined ? { breed: input.breed.trim() } : {}),
+        ...(input.gender !== undefined
+          ? { gender: input.gender === "MALE" ? "Male" : "Female" }
+          : {}),
+        ...(estimatedDob !== undefined ? { dateOfBirth: estimatedDob } : {}),
+        ...(primaryPhotoUrl !== undefined
+          ? {
+              imageUrl: primaryPhotoUrl,
+              profilePictureUrl: primaryPhotoUrl,
+              imagePublicId: primaryPublicId,
+            }
+          : {}),
+        ...(input.purpose !== undefined ? { purpose: input.purpose } : {}),
+        ...(input.isNeutered !== undefined ? { isNeutered: input.isNeutered } : {}),
+        ...(input.hasLitters !== undefined ? { hasLitters: input.hasLitters } : {}),
+        ...(input.litterCount !== undefined ? { litterCount: input.litterCount } : {}),
+        ...(input.temperament !== undefined
+          ? {
+              temperament: input.temperament,
+              personality: input.temperament,
+            }
+          : {}),
+        ...(input.weightKg !== undefined ? { weightKg: input.weightKg } : {}),
+        ...(input.sizeCategory !== undefined
+          ? { sizeCategory: input.sizeCategory }
+          : {}),
+        ...(input.colorCoat !== undefined
+          ? {
+              colorCoat: input.colorCoat?.trim() || null,
+              color: input.colorCoat?.trim() || null,
+            }
+          : {}),
+        ...(input.hasPedigree !== undefined ? { hasPedigree: input.hasPedigree } : {}),
+        ...(input.pedigreeCertUrl !== undefined
+          ? { pedigreeCertUrl: input.pedigreeCertUrl || null }
+          : {}),
+        ...(input.bio !== undefined
+          ? {
+              bio: input.bio?.trim() || null,
+              description: input.bio?.trim() || null,
+            }
+          : {}),
+        ...(input.city !== undefined ? { city: input.city?.trim() || null } : {}),
+        ...(input.district !== undefined
+          ? { district: input.district?.trim() || null }
+          : {}),
+        ...(input.vaccinationStatus !== undefined
+          ? {
+              vaccinationLevel: input.vaccinationStatus,
+              vaccinationStatus: input.vaccinationStatus,
+            }
+          : {}),
+        ...(input.rabiesVaccineDate !== undefined
+          ? { rabiesVaccineDate: input.rabiesVaccineDate }
+          : {}),
+        ...(input.healthNotes !== undefined
+          ? {
+              healthNotes: input.healthNotes?.trim() || null,
+              allergies: input.healthNotes?.trim() || null,
+            }
+          : {}),
+        ...(input.lastCheckup !== undefined ? { lastCheckup: input.lastCheckup } : {}),
+        ...(input.vetRecordUrls !== undefined
+          ? { vetRecordUrls: input.vetRecordUrls }
+          : {}),
+      },
+      include: {
+        images: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
+      },
+    });
+
+    if (input.onboardingStep !== undefined) {
+      const profile = await tx.profile.findUnique({ where: { userId } });
+      await tx.profile.upsert({
+        where: { userId },
+        update: {
+          onboardingStep: Math.max(
+            profile?.onboardingStep ?? 1,
+            input.onboardingStep
+          ),
+        },
+        create: {
+          userId,
+          onboardingStep: input.onboardingStep,
+        },
+      });
+    }
+
+    return updatedPet;
+  });
+};
 
 export const createPetForUser = async (userId: string, data: CreatePetDTO) => {
   if (!data.name || data.name.trim().length === 0) {
@@ -765,13 +1011,10 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
   }
   const uniquePhotos = Array.from(new Set(photos));
 
-  // Health badges
+  // Health badges (NEVER include private allergies / healthNotes / vetRecordUrls)
   const healthBadges: string[] = [];
   if (pet.vaccinationStatus && pet.vaccinationStatus.trim()) {
     healthBadges.push(pet.vaccinationStatus.trim());
-  }
-  if (pet.allergies && pet.allergies.trim()) {
-    healthBadges.push(`Allergies: ${pet.allergies.trim()}`);
   }
 
   const ageMonths = calculateAgeInMonths(pet.dateOfBirth);
@@ -784,7 +1027,14 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
     avatarUrl: ownerProfile?.profilePictureUrl || ownerProfile?.imageUrl || null,
   };
 
-  const area = ownerProfile?.area || ownerProfile?.location || "Kathmandu, Nepal";
+  const area =
+    pet.city ||
+    pet.district ||
+    ownerProfile?.city ||
+    ownerProfile?.district ||
+    ownerProfile?.area ||
+    ownerProfile?.location ||
+    "Kathmandu, Nepal";
 
   // Explicit allowlist payload (never spread Prisma object)
   return {

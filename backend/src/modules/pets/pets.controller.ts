@@ -3,6 +3,8 @@ import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import { Role } from "../../middleware/auth.middleware.ts";
 import {
   createPetForUser,
+  createOnboardingPet,
+  patchPetForUser,
   getPetsForUser,
   getPetById,
   getPublicPetProfile,
@@ -12,6 +14,10 @@ import {
   uploadPetPhoto,
   removePetPhoto,
 } from "./pets.service.ts";
+import {
+  validateCreateOnboardingPet,
+  validatePatchPet,
+} from "./pets.validation.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
 
@@ -28,11 +34,48 @@ export const createPet = async (
       return next(new AppError("User not found", 404));
     }
 
-    const pet = await createPetForUser(req.user.id, req.body);
+    const isOnboardingPayload =
+      req.body &&
+      typeof req.body === "object" &&
+      ("species" in req.body || Array.isArray(req.body.photos));
+
+    const pet = isOnboardingPayload
+      ? await createOnboardingPet(
+          req.user.id,
+          validateCreateOnboardingPet(req.body)
+        )
+      : await createPetForUser(req.user.id, req.body);
 
     sendSuccess(res, {
       statusCode: 201,
       message: "Pet created successfully",
+      data: { pet },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const patchPet = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    const input = validatePatchPet(req.body);
+    const pet = await patchPetForUser(
+      req.user.id,
+      req.params.id as string,
+      input
+    );
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Pet updated successfully",
       data: { pet },
     });
   } catch (error) {

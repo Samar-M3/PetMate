@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { firebaseAuth, timedFirebase } from "../config/firebase.ts";
 import prisma from "../config/db.ts";
 import { AppError } from "./errorHandler.ts";
@@ -102,12 +103,22 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
           console.log(`[AuthMiddleware] verifyIdToken took ${verifyMs}ms`);
         }
       } catch (err: any) {
-        return next(
-          new AppError(
-            `Invalid or expired Firebase authentication token: ${err.message}`,
-            401
-          )
-        );
+        // Fallback: Check if it is a backend-issued JWT
+        try {
+          const JWT_SECRET = process.env.JWT_SECRET || "petmate-super-secret-jwt-key-2026";
+          const decodedJwt = jwt.verify(token, JWT_SECRET) as any;
+          decodedToken = {
+            uid: decodedJwt.firebaseUid || decodedJwt.userId,
+            email: decodedJwt.email,
+          } as DecodedIdToken;
+        } catch {
+          return next(
+            new AppError(
+              `Invalid or expired authentication token: ${err.message}`,
+              401
+            )
+          );
+        }
       }
 
       req.firebaseUid = decodedToken.uid;
@@ -121,8 +132,13 @@ export const createAuthenticateFirebase = (options: { checkRevoked?: boolean } =
         user = cached.user;
       } else {
         const lookupStart = performance.now();
-        user = await prisma.user.findUnique({
-          where: { firebaseUid: decodedToken.uid },
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { firebaseUid: decodedToken.uid },
+              { id: decodedToken.uid },
+            ],
+          },
           include: { profile: true },
         });
         const lookupMs = (performance.now() - lookupStart).toFixed(1);

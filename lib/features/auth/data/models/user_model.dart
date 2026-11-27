@@ -156,6 +156,9 @@ class UserModel extends UserEntity {
     super.role,
     super.isActive,
     super.onboardingCompleted,
+    super.registrationCompleted,
+    super.isEmailVerified,
+    super.isPhoneVerified,
     super.mustChangePassword,
     super.profile,
     super.pets,
@@ -191,6 +194,19 @@ class UserModel extends UserEntity {
       onboardingCompleted:
           json['onboardingCompleted'] as bool? ??
           json['onboarding_completed'] as bool? ??
+          false,
+      registrationCompleted:
+          json['registrationCompleted'] as bool? ??
+          json['registration_completed'] as bool? ??
+          json['onboardingCompleted'] as bool? ??
+          false,
+      isEmailVerified:
+          json['isEmailVerified'] as bool? ??
+          json['is_email_verified'] as bool? ??
+          false,
+      isPhoneVerified:
+          json['isPhoneVerified'] as bool? ??
+          json['is_phone_verified'] as bool? ??
           false,
       mustChangePassword:
           json['mustChangePassword'] as bool? ??

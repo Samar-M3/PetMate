@@ -78,17 +78,60 @@ enum StoreStatus {
   SUSPENDED
 }
 
+enum PetSpecies {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  HAMSTER
+  OTHER
+}
+
+enum PetPurpose {
+  COMPANION
+  MATING
+  BOTH
+}
+
+enum PetSizeCategory {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum PetVaccinationStatus {
+  FULL
+  PARTIAL
+  NONE
+}
+
+enum PetLastCheckup {
+  THIS_MONTH
+  THREE_MONTHS
+  SIX_MONTHS
+  UNKNOWN
+}
+
+enum PetProfileStatus {
+  DRAFT
+  COMPLETE
+}
+
 model User {
-  id                  String   @id @default(uuid())
-  firebaseUid         String   @unique @map("firebase_uid")
-  email               String?
-  phoneNumber         String?  @map("phone_number")
-  role                Role     @default(PET_OWNER)
-  isActive            Boolean  @default(true) @map("is_active")
-  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
-  mustChangePassword  Boolean  @default(false) @map("must_change_password")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  firebaseUid           String   @unique @map("firebase_uid")
+  email                 String?
+  phoneNumber           String?  @map("phone_number")
+  passwordHash          String?  @map("password_hash")
+  role                  Role     @default(PET_OWNER)
+  isActive              Boolean  @default(true) @map("is_active")
+  onboardingCompleted   Boolean  @default(false) @map("onboarding_completed")
+  registrationCompleted Boolean  @default(false) @map("registration_completed")
+  isEmailVerified       Boolean  @default(false) @map("is_email_verified")
+  isPhoneVerified       Boolean  @default(false) @map("is_phone_verified")
+  mustChangePassword    Boolean  @default(false) @map("must_change_password")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   profile                Profile?
   pets                   Pet[]
@@ -139,18 +182,29 @@ model AdminAuditLog {
 }
 
 model Profile {
-  id                String   @id @default(uuid())
-  userId            String   @unique @map("user_id")
-  username          String?  @unique
-  fullName          String?  @map("full_name")
-  profilePictureUrl String?  @map("profile_picture_url")
-  imageUrl          String?  @map("image_url")
-  imagePublicId     String?  @map("image_public_id")
-  location          String?
-  area              String?
-  bio               String?
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  userId                String    @unique @map("user_id")
+  username              String?   @unique
+  fullName              String?   @map("full_name")
+  displayName           String?   @map("display_name")
+  profilePictureUrl     String?   @map("profile_picture_url")
+  imageUrl              String?   @map("image_url")
+  avatarUrl             String?   @map("avatar_url")
+  imagePublicId         String?   @map("image_public_id")
+  phone                 String?   @map("phone")
+  location              String?
+  area                  String?
+  city                  String?
+  district              String?
+  bio                   String?
+  onboardingStep        Int       @default(1) @map("onboarding_step")
+  onboardingCompleted   Boolean   @default(false) @map("onboarding_completed")
+  registrationCompleted Boolean   @default(false) @map("registration_completed")
+  isEmailVerified       Boolean   @default(false) @map("is_email_verified")
+  isPhoneVerified       Boolean   @default(false) @map("is_phone_verified")
+  termsAcceptedAt       DateTime? @map("terms_accepted_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -158,25 +212,46 @@ model Profile {
 }
 
 model Pet {
-  id                String    @id @default(uuid())
-  userId            String    @map("user_id")
+  id                String               @id @default(uuid())
+  userId            String               @map("user_id")
   name              String
-  profilePictureUrl String?   @map("profile_picture_url")
-  imageUrl          String?   @map("image_url")
-  imagePublicId     String?   @map("image_public_id")
-  animalType        String?   @map("animal_type")
+  profilePictureUrl String?              @map("profile_picture_url")
+  imageUrl          String?              @map("image_url")
+  imagePublicId     String?              @map("image_public_id")
+  animalType        String?              @map("animal_type")
+  species           PetSpecies?
+  speciesOther      String?              @map("species_other")
   breed             String?
   gender            String?
-  dateOfBirth       DateTime? @map("date_of_birth")
+  dateOfBirth       DateTime?            @map("date_of_birth")
   color             String?
-  personality       String[]  @default([])
-  vaccinationStatus String?   @map("vaccination_status")
+  colorCoat         String?              @map("color_coat")
+  personality       String[]             @default([])
+  temperament       String[]             @default([])
+  purpose           PetPurpose           @default(COMPANION)
+  isNeutered        Boolean              @default(false) @map("is_neutered")
+  hasLitters        Boolean?             @map("has_litters")
+  litterCount       Int?                 @map("litter_count")
+  weightKg          Float?               @map("weight_kg")
+  sizeCategory      PetSizeCategory?     @map("size_category")
+  hasPedigree       Boolean              @default(false) @map("has_pedigree")
+  pedigreeCertUrl   String?              @map("pedigree_cert_url")
+  bio               String?
+  city              String?
+  district          String?
+  vaccinationStatus String?              @map("vaccination_status")
+  vaccinationLevel  PetVaccinationStatus @default(NONE) @map("vaccination_level")
+  rabiesVaccineDate DateTime?            @map("rabies_vaccine_date")
   allergies         String?
+  healthNotes       String?              @map("health_notes")
+  lastCheckup       PetLastCheckup?      @map("last_checkup")
+  vetRecordUrls     String[]             @default([]) @map("vet_record_urls")
   description       String?
-  isActive          Boolean   @default(false) @map("is_active")
-  activatedAt       DateTime? @map("activated_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  profileStatus     PetProfileStatus     @default(DRAFT) @map("profile_status")
+  isActive          Boolean              @default(false) @map("is_active")
+  activatedAt       DateTime?            @map("activated_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
 
   user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   images           PetImage[]
@@ -189,6 +264,7 @@ model Pet {
 
   @@index([userId])
   @@index([animalType, gender])
+  @@index([profileStatus, isNeutered, purpose])
   @@map("pets")
 }
 
@@ -197,7 +273,9 @@ model PetImage {
   petId         String   @map("pet_id")
   imageUrl      String   @map("image_url")
   imagePublicId String   @map("image_public_id")
+  position      Int      @default(0)
   isMain        Boolean  @default(false) @map("is_main")
+  isPrimary     Boolean  @default(false) @map("is_primary")
   createdAt     DateTime @default(now()) @map("created_at")
 
   pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)

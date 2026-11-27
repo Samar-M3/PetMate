@@ -1,14 +1,41 @@
 import { Router } from "express";
-import { uploadImage } from "./uploads.controller.ts";
-import { authenticateOptionalFirebase } from "../../middleware/auth.middleware.ts";
+import { uploadImage, uploadPrivateImage } from "./uploads.controller.ts";
+import {
+  authenticateFirebase,
+  authenticateOptionalFirebase,
+  requireInitializedUser,
+  requireRole,
+  Role,
+} from "../../middleware/auth.middleware.ts";
 import { handleSingleImageUpload } from "../../middleware/upload.middleware.ts";
 
 const router = Router();
 
-// Support authenticated uploads and public registration/verification uploads
-router.use(authenticateOptionalFirebase);
+// Public/optional-auth upload endpoint for backwards compatibility (e.g. seller registration docs)
+router.post(
+  "/",
+  authenticateOptionalFirebase,
+  handleSingleImageUpload("image"),
+  uploadImage
+);
 
-// Upload endpoint supporting multipart "image" file
-router.post("/", handleSingleImageUpload("image"), uploadImage);
+// Authenticated image upload (jpg/png/webp, max 5 MB)
+router.post(
+  "/image",
+  authenticateFirebase,
+  requireInitializedUser,
+  handleSingleImageUpload("image"),
+  uploadImage
+);
+
+// Private/authenticated Cloudinary asset upload (for vet records, PET_OWNER only)
+router.post(
+  "/private-image",
+  authenticateFirebase,
+  requireInitializedUser,
+  requireRole(Role.PET_OWNER, Role.ADMIN),
+  handleSingleImageUpload("image"),
+  uploadPrivateImage
+);
 
 export default router;
