@@ -28,10 +28,10 @@ class OwnerInfoChip extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onAvatarTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.fromLTRB(6, 5, 11, 5),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.42),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF0B1614).withValues(alpha: 0.44),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: Colors.white.withValues(alpha: 0.18),
             width: 1,

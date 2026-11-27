@@ -25,6 +25,7 @@ enum RequestStatus {
   DECLINED
   REJECTED
   EXPIRED
+  CANCELLED
 }
 
 enum MatchStatus {
@@ -227,15 +228,18 @@ model PetSwipe {
 }
 
 model ConnectionRequest {
-  id             String        @id @default(uuid())
-  senderUserId   String        @map("sender_user_id")
-  senderPetId    String        @map("sender_pet_id")
-  receiverUserId String        @map("receiver_user_id")
-  receiverPetId  String        @map("receiver_pet_id")
-  status         RequestStatus @default(PENDING)
-  createdAt      DateTime      @default(now()) @map("created_at")
-  respondedAt    DateTime?     @map("responded_at")
-  expiresAt      DateTime?     @map("expires_at")
+  id               String        @id @default(uuid())
+  senderUserId     String        @map("sender_user_id")
+  senderPetId      String        @map("sender_pet_id")
+  receiverUserId   String        @map("receiver_user_id")
+  receiverPetId    String        @map("receiver_pet_id")
+  status           RequestStatus @default(PENDING)
+  initialMessage   String?       @map("initial_message") @db.VarChar(300)
+  initialMessageAt DateTime?     @map("initial_message_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  respondedAt      DateTime?     @map("responded_at")
+  cancelledAt      DateTime?     @map("cancelled_at")
+  expiresAt        DateTime?     @map("expires_at")
 
   senderUser   User @relation("RequestsSent", fields: [senderUserId], references: [id], onDelete: Cascade)
   receiverUser User @relation("RequestsReceived", fields: [receiverUserId], references: [id], onDelete: Cascade)

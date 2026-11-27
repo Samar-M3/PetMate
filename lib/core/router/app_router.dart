@@ -8,6 +8,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/home/data/models/connection_request_model.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/requests_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
@@ -32,6 +33,7 @@ import '../../features/shop/presentation/pages/shop_home_page.dart';
 import '../../features/shop/presentation/pages/shop_listing_page.dart';
 import '../../features/shop/presentation/pages/wishlist_page.dart';
 import '../../features/chat/presentation/pages/chat_route_page.dart';
+import '../../features/chat/presentation/pages/message_request_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/notification_settings_page.dart';
 import '../../features/care_events/screens/vet_login_screen.dart';
@@ -231,6 +233,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/requests',
         builder: (context, state) => const RequestsPage(),
+      ),
+      GoRoute(
+        path: '/request/:requestId',
+        builder: (context, state) => MessageRequestPage(
+          requestId: state.pathParameters['requestId'] ?? '',
+          initialRequest: state.extra is ConnectionRequestModel
+              ? state.extra as ConnectionRequestModel
+              : null,
+        ),
       ),
       GoRoute(
         path: '/pet/:petId',
