@@ -6,8 +6,12 @@ import {
   undoLastPassSwipe,
   resetPassSwipes,
   getIncomingRequests,
+  getOutgoingRequests,
   acceptConnectionRequest,
   rejectConnectionRequest,
+  updateInitialMessage,
+  cancelConnectionRequest,
+  getAllConnectionInteractions,
   getUserMatches,
   getMatchChat,
   unmatchMatch,
@@ -71,7 +75,7 @@ export const postSwipe = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { petId, actingPetId, targetPetId, action } = req.body;
+    const { petId, actingPetId, targetPetId, action, initialMessage } = req.body;
     const effectivePetId = actingPetId || petId;
 
     if (!effectivePetId || typeof effectivePetId !== "string") {
@@ -96,6 +100,7 @@ export const postSwipe = async (
       petId: effectivePetId.trim(),
       targetPetId: targetPetId.trim(),
       action: action as SwipeAction,
+      initialMessage: typeof initialMessage === "string" ? initialMessage : undefined,
     });
 
     sendSuccess(res, {
@@ -324,6 +329,120 @@ export const unmatchHandler = async (
     sendSuccess(res, {
       statusCode: 200,
       message: "Match ended successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOutgoing = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const cursor = (req.query.cursor as string) || undefined;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const result = await getOutgoingRequests({
+      userId: req.user.id,
+      cursor,
+      limit,
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Outgoing requests retrieved successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const patchRequestMessage = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const requestId = req.params.id as string;
+    if (!requestId || requestId.trim() === "") {
+      return next(new AppError("Request ID is required", 400));
+    }
+
+    const { message } = req.body;
+    if (typeof message !== "string" || message.trim() === "") {
+      return next(new AppError("message (non-empty string) is required", 400));
+    }
+
+    const result = await updateInitialMessage(
+      req.user.id,
+      requestId.trim(),
+      message
+    );
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Introductory message saved successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelRequest = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const requestId = req.params.id as string;
+    if (!requestId || requestId.trim() === "") {
+      return next(new AppError("Request ID is required", 400));
+    }
+
+    const result = await cancelConnectionRequest(req.user.id, requestId.trim());
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Connection request cancelled successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllConnectionsHandler = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const result = await getAllConnectionInteractions(req.user.id);
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Connections retrieved successfully",
       data: result,
     });
   } catch (error) {

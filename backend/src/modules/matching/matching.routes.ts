@@ -5,8 +5,12 @@ import {
   postUndoSwipe,
   postResetPasses,
   getIncoming,
+  getOutgoing,
   acceptRequest,
   rejectRequest,
+  patchRequestMessage,
+  cancelRequest,
+  getAllConnectionsHandler,
   getMatches,
   getMatchChatHandler,
   unmatchHandler,
@@ -37,9 +41,15 @@ router.post("/swipes/reset-passes", matchingAuth, postResetPasses);
 
 // Request endpoints
 router.get("/requests/incoming", matchingAuth, getIncoming);
+router.get("/requests/outgoing", matchingAuth, getOutgoing);
 router.post("/requests/:id/accept", matchingAuth, acceptRequest);
 router.post("/requests/:id/reject", matchingAuth, rejectRequest);
 router.post("/requests/:id/decline", matchingAuth, rejectRequest);
+router.post("/requests/:id/cancel", matchingAuth, cancelRequest);
+router.patch("/requests/:id/message", matchingAuth, patchRequestMessage);
+
+// Unified connections endpoint for "All" filter
+router.get("/connections/all", matchingAuth, getAllConnectionsHandler);
 
 // Matches / Conversations endpoints
 router.get("/matches", matchingAuth, getMatches);

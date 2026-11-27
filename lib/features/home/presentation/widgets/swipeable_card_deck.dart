@@ -29,7 +29,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
   static const Color _deepTeal = Color(0xFF0F5C57);
   static const Color _sageGreen = Color(0xFFE8F0EA);
   static const Color _warmCream = Color(0xFFFAF7F0);
-  static const Color _softCoral = Color(0xFFE16F52);
+  static const Color _softCoral = Color(0xFFFF8A65);
   static const Color _darkText = Color(0xFF293A37);
 
   late AnimationController _animController;
@@ -161,24 +161,24 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Reserve top & upper-right space so Instagram-style stacked edges peek cleanly
+    // Reserve top space so stacked card top edges & rounded corners peek cleanly
     return Padding(
-      padding: const EdgeInsets.only(top: 18, right: 14),
+      padding: const EdgeInsets.only(top: 24),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // 1. Third Card in Stack (offset ~18px up-right, scale 0.92 -> 0.96)
+          // 1. Third Card in Stack (peeks 22px above active card, scaled to 0.90 -> 0.95)
           if (thirdPet != null)
             _buildStackedBackgroundCard(
               key: ValueKey('stack-3-${thirdPet.id}'),
               screenWidth: screenWidth,
-              baseScale: 0.92,
-              targetScale: 0.96,
-              baseOffset: const Offset(18, -18),
-              targetOffset: const Offset(9, -9),
+              baseScale: 0.90,
+              targetScale: 0.95,
+              baseOffset: const Offset(0, -22),
+              targetOffset: const Offset(0, -11),
               baseOpacity: 0.84,
-              targetOpacity: 0.92,
+              targetOpacity: 0.94,
               card: RepaintBoundary(
                 child: PetProfileCard(
                   pet: thirdPet,
@@ -189,14 +189,14 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
               ),
             ),
 
-          // 2. Second Card in Stack (offset ~9px up-right, scale 0.96 -> 1.0)
+          // 2. Second Card in Stack (peeks 11px above active card, scaled to 0.95 -> 1.0)
           if (nextPet != null)
             _buildStackedBackgroundCard(
               key: ValueKey('stack-2-${nextPet.id}'),
               screenWidth: screenWidth,
-              baseScale: 0.96,
+              baseScale: 0.95,
               targetScale: 1.0,
-              baseOffset: const Offset(9, -9),
+              baseOffset: const Offset(0, -11),
               targetOffset: Offset.zero,
               baseOpacity: 0.94,
               targetOpacity: 1.0,
@@ -289,7 +289,7 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
             offset: currentOffset,
             child: Transform.scale(
               scale: currentScale,
-              alignment: Alignment.topRight,
+              alignment: Alignment.topCenter,
               child: Opacity(
                 opacity: currentOpacity,
                 child: cardChild,

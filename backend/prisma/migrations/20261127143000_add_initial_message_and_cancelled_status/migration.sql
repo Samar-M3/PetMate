@@ -1,0 +1,6 @@
+ALTER TYPE "RequestStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
+
+ALTER TABLE "connection_requests"
+  ADD COLUMN IF NOT EXISTS "initial_message" VARCHAR(300),
+  ADD COLUMN IF NOT EXISTS "initial_message_at" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "cancelled_at" TIMESTAMP(3);

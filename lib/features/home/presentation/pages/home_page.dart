@@ -11,8 +11,12 @@ import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/discovery_provider.dart';
 import '../providers/requests_provider.dart';
+import '../../data/repositories/matching_repository.dart';
+import '../../../chat/presentation/providers/connections_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
+import '../widgets/intro_message_sheet.dart';
+import '../widgets/like_success_notification.dart';
 import '../widgets/swipeable_card_deck.dart';
 import '../../../shop/presentation/pages/shop_home_page.dart';
 
@@ -223,6 +227,10 @@ class _HomePageState extends ConsumerState<HomePage>
                   ref
                       .read(requestsProvider.notifier)
                       .loadRequests(refresh: true);
+                  ref
+                      .read(outgoingRequestsProvider.notifier)
+                      .loadOutgoingRequests(refresh: true);
+                  ref.invalidate(allConnectionsProvider);
                 }
               },
             ),
@@ -476,16 +484,72 @@ class _HomePageState extends ConsumerState<HomePage>
     }
 
     // State D: Normal deck with cards or empty deck state
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: SwipeableCardDeck(
-        key: _deckKey,
-        pets: discoveryState.pets,
-        currentIndex: discoveryState.currentIndex,
-        onSwipeRight: () => discoveryNotifier.swipeRight(),
-        onSwipeLeft: () => discoveryNotifier.swipeLeft(),
-        onReset: () => discoveryNotifier.resetDeck(),
-      ),
+    final likeEvent = discoveryState.likeSuccessEvent;
+
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SwipeableCardDeck(
+            key: _deckKey,
+            pets: discoveryState.pets,
+            currentIndex: discoveryState.currentIndex,
+            onSwipeRight: () => discoveryNotifier.swipeRight(),
+            onSwipeLeft: () => discoveryNotifier.swipeLeft(),
+            onReset: () => discoveryNotifier.resetDeck(),
+          ),
+        ),
+        if (likeEvent != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 10,
+            child: LikeSuccessNotification(
+              key: ValueKey(likeEvent.eventId),
+              event: likeEvent,
+              onDismiss: () => discoveryNotifier.clearLikeEvent(),
+              onOpenMatchChat: () {
+                discoveryNotifier.clearLikeEvent();
+                if (likeEvent.matchId != null &&
+                    likeEvent.matchId!.isNotEmpty) {
+                  context.push('/chat/${likeEvent.matchId}');
+                }
+              },
+              onAddMessage: () {
+                final reqId = likeEvent.requestId;
+                discoveryNotifier.clearLikeEvent();
+                if (reqId == null || reqId.isEmpty) return;
+
+                showIntroMessageSheet(
+                  context: context,
+                  petName: likeEvent.petName,
+                  petImageUrl: likeEvent.petImageUrl,
+                  onSend: (msg) async {
+                    await ref
+                        .read(matchingRepositoryProvider)
+                        .updateIntroMessage(requestId: reqId, message: msg);
+                    ref
+                        .read(outgoingRequestsProvider.notifier)
+                        .loadOutgoingRequests(refresh: true);
+                    ref.invalidate(allConnectionsProvider);
+                  },
+                ).then((sent) {
+                  if (sent != null && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Intro message sent to ${likeEvent.petName}!',
+                        ),
+                        backgroundColor: const Color(0xFF0F5C57),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                });
+              },
+            ),
+          ),
+      ],
     );
   }
 }
