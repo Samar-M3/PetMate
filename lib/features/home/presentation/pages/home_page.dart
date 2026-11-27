@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:petmatee/features/care_events/screens/vet_appts_home_screen.dart';
+import 'package:petmatee/features/shop/presentation/pages/shop_home_page.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/in_app_notification_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
@@ -19,7 +21,6 @@ import '../widgets/home_header.dart';
 import '../widgets/intro_message_sheet.dart';
 import '../widgets/like_success_notification.dart';
 import '../widgets/swipeable_card_deck.dart';
-import '../../../shop/presentation/pages/shop_home_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -63,7 +64,7 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
-    final allUserPets = user?.pets ?? [];
+    final allUserPets = user?.pets ?? <PetEntity>[];
     final userPets = allUserPets.where((p) => p.isActive).toList();
     final discoveryState = ref.watch(discoveryProvider);
     final discoveryNotifier = ref.read(discoveryProvider.notifier);
@@ -198,6 +199,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     activePetsCount: userPets.length,
                     discoveryState: discoveryState,
                     discoveryNotifier: discoveryNotifier,
+                    userPets: userPets,
                   ),
 
                   // Tab 1: Chats & Matches
@@ -262,6 +264,7 @@ class _HomePageState extends ConsumerState<HomePage>
     required int activePetsCount,
     required DiscoveryState discoveryState,
     required DiscoveryNotifier discoveryNotifier,
+    required List<PetEntity> userPets,
   }) {
     // State A: User has zero pets registered
     if (allPetsCount == 0) {
@@ -408,8 +411,122 @@ class _HomePageState extends ConsumerState<HomePage>
       );
     }
 
+    // Get active pet for species filtering
+    PetEntity? activePet;
+    for (final p in userPets) {
+      if (p.id == discoveryState.activePetId) {
+        activePet = p;
+        break;
+      }
+    }
+    activePet ??= userPets.isNotEmpty ? userPets.first : null;
+    final activePetSpecies = activePet?.animalType;
+
+    // Build filter tabs
+    return Column(
+      children: [
+        // Filter Tabs (All / For You)
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border, width: 1),
+          ),
+          child: Row(
+            children: [
+              _buildFilterTab(
+                label: 'All',
+                isSelected: discoveryState.currentFilter == DiscoveryFilter.all,
+                onTap: () => discoveryNotifier.setFilter(DiscoveryFilter.all),
+              ),
+              _buildFilterTab(
+                label: 'For You',
+                isSelected: discoveryState.currentFilter == DiscoveryFilter.forYou,
+                onTap: () {
+                  if (activePetSpecies != null && activePetSpecies.isNotEmpty) {
+                    discoveryNotifier.setFilter(DiscoveryFilter.forYou, species: activePetSpecies);
+                  } else {
+                    // Fallback to All if no species
+                    discoveryNotifier.setFilter(DiscoveryFilter.all);
+                  }
+                },
+                isEnabled: activePetSpecies != null && activePetSpecies.isNotEmpty,
+              ),
+            ],
+          ),
+        ),
+
+        // Content based on filter
+        Expanded(
+          child: _buildFilterContent(
+            context: context,
+            discoveryState: discoveryState,
+            discoveryNotifier: discoveryNotifier,
+            activePetSpecies: activePetSpecies,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterTab({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool isEnabled = true,
+  }) {
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: isEnabled ? onTap : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.terracotta : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? Colors.white
+                      : isEnabled
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterContent({
+    required BuildContext context,
+    required DiscoveryState discoveryState,
+    required DiscoveryNotifier discoveryNotifier,
+    required String? activePetSpecies,
+  }) {
+    final isForYou = discoveryState.currentFilter == DiscoveryFilter.forYou;
+    final isLoading = isForYou ? discoveryState.isForYouLoading : discoveryState.isLoading;
+    final pets = isForYou ? discoveryState.forYouPets : discoveryState.pets;
+    final currentIndex = isForYou ? discoveryState.forYouCurrentIndex : discoveryState.currentIndex;
+    final errorMessage = discoveryState.errorMessage;
+
     // State B: Initial Loading State
-    if (discoveryState.isLoading && discoveryState.pets.isEmpty) {
+    if (isLoading && pets.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -437,7 +554,7 @@ class _HomePageState extends ConsumerState<HomePage>
     }
 
     // State C: Error State
-    if (discoveryState.errorMessage != null && discoveryState.pets.isEmpty) {
+    if (errorMessage != null && pets.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -460,7 +577,7 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
               const SizedBox(height: 8),
               Text(
-                discoveryState.errorMessage!,
+                errorMessage,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 13.5,
@@ -499,7 +616,81 @@ class _HomePageState extends ConsumerState<HomePage>
       );
     }
 
-    // State D: Normal deck with cards or empty deck state
+// State D: Empty state
+    if (pets.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.textMuted.withValues(alpha: 0.10),
+                ),
+                child: Icon(
+                  isForYou ? Icons.favorite_border : Icons.pets_outlined,
+                  size: 36,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isForYou ? 'No Recommendations Yet' : 'No Pets Found',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isForYou
+                    ? 'No ${activePetSpecies != null ? activePetSpecies.toLowerCase() : 'pet'} recommendations available right now. Check back later!'
+                    : 'No pets found nearby. Try again later or adjust your preferences.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  discoveryNotifier.resetDeck();
+                },
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+                label: const Text(
+                  'Refresh',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // State E: Normal deck with cards + Like Success Notification
     final likeEvent = discoveryState.likeSuccessEvent;
 
     return Stack(
@@ -508,8 +699,8 @@ class _HomePageState extends ConsumerState<HomePage>
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: SwipeableCardDeck(
             key: _deckKey,
-            pets: discoveryState.pets,
-            currentIndex: discoveryState.currentIndex,
+            pets: pets,
+            currentIndex: currentIndex,
             onSwipeRight: () => discoveryNotifier.swipeRight(),
             onSwipeLeft: () => discoveryNotifier.swipeLeft(),
             onReset: () => discoveryNotifier.resetDeck(),

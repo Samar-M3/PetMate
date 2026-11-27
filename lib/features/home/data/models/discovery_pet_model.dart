@@ -68,7 +68,7 @@ class DiscoveryPetModel extends DiscoveryPet {
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      species: json['species'] as String? ?? json['animalType'] as String?,
+      species: json['species'] as String? ?? json['petType'] as String? ?? json['animalType'] as String?,
       color: json['color'] as String? ?? json['colorCoat'] as String?,
       purpose: json['purpose'] as String?,
       isNeutered: json['isNeutered'] as bool?,

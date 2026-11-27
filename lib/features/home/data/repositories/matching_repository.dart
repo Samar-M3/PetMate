@@ -42,10 +42,14 @@ class MatchingRepository {
     required String petId,
     String? cursor,
     int limit = 10,
+    String? species,
   }) async {
     final queryParams = <String, dynamic>{'petId': petId, 'limit': limit};
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
+    }
+    if (species != null && species.isNotEmpty) {
+      queryParams['species'] = species;
     }
 
     final response = await _apiClient.get(
