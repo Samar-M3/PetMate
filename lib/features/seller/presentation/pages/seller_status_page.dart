@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/seller_application_model.dart';
@@ -644,7 +645,7 @@ class _ResubmitApplicationSheet extends ConsumerStatefulWidget {
 
 class _ResubmitApplicationSheetState
     extends ConsumerState<_ResubmitApplicationSheet> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
 
   late TextEditingController _storeNameController;
   late TextEditingController _descriptionController;
@@ -746,7 +747,7 @@ class _ResubmitApplicationSheetState
   }
 
   Future<void> _submitResubmission() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
 
     final data = {
       'storeName': _storeNameController.text.trim(),
@@ -829,8 +830,8 @@ class _ResubmitApplicationSheetState
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
+                key: _formController.formKey,
+                autovalidateMode: _formController.autovalidateMode,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

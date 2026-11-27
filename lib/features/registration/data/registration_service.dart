@@ -60,7 +60,7 @@ class RegistrationService {
       '/uploads/image',
       file: file,
       bytes: bytes,
-      filename: filename ?? (file != null ? file.path.split(Platform.pathSeparator).last : 'upload.jpg'),
+      filename: filename ?? (file != null ? file.path.split(RegExp(r'[\\/]')).last : 'upload.jpg'),
       fieldName: 'image',
       fields: {'folder': folder},
     );
@@ -101,6 +101,37 @@ class RegistrationService {
 
   Future<OwnerProfileData> getMyProfile() async {
     final response = await apiClient.get('/profile/me');
+    final data = (response is Map<String, dynamic> && response.containsKey('data'))
+        ? response['data'] as Map<String, dynamic>
+        : response as Map<String, dynamic>;
+
+    return OwnerProfileData.fromJson(data);
+  }
+
+  Future<OwnerProfileData> updateMeProfile({
+    required String fullName,
+    required String phoneNumber,
+    required String city,
+    required String district,
+    String? avatarUrl,
+    String? avatarPublicId,
+    bool termsAccepted = true,
+  }) async {
+    final response = await apiClient.put(
+      '/profile/me',
+      body: {
+        'displayName': fullName.trim(),
+        'fullName': fullName.trim(),
+        if (phoneNumber.trim().isNotEmpty) 'phoneNumber': phoneNumber.trim(),
+        'city': city.trim(),
+        'district': district.trim(),
+        if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
+        if (avatarPublicId != null && avatarPublicId.isNotEmpty)
+          'avatarPublicId': avatarPublicId,
+        'termsAccepted': termsAccepted,
+      },
+    );
+
     final data = (response is Map<String, dynamic> && response.containsKey('data'))
         ? response['data'] as Map<String, dynamic>
         : response as Map<String, dynamic>;

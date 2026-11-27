@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../../shop/presentation/providers/shop_providers.dart';
 import '../providers/seller_provider.dart';
 
@@ -21,7 +22,7 @@ class SellerAddProductPage extends ConsumerStatefulWidget {
 }
 
 class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _scrollController = ScrollController();
 
   // Controllers for text fields
@@ -289,7 +290,7 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
   }
 
   Future<void> _submitProduct({required bool publish}) async {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formController.validate(() => setState(() {}))) {
       _scrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 300),
@@ -493,8 +494,8 @@ class _SellerAddProductPageState extends ConsumerState<SellerAddProductPage> {
         ),
       ),
       body: Form(
-        key: _formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
+        key: _formController.formKey,
+        autovalidateMode: _formController.autovalidateMode,
         child: SingleChildScrollView(
           controller: _scrollController,
           padding: const EdgeInsets.all(16),

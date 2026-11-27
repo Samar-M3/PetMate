@@ -20,6 +20,14 @@ class StorageService {
   static const String _tokenKey = 'auth_token';
   static const String _userIdKey = 'auth_user_id';
   static const String _userRoleKey = 'auth_user_role';
+  static const String _discoverTutorialKey = 'discover_swipe_tutorial_seen';
+
+  bool get hasSeenDiscoverSwipeTutorial =>
+      _prefs.getBool(_discoverTutorialKey) ?? false;
+
+  Future<void> setDiscoverSwipeTutorialSeen() async {
+    await _prefs.setBool(_discoverTutorialKey, true);
+  }
 
   Future<void> saveAuthToken(String token) async {
     await _prefs.setString(_tokenKey, token);

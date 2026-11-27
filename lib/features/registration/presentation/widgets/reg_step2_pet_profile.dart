@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,7 +80,8 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
-    if (_photos.length >= 6) {
+    final remainingSlots = 6 - _photos.length;
+    if (remainingSlots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Maximum 6 photos allowed.')),
       );
@@ -90,47 +89,75 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
     }
 
     try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.gallery,
+      final pickedFiles = await _picker.pickMultiImage(
         maxWidth: 1280,
         maxHeight: 1280,
         imageQuality: 80,
       );
 
-      if (picked == null) return;
+      if (pickedFiles.isEmpty) return;
 
-      final file = File(picked.path);
-      final size = await file.length();
-      if (size > 5 * 1024 * 1024) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image must be under 5 MB.'),
-              backgroundColor: AppColors.error,
+      final selectedFiles = pickedFiles.take(remainingSlots).toList();
+      if (pickedFiles.length > remainingSlots && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Only $remainingSlots more ${remainingSlots == 1 ? 'photo' : 'photos'} can be added (max 6).',
             ),
-          );
-        }
-        return;
+          ),
+        );
       }
 
       setState(() => _isUploadingPhoto = true);
 
-      final asset = await ref.read(registrationServiceProvider).uploadImage(
-            file: file,
-            folder: 'pets',
-          );
+      final service = ref.read(registrationServiceProvider);
+      final uploadedItems = <PetPhotoItem>[];
+      var skippedOversized = 0;
+
+      for (final picked in selectedFiles) {
+        final bytes = await picked.readAsBytes();
+        if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+          skippedOversized++;
+          continue;
+        }
+
+        final asset = await service.uploadImage(
+          bytes: bytes,
+          filename: picked.name.isNotEmpty ? picked.name : 'pet_photo.jpg',
+          folder: 'pets',
+        );
+
+        final nextIndex = _photos.length + uploadedItems.length;
+        uploadedItems.add(PetPhotoItem(
+          url: asset.url,
+          publicId: asset.publicId,
+          position: nextIndex,
+          isPrimary: nextIndex == 0,
+        ));
+      }
 
       if (mounted) {
         setState(() {
-          final isFirst = _photos.isEmpty;
-          _photos.add(PetPhotoItem(
-            url: asset.url,
-            publicId: asset.publicId,
-            position: _photos.length,
-            isPrimary: isFirst,
-          ));
+          _photos.addAll(uploadedItems);
+          for (int i = 0; i < _photos.length; i++) {
+            _photos[i] = _photos[i].copyWith(
+              position: i,
+              isPrimary: i == 0,
+            );
+          }
           _isUploadingPhoto = false;
         });
+
+        if (skippedOversized > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '$skippedOversized ${skippedOversized == 1 ? 'image was' : 'images were'} skipped (must be under 5 MB).',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -158,8 +185,8 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
   }
 
   void _reorderPhotos(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
     setState(() {
-      if (oldIndex < newIndex) newIndex -= 1;
       final item = _photos.removeAt(oldIndex);
       _photos.insert(newIndex, item);
       for (int i = 0; i < _photos.length; i++) {
@@ -330,6 +357,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
                 child: _GenderCard(
                   title: 'Male',
                   icon: Icons.male_rounded,
+                  selectedIconColor: Colors.lightBlue,
                   isSelected: _selectedGender == 'MALE',
                   onTap: () => setState(() => _selectedGender = 'MALE'),
                 ),
@@ -339,6 +367,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
                 child: _GenderCard(
                   title: 'Female',
                   icon: Icons.female_rounded,
+                  selectedIconColor: Colors.pink.shade300,
                   isSelected: _selectedGender == 'FEMALE',
                   onTap: () => setState(() => _selectedGender = 'FEMALE'),
                 ),
@@ -422,7 +451,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'The first photo will be your pet\'s primary cover photo.',
+            'The first photo is your pet\'s primary cover photo. Hold and drag to reorder.',
             style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
           const SizedBox(height: 12),
@@ -480,54 +509,125 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
               }
 
               final photo = _photos[index];
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AppNetworkImage(
-                      imageUrl: photo.url,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  if (index == 0)
-                    Positioned(
-                      bottom: 4,
-                      left: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryDark.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(6),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final tileSize = constraints.maxWidth;
+                  return DragTarget<int>(
+                    onWillAcceptWithDetails: (details) => details.data != index,
+                    onAcceptWithDetails: (details) =>
+                        _reorderPhotos(details.data, index),
+                    builder: (context, candidateData, rejectedData) {
+                      final isHovered = candidateData.isNotEmpty;
+                      final tileContent = Container(
+                        decoration: isHovered
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppColors.primary,
+                                  width: 2.5,
+                                ),
+                              )
+                            : null,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: AppNetworkImage(
+                                imageUrl: photo.url,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            if (index == 0)
+                              Positioned(
+                                bottom: 4,
+                                left: 4,
+                                right: 4,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryDark
+                                        .withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Primary',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => _removePhoto(index),
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          'Primary',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                      );
+
+                      return LongPressDraggable<int>(
+                        data: index,
+                        feedback: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(14),
+                          color: Colors.transparent,
+                          child: SizedBox(
+                            width: tileSize * 1.05,
+                            height: tileSize * 1.05,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: AppNetworkImage(
+                                imageUrl: photo.url,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () => _removePhoto(index),
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
+                        childWhenDragging: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.inputFill,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.primaryLight,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Opacity(
+                            opacity: 0.3,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(13),
+                              child: AppNetworkImage(
+                                imageUrl: photo.url,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 14),
-                      ),
-                    ),
-                  ),
-                ],
+                        child: tileContent,
+                      );
+                    },
+                  );
+                },
               );
             },
           ),
@@ -541,12 +641,14 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
 class _GenderCard extends StatelessWidget {
   final String title;
   final IconData icon;
+  final Color selectedIconColor;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _GenderCard({
     required this.title,
     required this.icon,
+    required this.selectedIconColor,
     required this.isSelected,
     required this.onTap,
   });
@@ -573,7 +675,7 @@ class _GenderCard extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected ? selectedIconColor : AppColors.textSecondary,
               size: 22,
             ),
             const SizedBox(width: 8),

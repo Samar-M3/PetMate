@@ -69,12 +69,23 @@ export const updateOwnerProfileStep1 = async (
   const existing = await prisma.profile.findUnique({ where: { userId } });
   const nextStep = Math.max(existing?.onboardingStep ?? 1, 2);
 
+  if (input.phoneNumber) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { phoneNumber: input.phoneNumber },
+    });
+  }
+
   const profile = await prisma.profile.upsert({
     where: { userId },
     update: {
       fullName: input.displayName,
+      displayName: input.displayName,
+      ...(input.phoneNumber ? { phone: input.phoneNumber } : {}),
+      ...(input.termsAccepted ? { termsAcceptedAt: new Date() } : {}),
       ...(input.avatarUrl !== undefined
         ? {
+            avatarUrl: input.avatarUrl,
             profilePictureUrl: input.avatarUrl,
             imageUrl: input.avatarUrl,
             imagePublicId: input.avatarPublicId ?? undefined,
@@ -89,6 +100,10 @@ export const updateOwnerProfileStep1 = async (
     create: {
       userId,
       fullName: input.displayName,
+      displayName: input.displayName,
+      phone: input.phoneNumber ?? null,
+      termsAcceptedAt: input.termsAccepted ? new Date() : null,
+      avatarUrl: input.avatarUrl ?? null,
       profilePictureUrl: input.avatarUrl ?? null,
       imageUrl: input.avatarUrl ?? null,
       imagePublicId: input.avatarPublicId ?? null,

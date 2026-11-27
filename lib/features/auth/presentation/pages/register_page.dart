@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -14,7 +15,7 @@ class RegisterPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -32,7 +33,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   void _submitRegistration() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
 
     final success = await ref
         .read(authStateProvider.notifier)
@@ -65,8 +66,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+            key: _formController.formKey,
+            autovalidateMode: _formController.autovalidateMode,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

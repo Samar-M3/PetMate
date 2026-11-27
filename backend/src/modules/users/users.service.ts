@@ -11,19 +11,85 @@ import { endConversation } from "../../services/firestore.service.ts";
 export const initializeUserRecord = async (
   firebaseUid: string,
   email?: string,
-  phoneNumber?: string
+  phoneNumber?: string,
+  displayName?: string,
+  avatarUrl?: string,
+  isEmailVerified?: boolean
 ) => {
-  const user = await prisma.user.upsert({
+  const normalizedEmail = email?.toLowerCase().trim() || undefined;
+  const trimmedName = displayName?.trim() || undefined;
+  const trimmedAvatar = avatarUrl?.trim() || undefined;
+
+  // Check if a user already exists by firebaseUid or email (to prevent duplicate accounts)
+  let existingUser = await prisma.user.findUnique({
     where: { firebaseUid },
-    update: {
-      email: email || undefined,
-      phoneNumber: phoneNumber || undefined,
-    },
-    create: {
+    include: { profile: true, pets: true },
+  });
+
+  if (!existingUser && normalizedEmail) {
+    existingUser = await prisma.user.findFirst({
+      where: { email: normalizedEmail },
+      include: { profile: true, pets: true },
+    });
+  }
+
+  if (existingUser) {
+    const updatedUser = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        firebaseUid,
+        email: normalizedEmail || existingUser.email,
+        phoneNumber: phoneNumber || existingUser.phoneNumber,
+        isEmailVerified: isEmailVerified ?? existingUser.isEmailVerified,
+      },
+      include: { profile: true, pets: true },
+    });
+
+    if (!updatedUser.profile && (trimmedName || trimmedAvatar)) {
+      await prisma.profile.create({
+        data: {
+          userId: updatedUser.id,
+          fullName: trimmedName || null,
+          displayName: trimmedName || null,
+          avatarUrl: trimmedAvatar || null,
+          imageUrl: trimmedAvatar || null,
+          profilePictureUrl: trimmedAvatar || null,
+          isEmailVerified: isEmailVerified ?? false,
+          onboardingStep: 1,
+          onboardingCompleted: updatedUser.onboardingCompleted,
+          registrationCompleted: updatedUser.registrationCompleted,
+        },
+      });
+      return await prisma.user.findUniqueOrThrow({
+        where: { id: updatedUser.id },
+        include: { profile: true, pets: true },
+      });
+    }
+
+    return updatedUser;
+  }
+
+  const user = await prisma.user.create({
+    data: {
       firebaseUid,
-      email: email || null,
+      email: normalizedEmail || null,
       phoneNumber: phoneNumber || null,
+      isEmailVerified: isEmailVerified ?? false,
       onboardingCompleted: false,
+      registrationCompleted: false,
+      profile: {
+        create: {
+          fullName: trimmedName || null,
+          displayName: trimmedName || null,
+          avatarUrl: trimmedAvatar || null,
+          imageUrl: trimmedAvatar || null,
+          profilePictureUrl: trimmedAvatar || null,
+          isEmailVerified: isEmailVerified ?? false,
+          onboardingStep: 1,
+          onboardingCompleted: false,
+          registrationCompleted: false,
+        },
+      },
     },
     include: {
       profile: true,
@@ -235,17 +301,23 @@ export const getOnboardingStatus = async (firebaseUid: string) => {
   const hasPets = user.pets.length > 0;
   const hasProfile = Boolean(
     user.profile &&
-      user.profile.fullName &&
-      user.profile.location &&
-      (user.profile.imageUrl || user.profile.profilePictureUrl)
+      (user.profile.fullName || user.profile.displayName) &&
+      (user.profile.city || user.profile.location)
+  );
+
+  const isCompleted = Boolean(
+    user.registrationCompleted ||
+      user.onboardingCompleted ||
+      user.profile?.registrationCompleted ||
+      user.profile?.onboardingCompleted
   );
 
   let nextStep: "INITIALIZE" | "PET_INFO" | "OWNER_INFO" | "COMPLETED" = "COMPLETED";
-  if (!user.onboardingCompleted) {
-    if (!hasPets) {
-      nextStep = "PET_INFO";
-    } else if (!hasProfile) {
+  if (!isCompleted) {
+    if (!hasProfile) {
       nextStep = "OWNER_INFO";
+    } else if (!hasPets) {
+      nextStep = "PET_INFO";
     } else {
       nextStep = "COMPLETED";
     }
@@ -254,8 +326,8 @@ export const getOnboardingStatus = async (firebaseUid: string) => {
   return {
     isInitialized: true,
     userId: user.id,
-    onboardingCompleted: user.onboardingCompleted,
-    onboardingStep: user.profile?.onboardingStep ?? 1,
+    onboardingCompleted: isCompleted,
+    onboardingStep: isCompleted ? 4 : (user.profile?.onboardingStep ?? 1),
     hasPets,
     hasProfile,
     nextStep,

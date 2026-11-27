@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/validated_form.dart';
 
 class VetFirstLoginPasswordDialog extends StatefulWidget {
   const VetFirstLoginPasswordDialog({super.key, required this.onSubmit});
@@ -14,7 +15,7 @@ class VetFirstLoginPasswordDialog extends StatefulWidget {
 
 class _VetFirstLoginPasswordDialogState
     extends State<VetFirstLoginPasswordDialog> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _isSubmitting = false;
@@ -29,7 +30,7 @@ class _VetFirstLoginPasswordDialogState
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
@@ -65,8 +66,8 @@ class _VetFirstLoginPasswordDialogState
         backgroundColor: AppColors.cream,
         title: const Text('Set your new password'),
         content: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
+          key: _formController.formKey,
+          autovalidateMode: _formController.autovalidateMode,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../providers/seller_provider.dart';
 
@@ -22,7 +23,7 @@ class SellerRegistrationPage extends ConsumerStatefulWidget {
 
 class _SellerRegistrationPageState
     extends ConsumerState<SellerRegistrationPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
 
   // Personal Information
   final _fullNameController = TextEditingController();
@@ -154,7 +155,7 @@ class _SellerRegistrationPageState
   Future<void> _submitRegistration() async {
     ref.read(sellerProvider.notifier).clearMessages();
 
-    if (!_formKey.currentState!.validate()) {
+    if (!_formController.validate(() => setState(() {}))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please correct the highlighted errors in the form.'),
@@ -303,8 +304,8 @@ class _SellerRegistrationPageState
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 580),
               child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
+                key: _formController.formKey,
+                autovalidateMode: _formController.autovalidateMode,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

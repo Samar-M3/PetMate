@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/services/storage_service.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'pet_profile_card.dart';
 
-class SwipeableCardDeck extends StatefulWidget {
+class SwipeableCardDeck extends ConsumerStatefulWidget {
   final List<DiscoveryPet> pets;
   final int currentIndex;
   final VoidCallback onSwipeRight;
@@ -21,10 +25,10 @@ class SwipeableCardDeck extends StatefulWidget {
   });
 
   @override
-  State<SwipeableCardDeck> createState() => SwipeableCardDeckState();
+  ConsumerState<SwipeableCardDeck> createState() => SwipeableCardDeckState();
 }
 
-class SwipeableCardDeckState extends State<SwipeableCardDeck>
+class SwipeableCardDeckState extends ConsumerState<SwipeableCardDeck>
     with SingleTickerProviderStateMixin {
   static const Color _deepTeal = Color(0xFF0F5C57);
   static const Color _sageGreen = Color(0xFFE8F0EA);
@@ -41,6 +45,9 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     Offset.zero,
   );
   bool _isAnimatingOut = false;
+  bool _showTutorialHint = false;
+  bool _tutorialRunning = false;
+  Timer? _tutorialTimer;
 
   @override
   void initState() {
@@ -49,6 +56,8 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
       vsync: this,
       duration: const Duration(milliseconds: 260),
     );
+    _slideAnimation = AlwaysStoppedAnimation(Offset.zero);
+    _rotateAnimation = const AlwaysStoppedAnimation(0.0);
 
     _animController.addListener(() {
       _dragOffset = _slideAnimation.value;
@@ -68,10 +77,83 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
         }
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeRunFirstTimeTutorial();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant SwipeableCardDeck oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pets.isEmpty && widget.pets.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybeRunFirstTimeTutorial();
+      });
+    }
+  }
+
+  Future<void> _maybeRunFirstTimeTutorial() async {
+    if (!mounted ||
+        _tutorialRunning ||
+        widget.currentIndex >= widget.pets.length) {
+      return;
+    }
+
+    final storage = ref.read(storageServiceProvider);
+    if (storage.hasSeenDiscoverSwipeTutorial) return;
+
+    _tutorialRunning = true;
+    await storage.setDiscoverSwipeTutorialSeen();
+
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (!mounted || _isAnimatingOut || _dragOffset.dx.abs() > 4) {
+      _tutorialRunning = false;
+      return;
+    }
+
+    setState(() => _showTutorialHint = true);
+
+    // Subtle right nudge (Like preview)
+    await _animateTutorialNudge(const Offset(54, -4), 0.05);
+    if (!mounted || _isAnimatingOut) return;
+    await _animateTutorialNudge(Offset.zero, 0.0);
+    if (!mounted || _isAnimatingOut) return;
+
+    await Future.delayed(const Duration(milliseconds: 180));
+    if (!mounted || _isAnimatingOut) return;
+
+    // Subtle left nudge (Pass preview)
+    await _animateTutorialNudge(const Offset(-54, -4), -0.05);
+    if (!mounted || _isAnimatingOut) return;
+    await _animateTutorialNudge(Offset.zero, 0.0);
+
+    _tutorialRunning = false;
+    _tutorialTimer?.cancel();
+    _tutorialTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _showTutorialHint = false);
+      }
+    });
+  }
+
+  Future<void> _animateTutorialNudge(Offset target, double rot) async {
+    if (!mounted) return;
+    _slideAnimation = Tween<Offset>(begin: _dragOffset, end: target).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOutCubic),
+    );
+    _rotateAnimation = Tween<double>(
+      begin: _dragOffset.dx / 1000,
+      end: rot,
+    ).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOutCubic),
+    );
+    await _animController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
+    _tutorialTimer?.cancel();
     _animController.dispose();
     _dragOffsetListenable.dispose();
     super.dispose();
@@ -79,12 +161,12 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void swipeRightProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(520, 24), 0.26);
+    _animateCardOut(const Offset(520, 24), 0.24);
   }
 
   void swipeLeftProgrammatic() {
     if (_isAnimatingOut || widget.currentIndex >= widget.pets.length) return;
-    _animateCardOut(const Offset(-520, 24), -0.26);
+    _animateCardOut(const Offset(-520, 24), -0.24);
   }
 
   void _animateCardOut(Offset targetOffset, double targetRotation) {
@@ -122,6 +204,10 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (_isAnimatingOut) return;
+    if (_showTutorialHint) {
+      _tutorialTimer?.cancel();
+      setState(() => _showTutorialHint = false);
+    }
     _dragOffset += details.delta;
     _dragOffsetListenable.value = _dragOffset;
   }
@@ -134,9 +220,9 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
     final velocityX = details.velocity.pixelsPerSecond.dx;
 
     if (_dragOffset.dx > threshold || velocityX > 720) {
-      _animateCardOut(Offset(screenWidth * 1.45, _dragOffset.dy), 0.25);
+      _animateCardOut(Offset(screenWidth * 1.45, _dragOffset.dy), 0.24);
     } else if (_dragOffset.dx < -threshold || velocityX < -720) {
-      _animateCardOut(Offset(-screenWidth * 1.45, _dragOffset.dy), -0.25);
+      _animateCardOut(Offset(-screenWidth * 1.45, _dragOffset.dy), -0.24);
     } else {
       _animateCardBack();
     }
@@ -161,42 +247,40 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
 
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Reserve top space so stacked card top edges & rounded corners peek cleanly
     return Padding(
-      padding: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.only(top: 18),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // 1. Third Card in Stack (peeks 22px above active card, scaled to 0.90 -> 0.95)
+          // 1. Third Card in Stack
           if (thirdPet != null)
             _buildStackedBackgroundCard(
               key: ValueKey('stack-3-${thirdPet.id}'),
               screenWidth: screenWidth,
-              baseScale: 0.90,
-              targetScale: 0.95,
-              baseOffset: const Offset(0, -22),
-              targetOffset: const Offset(0, -11),
+              baseScale: 0.91,
+              targetScale: 0.955,
+              baseOffset: const Offset(0, -18),
+              targetOffset: const Offset(0, -9),
               baseOpacity: 0.84,
               targetOpacity: 0.94,
               card: RepaintBoundary(
                 child: PetProfileCard(
                   pet: thirdPet,
                   swipeProgress: 0.0,
-                  showActionButtons: false,
                   enableHero: false,
                 ),
               ),
             ),
 
-          // 2. Second Card in Stack (peeks 11px above active card, scaled to 0.95 -> 1.0)
+          // 2. Second Card in Stack
           if (nextPet != null)
             _buildStackedBackgroundCard(
               key: ValueKey('stack-2-${nextPet.id}'),
               screenWidth: screenWidth,
-              baseScale: 0.95,
+              baseScale: 0.955,
               targetScale: 1.0,
-              baseOffset: const Offset(0, -11),
+              baseOffset: const Offset(0, -9),
               targetOffset: Offset.zero,
               baseOpacity: 0.94,
               targetOpacity: 1.0,
@@ -204,17 +288,16 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                 child: PetProfileCard(
                   pet: nextPet,
                   swipeProgress: 0.0,
-                  showActionButtons: false,
                   enableHero: false,
                 ),
               ),
             ),
 
-          // 3. Active Front Card with drag physics and embedded action buttons
+          // 3. Active Front Card with drag physics (no permanent buttons)
           ValueListenableBuilder<Offset>(
             valueListenable: _dragOffsetListenable,
             builder: (context, dragOffset, _) {
-              final swipeRatio = (dragOffset.dx / (screenWidth * 0.35)).clamp(
+              final swipeRatio = (dragOffset.dx / (screenWidth * 0.32)).clamp(
                 -1.0,
                 1.0,
               );
@@ -226,16 +309,13 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                   child: Transform.rotate(
                     angle: (_isAnimatingOut)
                         ? _rotateAnimation.value
-                        : (dragOffset.dx / 1000) * 0.52,
+                        : (dragOffset.dx / 1000) * 0.45,
                     child: RepaintBoundary(
                       child: PetProfileCard(
                         key: ValueKey('active-${currentPet.id}'),
                         pet: currentPet,
                         swipeProgress: swipeRatio,
-                        showActionButtons: true,
                         enableHero: true,
-                        onPassTap: swipeLeftProgrammatic,
-                        onLikeTap: swipeRightProgrammatic,
                         onCardTap: () {
                           if (!_isAnimatingOut && _dragOffset.distance < 8) {
                             context.push('/pet/${currentPet.id}');
@@ -256,6 +336,40 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
               );
             },
           ),
+
+          // 4. Subtle first-time user swipe tutorial hint
+          if (_showTutorialHint)
+            Positioned(
+              top: 10,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _darkText.withValues(alpha: 0.86),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    'Swipe right to like · Swipe left to pass',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -323,7 +437,6 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Layered botanical/pet illustration
               SizedBox(
                 width: 96,
                 height: 96,
@@ -351,88 +464,76 @@ class SwipeableCardDeckState extends State<SwipeableCardDeck>
                         color: _deepTeal,
                       ),
                     ),
-                    Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _softCoral,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.favorite_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
+                    const Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Icon(
+                        Icons.auto_awesome,
+                        size: 18,
+                        color: _softCoral,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
               const Text(
-                "You've discovered all nearby pets!",
-                textAlign: TextAlign.center,
+                'You\'re all caught up',
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: _darkText,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.3,
+                  color: _darkText,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
               const Text(
-                'Check back soon for new furry friends in your area, or tap below to explore passed profiles again.',
-                textAlign: TextAlign.center,
+                'Check back soon for new companions nearby, or refresh to see pets you may have missed.',
                 style: TextStyle(
                   fontSize: 13.5,
-                  height: 1.45,
-                  color: Color(0xFF5D6E6A),
+                  height: 1.5,
+                  color: Color(0xFF6B7B76),
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 28),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _deepTeal,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 26,
-                    vertical: 14,
+                    horizontal: 24,
+                    vertical: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
                 ),
                 onPressed: widget.onReset,
-                icon: const Icon(Icons.refresh_rounded, size: 19),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text(
-                  'Explore Again',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14.5,
-                  ),
+                  'Refresh Feed',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 14,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: _warmCream,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
-                  'Resets skipped profiles',
+                  'New profiles are added daily',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF7B8C87),
+                    color: _deepTeal,
                   ),
                 ),
               ),
