@@ -38,8 +38,21 @@ export const initializeUser = async (
     const validatedData = validateInitializeUser(req.body || {});
     const phoneNumber = validatedData.phoneNumber;
     const email = req.firebaseUser?.email;
+    const displayName =
+      typeof req.firebaseUser?.name === "string" ? req.firebaseUser.name : undefined;
+    const avatarUrl =
+      typeof req.firebaseUser?.picture === "string" ? req.firebaseUser.picture : undefined;
+    const isEmailVerified = req.firebaseUser?.email_verified === true;
 
-    const user = await initializeUserRecord(req.firebaseUid, email, phoneNumber);
+    const user = await initializeUserRecord(
+      req.firebaseUid,
+      email,
+      phoneNumber,
+      displayName,
+      avatarUrl,
+      isEmailVerified
+    );
+    invalidateUserCacheById(user.id);
     console.log(`[UsersController] ✅ PostgreSQL user initialized successfully: ID ${user.id} (email: ${user.email})`);
 
     sendSuccess(res, {

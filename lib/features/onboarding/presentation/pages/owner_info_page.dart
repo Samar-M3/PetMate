@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -19,7 +20,7 @@ class OwnerInfoPage extends ConsumerStatefulWidget {
 }
 
 class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _locationController = TextEditingController();
@@ -112,7 +113,7 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
   }
 
   Future<void> _submitOwnerProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
 
     String? photoUrl = _uploadedImageUrl;
     if (photoUrl == null && (_imageBytes != null || _selectedImage != null)) {
@@ -182,8 +183,8 @@ class _OwnerInfoPageState extends ConsumerState<OwnerInfoPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+            key: _formController.formKey,
+            autovalidateMode: _formController.autovalidateMode,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

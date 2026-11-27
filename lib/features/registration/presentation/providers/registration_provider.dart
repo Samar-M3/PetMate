@@ -150,16 +150,43 @@ class RegistrationNotifier extends Notifier<RegistrationState> {
   Future<void> loadSavedProgress() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
+      final authState = ref.read(authStateProvider);
+      final fbUser = authState.firebaseUser;
       final profile = await _service.getMyProfile();
+
+      final resolvedName = profile.displayName.isNotEmpty
+          ? profile.displayName
+          : (fbUser?.displayName?.trim().isNotEmpty == true
+              ? fbUser!.displayName!.trim()
+              : state.fullName);
+      final resolvedEmail = profile.email.isNotEmpty
+          ? profile.email
+          : (fbUser?.email ?? state.email);
+      final resolvedPhone = authState.user?.phoneNumber?.isNotEmpty == true
+          ? authState.user!.phoneNumber!
+          : state.phoneNumber;
+      final resolvedAvatar = (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty)
+          ? profile.avatarUrl
+          : (fbUser?.photoURL?.isNotEmpty == true
+              ? fbUser!.photoURL
+              : state.avatarUrl);
+
+      final hasOwnerInfo = profile.city.isNotEmpty && profile.district.isNotEmpty;
+      final resolvedStep = (profile.onboardingStep >= 2 || hasOwnerInfo)
+          ? profile.onboardingStep.clamp(2, 4)
+          : 1;
+
       state = state.copyWith(
         isLoading: false,
         profile: profile,
         pet: profile.draftPet,
-        fullName: profile.displayName.isNotEmpty ? profile.displayName : state.fullName,
+        fullName: resolvedName,
+        email: resolvedEmail,
+        phoneNumber: resolvedPhone,
         city: profile.city.isNotEmpty ? profile.city : state.city,
         district: profile.district.isNotEmpty ? profile.district : state.district,
-        avatarUrl: profile.avatarUrl ?? state.avatarUrl,
-        currentStep: profile.onboardingStep.clamp(2, 4),
+        avatarUrl: resolvedAvatar,
+        currentStep: resolvedStep,
         isCompleted: profile.registrationCompleted,
       );
     } catch (e) {
@@ -199,7 +226,57 @@ class RegistrationNotifier extends Notifier<RegistrationState> {
   }) async {
     state = state.copyWith(isSaving: true, clearError: true, canResumeLogin: false);
     try {
-      // 1. If avatar was selected, we can upload it after registration with the new token
+      final authState = ref.read(authStateProvider);
+
+      // Authenticated Google/Firebase user: save owner profile directly without email/password
+      if (authState.isAuthenticated) {
+        String? uploadedUrl = state.avatarUrl;
+        String? uploadedPublicId = state.avatarPublicId;
+        if (avatarFile != null || avatarBytes != null) {
+          try {
+            final asset = await _service.uploadImage(
+              file: avatarFile,
+              bytes: avatarBytes,
+              folder: 'users',
+            );
+            uploadedUrl = asset.url;
+            uploadedPublicId = asset.publicId;
+          } catch (_) {}
+        }
+
+        final updatedProfile = await _service.updateMeProfile(
+          fullName: fullName,
+          phoneNumber: phoneNumber,
+          city: city,
+          district: district,
+          avatarUrl: uploadedUrl,
+          avatarPublicId: uploadedPublicId,
+          termsAccepted: termsAccepted,
+        );
+
+        try {
+          await ref.read(authStateProvider.notifier).refreshUser();
+        } catch (_) {}
+
+        state = state.copyWith(
+          isSaving: false,
+          fullName: fullName,
+          email: authState.firebaseUser?.email ?? email,
+          phoneNumber: phoneNumber,
+          city: city,
+          district: district,
+          termsAccepted: termsAccepted,
+          avatarFile: avatarFile,
+          avatarBytes: avatarBytes,
+          avatarUrl: uploadedUrl,
+          avatarPublicId: uploadedPublicId,
+          profile: updatedProfile,
+          currentStep: 2,
+        );
+        return true;
+      }
+
+      // Standard Email/Password registration
       final regResponse = await _service.registerPetOwner(
         email: email,
         password: password,

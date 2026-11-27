@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,9 +93,11 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
       );
       if (picked == null) return;
 
+      final bytes = await picked.readAsBytes();
       setState(() => _isUploadingCert = true);
       final asset = await ref.read(registrationServiceProvider).uploadImage(
-            file: File(picked.path),
+            bytes: bytes,
+            filename: picked.name.isNotEmpty ? picked.name : 'pedigree_cert.jpg',
             folder: 'pedigree_certs',
           );
       if (mounted) {
@@ -500,23 +500,26 @@ class RegStep3MatingDetailsState extends ConsumerState<RegStep3MatingDetails> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pedigree or Registration',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pedigree or Registration',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Has official pedigree certificate / kennel club registry',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
+                      Text(
+                        'Has official pedigree certificate / kennel club registry',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
                 Switch(
                   value: _hasPedigree,
                   activeColor: AppColors.primary,

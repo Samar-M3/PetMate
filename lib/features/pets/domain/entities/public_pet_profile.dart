@@ -33,6 +33,17 @@ class PublicPetProfile {
   final int ageMonths;
   final String ageString;
   final String? weight;
+  final double? weightKg;
+  final String? sizeCategory;
+  final String? color;
+  final String? purpose;
+  final bool? isNeutered;
+  final bool? hasLitters;
+  final int? litterCount;
+  final bool? hasPedigree;
+  final String? vaccinationStatus;
+  final String? lastVaccinatedDate;
+  final String? lastCheckup;
   final String area;
   final String about;
   final List<String> photos;
@@ -51,6 +62,17 @@ class PublicPetProfile {
     required this.ageMonths,
     required this.ageString,
     this.weight,
+    this.weightKg,
+    this.sizeCategory,
+    this.color,
+    this.purpose,
+    this.isNeutered,
+    this.hasLitters,
+    this.litterCount,
+    this.hasPedigree,
+    this.vaccinationStatus,
+    this.lastVaccinatedDate,
+    this.lastCheckup,
     required this.area,
     required this.about,
     required this.photos,
@@ -63,15 +85,27 @@ class PublicPetProfile {
 
   factory PublicPetProfile.fromJson(Map<String, dynamic> json) {
     final ownerMap = json['owner'] as Map<String, dynamic>? ?? {};
+    final rawWeightKg = json['weightKg'];
     return PublicPetProfile(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? 'Pet',
       species: json['species'] as String? ?? 'Pet',
       breed: json['breed'] as String? ?? 'Mixed',
       sex: json['sex'] as String? ?? 'Unknown',
-      ageMonths: json['ageMonths'] as int? ?? 0,
-      ageString: json['ageString'] as String? ?? '1 yr old',
+      ageMonths: (json['ageMonths'] as num?)?.toInt() ?? 0,
+      ageString: json['ageString'] as String? ?? '1.0 years',
       weight: json['weight'] as String?,
+      weightKg: rawWeightKg is num ? rawWeightKg.toDouble() : null,
+      sizeCategory: json['sizeCategory'] as String?,
+      color: json['color'] as String?,
+      purpose: json['purpose'] as String?,
+      isNeutered: json['isNeutered'] as bool?,
+      hasLitters: json['hasLitters'] as bool?,
+      litterCount: (json['litterCount'] as num?)?.toInt(),
+      hasPedigree: json['hasPedigree'] as bool?,
+      vaccinationStatus: json['vaccinationStatus'] as String?,
+      lastVaccinatedDate: json['lastVaccinatedDate'] as String?,
+      lastCheckup: json['lastCheckup'] as String?,
       area: json['area'] as String? ?? 'Kathmandu, Nepal',
       about: json['about'] as String? ?? '',
       photos:
@@ -104,6 +138,17 @@ class PublicPetProfile {
     'ageMonths': ageMonths,
     'ageString': ageString,
     'weight': weight,
+    'weightKg': weightKg,
+    'sizeCategory': sizeCategory,
+    'color': color,
+    'purpose': purpose,
+    'isNeutered': isNeutered,
+    'hasLitters': hasLitters,
+    'litterCount': litterCount,
+    'hasPedigree': hasPedigree,
+    'vaccinationStatus': vaccinationStatus,
+    'lastVaccinatedDate': lastVaccinatedDate,
+    'lastCheckup': lastCheckup,
     'area': area,
     'about': about,
     'photos': photos,

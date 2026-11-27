@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import '../../../../core/services/pet_image_validation_service.dart';
+import '../../../../core/widgets/validated_form.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../pets/presentation/providers/pets_activation_provider.dart';
 
@@ -21,7 +22,7 @@ class PetInfoPage extends ConsumerStatefulWidget {
 }
 
 class _PetInfoPageState extends ConsumerState<PetInfoPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formController = ValidatedFormController();
   final _nameController = TextEditingController();
   final _customBreedController = TextEditingController();
   final _colorController = TextEditingController();
@@ -252,6 +253,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   void _resetFormForNextPet() {
     _validationRequestId++;
     setState(() {
+      _formController.reset();
       _selectedImage = null;
       _imageBytes = null;
       _imageName = null;
@@ -276,7 +278,7 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
   }
 
   Future<void> _savePet() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formController.validate(() => setState(() {}))) return;
 
     if (_imageBytes == null &&
         _selectedImage == null &&
@@ -507,8 +509,8 @@ class _PetInfoPageState extends ConsumerState<PetInfoPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+            key: _formController.formKey,
+            autovalidateMode: _formController.autovalidateMode,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

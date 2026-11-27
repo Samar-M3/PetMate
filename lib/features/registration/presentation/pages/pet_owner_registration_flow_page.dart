@@ -131,6 +131,7 @@ class _PetOwnerRegistrationFlowPageState
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authStateProvider);
     final regState = ref.watch(registrationProvider);
 
     // Listen for completion
@@ -140,7 +141,10 @@ class _PetOwnerRegistrationFlowPageState
       }
     });
 
-    if (regState.isLoading) {
+    if (regState.isLoading ||
+        (authState.isAuthenticated &&
+            regState.profile == null &&
+            regState.errorMessage == null)) {
       return const Scaffold(
         backgroundColor: AppColors.cream,
         body: Center(
@@ -158,8 +162,12 @@ class _PetOwnerRegistrationFlowPageState
 
     switch (step) {
       case 1:
-        title = 'Create Your Account';
-        subtitle = 'Let\'s get you set up with a PetMate pet owner profile.';
+        title = authState.isAuthenticated
+            ? 'Complete Your Profile'
+            : 'Create Your Account';
+        subtitle = authState.isAuthenticated
+            ? 'Confirm your name, mobile number, and district to continue.'
+            : 'Let\'s get you set up with a PetMate pet owner profile.';
         bodyWidget = RegStep1UserInfo(key: _step1Key);
         onSkip = null;
         break;
@@ -192,7 +200,14 @@ class _PetOwnerRegistrationFlowPageState
       body: bodyWidget,
       onBack: step > 1
           ? () => ref.read(registrationProvider.notifier).goBack()
-          : () => context.go('/register'),
+          : () async {
+              if (authState.isAuthenticated) {
+                await ref.read(authStateProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              } else {
+                context.go('/register');
+              }
+            },
       onNext: () => _onNext(step),
       onSkip: onSkip,
       onRetry: () => _onNext(step),

@@ -43,20 +43,21 @@ class HomeHeader extends ConsumerWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: _deepTeal,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: _deepTeal.withValues(alpha: 0.22),
+                      color: _deepTeal.withValues(alpha: 0.18),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.pets_rounded,
-                  color: Colors.white,
-                  size: 20,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/icons/petmate-logo.png',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -126,6 +127,34 @@ class HomeHeader extends ConsumerWidget {
                           color: _darkText,
                           size: 21,
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 0,
+                child: InkWell(
+                  onTap: () => context.push('/nearby'),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFE0E8E2),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.location_on_outlined,
+                        color: _darkText,
+                        size: 21,
                       ),
                     ),
                   ),

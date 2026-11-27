@@ -9,7 +9,16 @@ class DiscoveryPetModel extends DiscoveryPet {
     required super.petGender,
     required super.petBio,
     required super.petImageUrl,
+    super.photos = const [],
     required super.personality,
+    super.species,
+    super.color,
+    super.purpose,
+    super.isNeutered,
+    super.weightKg,
+    super.sizeCategory,
+    super.vaccinationStatus,
+    super.lastVaccinatedDate,
     required super.ownerName,
     super.ownerUsername,
     super.ownerId,
@@ -20,21 +29,29 @@ class DiscoveryPetModel extends DiscoveryPet {
   });
 
   factory DiscoveryPetModel.fromJson(Map<String, dynamic> json) {
+    final parsedPhotos = (json['photos'] as List<dynamic>?)
+            ?.map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList() ??
+        [];
+
     final candidateImages = <String?>[
       json['petImageUrl'] as String?,
       json['imageUrl'] as String?,
       json['profilePictureUrl'] as String?,
-      if (json['photos'] is List)
-        ...(json['photos'] as List).map((e) => e?.toString()),
+      ...parsedPhotos,
     ];
     final rawImageUrl = candidateImages
             .map((e) => e?.trim() ?? '')
             .firstWhere((e) => e.isNotEmpty, orElse: () => '');
 
+    final rawWeight = json['weightKg'];
+    final double? weightKg = rawWeight is num ? rawWeight.toDouble() : null;
+
     return DiscoveryPetModel(
       id: json['id'] as String? ?? '',
       petName: json['petName'] as String? ?? json['name'] as String? ?? '',
-      petAge: json['petAge'] as String? ?? '1 yr old',
+      petAge: json['petAge'] as String? ?? '1.0 years',
       petBreed: json['petBreed'] as String? ?? json['breed'] as String? ?? '',
       petGender:
           json['petGender'] as String? ?? json['gender'] as String? ?? 'Male',
@@ -44,11 +61,22 @@ class DiscoveryPetModel extends DiscoveryPet {
           json['description'] as String? ??
           '',
       petImageUrl: rawImageUrl,
+      photos: parsedPhotos.isNotEmpty
+          ? parsedPhotos
+          : (rawImageUrl.isNotEmpty ? [rawImageUrl] : []),
       personality:
           (json['personality'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      species: json['species'] as String? ?? json['animalType'] as String?,
+      color: json['color'] as String? ?? json['colorCoat'] as String?,
+      purpose: json['purpose'] as String?,
+      isNeutered: json['isNeutered'] as bool?,
+      weightKg: weightKg,
+      sizeCategory: json['sizeCategory'] as String?,
+      vaccinationStatus: json['vaccinationStatus'] as String?,
+      lastVaccinatedDate: json['lastVaccinatedDate'] as String?,
       ownerName:
           json['ownerName'] as String? ??
           json['ownerUsername'] as String? ??
@@ -57,7 +85,10 @@ class DiscoveryPetModel extends DiscoveryPet {
           json['ownerUsername'] as String? ?? json['ownerName'] as String?,
       ownerId: json['ownerId'] as String?,
       ownerAge: json['ownerAge'] as String?,
-      ownerLocation: json['ownerLocation'] as String? ?? 'Kathmandu, Nepal',
+      ownerLocation:
+          json['ownerLocation'] as String? ??
+          json['area'] as String? ??
+          'Kathmandu, Nepal',
       ownerAvatarUrl: json['ownerAvatarUrl'] as String?,
       species: json['species'] as String? ?? json['petType'] as String? ?? json['animalType'] as String?,
     );
@@ -72,7 +103,16 @@ class DiscoveryPetModel extends DiscoveryPet {
       'petGender': petGender,
       'petBio': petBio,
       'petImageUrl': petImageUrl,
+      'photos': photos,
       'personality': personality,
+      'species': species,
+      'color': color,
+      'purpose': purpose,
+      'isNeutered': isNeutered,
+      'weightKg': weightKg,
+      'sizeCategory': sizeCategory,
+      'vaccinationStatus': vaccinationStatus,
+      'lastVaccinatedDate': lastVaccinatedDate,
       'ownerName': ownerName,
       'ownerUsername': ownerUsername,
       'ownerId': ownerId,
