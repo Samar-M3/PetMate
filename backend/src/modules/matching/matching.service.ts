@@ -112,6 +112,9 @@ export function calculateAgeString(dob?: Date | null): string {
   if (years <= 0) {
     return `${months} ${months === 1 ? "month" : "months"}`;
   }
+  if (months === 0) {
+    return `${years} ${years === 1 ? "year" : "years"}`;
+  }
   return `${years}.${months} years`;
 }
 

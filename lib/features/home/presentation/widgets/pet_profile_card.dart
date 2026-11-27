@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/pet_age_formatter.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/entities/discovery_pet.dart';
 import 'owner_info_chip.dart';
@@ -220,9 +221,9 @@ class PetProfileCard extends StatelessWidget {
                               shadows: _textShadows,
                             ),
                           ),
-                          if (pet.petAge.trim().isNotEmpty)
+                          if (formatPetAge(pet.petAge).isNotEmpty)
                             TextSpan(
-                              text: ', ${pet.petAge.trim()}',
+                              text: ', ${formatPetAge(pet.petAge)}',
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w400,

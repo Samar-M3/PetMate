@@ -2,70 +2,77 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/domain/entities/user_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../care_events/providers/care_events_provider.dart';
+import '../../../care_events/screens/appointments/health_records_screen.dart';
+import '../../../care_events/screens/appointments/my_appointments_screen.dart';
+import '../../../care_events/screens/events_home_screen.dart';
+import '../../../home/presentation/providers/requests_provider.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
-  const ProfilePage({super.key});
+  /// When true, the page is embedded as a bottom nav tab (no back button).
+  /// When false (default), it's pushed via GoRouter and shows a back arrow.
+  final bool embeddedInTab;
+
+  const ProfilePage({super.key, this.embeddedInTab = false});
 
   @override
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
-  // No initState refresh needed — auth provider already syncs profile on auth state change.
-  // Profile data is available via ref.watch(authStateProvider).
+  static const Color _primaryTeal = Color(0xFF0B625B);
+  static const Color _coralAccent = Color(0xFFE8795B);
+  static const Color _warmIvory = Color(0xFFF8F6F0);
+  static const Color _cardWhite = Color(0xFFFFFFFF);
+  static const Color _charcoalText = Color(0xFF26332F);
+  static const Color _mutedText = Color(0xFF7B8880);
+  static const Color _softBorder = Color(0xFFE5E8E2);
+  static const Color _dangerRed = Color(0xFFC84343);
+  static const Color _activeGreen = Color(0xFF1F8A5B);
 
   void _confirmSignOut(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.logout_rounded, color: AppColors.error, size: 24),
-            SizedBox(width: 10),
-            Text(
-              'Sign Out',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
+        backgroundColor: _cardWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Sign out',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: _charcoalText,
+          ),
         ),
         content: const Text(
           'Are you sure you want to sign out of PetMate?',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 14, color: _mutedText, height: 1.4),
         ),
-        actionsPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text(
               'Cancel',
               style: TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+                color: _mutedText,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+              backgroundColor: _dangerRed,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             onPressed: () async {
               Navigator.of(ctx).pop();
@@ -75,8 +82,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               }
             },
             child: const Text(
-              'Sign Out',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Sign out',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -86,10 +93,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).user;
+    final authState = ref.watch(authStateProvider);
+    final user = authState.user;
     final profile = user?.profile;
     final pets = user?.pets ?? [];
     final activePetsCount = pets.where((p) => p.isActive).length;
+
+    final pendingRequestsCount = ref.watch(
+      requestsProvider.select((s) => s.pendingCount),
+    );
+    final upcomingApptsCount = ref
+        .watch(appointmentsProvider)
+        .maybeWhen(
+          data: (list) => list.where((a) => a.isUpcoming).length,
+          orElse: () => 0,
+        );
 
     final avatarUrl = profile?.effectiveImageUrl ?? profile?.profilePictureUrl;
     final displayName =
@@ -97,165 +115,152 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ? profile.fullName!.trim()
         : (user?.email?.split('@').first ?? 'Pet Owner');
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'P';
+    final locationText = [
+      profile?.area,
+      profile?.location,
+    ].where((e) => e != null && e.trim().isNotEmpty).firstOrNull?.trim();
+
+    if (authState.isLoading && user == null) {
+      return const Scaffold(
+        backgroundColor: _warmIvory,
+        body: Center(
+          child: CircularProgressIndicator(color: _primaryTeal, strokeWidth: 2),
+        ),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. Modern Collapsing Hero Banner with Back Button
-          SliverAppBar(
-            expandedHeight: 200,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: AppColors.primary,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.white.withValues(alpha: 0.9),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: AppColors.textPrimary,
-                    size: 20,
-                  ),
-                  onPressed: () => context.pop(),
-                ),
-              ),
+      backgroundColor: _warmIvory,
+      body: SafeArea(
+        bottom: !widget.embeddedInTab,
+        child: RefreshIndicator(
+          color: _primaryTeal,
+          onRefresh: () async {
+            await ref.read(authStateProvider.notifier).refreshUserProfile();
+            await ref
+                .read(requestsProvider.notifier)
+                .loadRequests(refresh: true);
+            ref.invalidate(appointmentsProvider);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: CircleAvatar(
-                  backgroundColor: Colors.white.withValues(alpha: 0.9),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      color: AppColors.textPrimary,
-                      size: 20,
-                    ),
-                    onPressed: () => context.push('/settings/notifications'),
-                  ),
-                ),
+            slivers: [
+              // 1. Quiet Compact Header
+              SliverToBoxAdapter(
+                child: _buildCompactHeader(context),
               ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Gradient Warm Banner
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primaryDark,
-                          AppColors.primary,
-                          AppColors.primaryLight,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                  // Subtle Decorative Paw Prints
-                  Positioned(
-                    right: -20,
-                    top: 20,
-                    child: Opacity(
-                      opacity: 0.12,
-                      child: Icon(Icons.pets, size: 140, color: Colors.white),
-                    ),
-                  ),
-                  Positioned(
-                    left: 20,
-                    bottom: 40,
-                    child: Opacity(
-                      opacity: 0.08,
-                      child: Icon(Icons.pets, size: 80, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
 
-          // 2. Profile Details & Settings List
-          SliverToBoxAdapter(
-            child: Transform.translate(
-              offset: const Offset(0, -42),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // A. Hero Identity Card (Floating Over Banner)
-                    _buildIdentityCard(
+              // 2. Scrollable Profile Content (8pt spacing rhythm)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Profile Identity Card
+                    _buildProfileInfoCard(
                       context: context,
                       avatarUrl: avatarUrl,
                       initial: initial,
                       displayName: displayName,
-                      email: user?.email,
                       role: user?.role ?? UserRole.petOwner,
-                      location: profile?.location ?? profile?.area,
+                      location: locationText,
+                      email: user?.email,
                       bio: profile?.bio,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
 
-                    // B. Quick Stats Summary
+                    // Clean Tabular Statistics Strip
                     _buildStatsBar(
                       totalPets: pets.length,
-                      activeInDeck: activePetsCount,
-                      roleName: _formatRoleName(user?.role),
+                      activePets: activePetsCount,
+                      activeRequests: pendingRequestsCount,
                     ),
-                    const SizedBox(height: 22),
-
-                    // C. "My Furry Family" Section (Pets horizontal list + Add card)
-                    _buildPetsSection(context, pets),
                     const SizedBox(height: 24),
 
-                    // D. Section: Account & Pet Management
-                    _buildSectionHeader('Account & Pets'),
+                    // My Pets Showcase (the visual moment)
+                    _buildMyPetsSection(context, pets),
+                    const SizedBox(height: 24),
+
+                    // Appointments & Activity
+                    _buildSectionTitle('Appointments & activity'),
                     const SizedBox(height: 8),
-                    _buildSettingsGroup([
-                      _SettingsItem(
-                        icon: Icons.person_outline_rounded,
-                        iconColor: AppColors.primary,
-                        title: 'Edit Owner Profile',
-                        subtitle: 'Update your name, bio, location, and photo',
-                        onTap: () => context.push('/onboarding/owner'),
+                    _buildGroupedList([
+                      _ActionRowItem(
+                        icon: Icons.medical_services_outlined,
+                        title: 'Upcoming vet appointments',
+                        subtitle: upcomingApptsCount > 0
+                            ? '$upcomingApptsCount scheduled'
+                            : 'Clinic visits and history',
+                        count: upcomingApptsCount,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyAppointmentsScreen(),
+                          ),
+                        ),
                       ),
-                      _SettingsItem(
-                        icon: Icons.tune_rounded,
-                        iconColor: AppColors.terracotta,
-                        title: 'Manage Pets & Visibility',
-                        subtitle: 'Control which pets appear in discovery feed',
-                        onTap: () => context.push('/my-pets'),
+                      _ActionRowItem(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'Mating requests',
+                        subtitle: pendingRequestsCount > 0
+                            ? '$pendingRequestsCount awaiting response'
+                            : 'Incoming and sent requests',
+                        count: pendingRequestsCount,
+                        highlightDot: pendingRequestsCount > 0,
+                        onTap: () => context.push('/requests'),
                       ),
-                      _SettingsItem(
-                        icon: Icons.add_circle_outline_rounded,
-                        iconColor: const Color(0xFFF59E0B),
-                        title: 'Extra Pet Slots',
-                        subtitle: 'Purchase additional active discovery slots',
-                        onTap: () => context.push('/slots'),
+                      _ActionRowItem(
+                        icon: Icons.calendar_today_outlined,
+                        title: 'My events',
+                        subtitle: 'Discover and manage pet events',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const _EventsWrapper(),
+                          ),
+                        ),
+                      ),
+                      _ActionRowItem(
+                        icon: Icons.assignment_outlined,
+                        title: 'Pet health records',
+                        subtitle: 'Vaccinations and medical notes',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HealthRecordsScreen(),
+                          ),
+                        ),
                       ),
                     ]),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-                    // E. Section: Commerce & Services
-                    _buildSectionHeader('Marketplace & Services'),
+                    // Account & Marketplace
+                    _buildSectionTitle('Account & marketplace'),
                     const SizedBox(height: 8),
-                    _buildSettingsGroup([
-                      _SettingsItem(
-                        icon: Icons.storefront_rounded,
-                        iconColor: AppColors.terracotta,
+                    _buildGroupedList([
+                      _ActionRowItem(
+                        icon: Icons.tune_rounded,
+                        title: 'Manage pets',
+                        subtitle: 'Visibility in Discover feed',
+                        onTap: () => context.push('/my-pets'),
+                      ),
+                      _ActionRowItem(
+                        icon: Icons.add_circle_outline_rounded,
+                        title: 'Pet slots',
+                        subtitle: 'Add active discovery slots',
+                        onTap: () => context.push('/slots'),
+                      ),
+                      _ActionRowItem(
+                        icon: Icons.storefront_outlined,
                         title: user?.role == UserRole.seller
-                            ? 'Seller Portal'
-                            : 'Seller Hub',
+                            ? 'Seller portal'
+                            : 'Seller hub',
                         subtitle: user?.role == UserRole.seller
-                            ? 'Manage inventory, listings, and orders'
-                            : 'Apply to sell pet food, supplies & products',
-                        badge: user?.role == UserRole.seller ? 'Active' : null,
-                        badgeColor: AppColors.success,
+                            ? 'Inventory, listings and orders'
+                            : 'Sell pet food and supplies',
+                        statusLabel:
+                            user?.role == UserRole.seller ? 'Active' : null,
                         onTap: () {
                           if (user?.role == UserRole.seller) {
                             context.push('/seller');
@@ -264,260 +269,201 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           }
                         },
                       ),
-                      _SettingsItem(
+                      _ActionRowItem(
                         icon: Icons.receipt_long_outlined,
-                        iconColor: AppColors.primaryDark,
-                        title: 'My Orders',
-                        subtitle: 'Track purchases and view order history',
+                        title: 'My orders',
+                        subtitle: 'Purchases and order history',
                         onTap: () => context.push('/shop/orders'),
                       ),
-                      _SettingsItem(
-                        icon: Icons.favorite_outline_rounded,
-                        iconColor: const Color(0xFFE91E63),
-                        title: 'Saved Wishlist',
-                        subtitle: 'Products saved for your furry friends',
+                      _ActionRowItem(
+                        icon: Icons.bookmark_border_rounded,
+                        title: 'Saved wishlist',
+                        subtitle: 'Products saved for your pets',
                         onTap: () => context.push('/shop/wishlist'),
                       ),
-                    ]),
-                    const SizedBox(height: 20),
-
-                    // F. Section: Preferences
-                    _buildSectionHeader('Preferences & Alerts'),
-                    const SizedBox(height: 8),
-                    _buildSettingsGroup([
-                      _SettingsItem(
+                      _ActionRowItem(
                         icon: Icons.notifications_none_rounded,
-                        iconColor: const Color(0xFF3B82F6),
-                        title: 'Push Notifications',
-                        subtitle:
-                            'Customize alerts for messages, matches & orders',
+                        title: 'Notification settings',
+                        subtitle: 'Push alerts and preferences',
                         onTap: () => context.push('/settings/notifications'),
                       ),
                     ]),
                     const SizedBox(height: 24),
 
-                    // G. Sign Out Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          onTap: () => _confirmSignOut(context),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: AppColors.error.withValues(alpha: 0.3),
-                                width: 1.2,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.logout_rounded,
-                                  color: AppColors.error,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Sign Out',
-                                  style: TextStyle(
-                                    color: AppColors.error,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-                  ],
+                    // Sign Out
+                    _buildSignOutButton(context),
+                  ]),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          if (!widget.embeddedInTab) ...[
+            _HeaderIconButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: () => context.pop(),
             ),
+            const SizedBox(width: 12),
+          ],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/icons/petmate-logo.png',
+              width: 28,
+              height: 28,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text.rich(
+            TextSpan(
+              text: 'Pet',
+              children: [
+                TextSpan(
+                  text: 'Mate',
+                  style: TextStyle(color: _coralAccent),
+                ),
+              ],
+            ),
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.3,
+              color: _charcoalText,
+            ),
+          ),
+          const Spacer(),
+          _HeaderIconButton(
+            icon: Icons.settings_outlined,
+            onTap: () => context.push('/settings/notifications'),
           ),
         ],
       ),
     );
   }
 
-  // --- Helper Widgets ---
-
-  Widget _buildIdentityCard({
+  Widget _buildProfileInfoCard({
     required BuildContext context,
     required String? avatarUrl,
     required String initial,
     required String displayName,
-    required String? email,
     required UserRole role,
     required String? location,
+    required String? email,
     required String? bio,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _softBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // User Avatar with edit badge
-          Stack(
-            alignment: Alignment.bottomRight,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(color: _softBorder, width: 1.5),
                 ),
                 child: UserAvatar(
                   imageUrl: avatarUrl,
-                  radius: 46,
+                  radius: 28,
                   initials: initial,
                   onTap: () => context.push('/onboarding/owner'),
                 ),
               ),
-              GestureDetector(
-                onTap: () => context.push('/onboarding/owner'),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: AppColors.terracotta,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.edit_rounded,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Full Name
-          Text(
-            displayName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Role Badge & Location Tag
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Role Tag
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: _getRoleColor(role).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _getRoleIcon(role),
-                      size: 13,
-                      color: _getRoleColor(role),
-                    ),
-                    const SizedBox(width: 4),
                     Text(
-                      _formatRoleName(role),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: _getRoleColor(role),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (location != null && location.trim().isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.location_on_rounded,
-                      size: 14,
-                      color: AppColors.terracotta,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      location.trim(),
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: _charcoalText,
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        _formatRoleName(role),
+                        if (location != null && location.isNotEmpty) location,
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: _mutedText,
+                      ),
+                    ),
+                    if (email != null && email.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        email.trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _mutedText,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => context.push('/onboarding/owner'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _charcoalText,
+                  side: const BorderSide(color: _softBorder),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
             ],
           ),
-
-          if (email != null && email.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              email,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-
-          // Bio if present
           if (bio != null && bio.trim().isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.cream,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                bio.trim(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
-                ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, thickness: 0.8, color: _softBorder),
+            const SizedBox(height: 12),
+            Text(
+              bio.trim(),
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.45,
+                color: _charcoalText,
               ),
             ),
           ],
@@ -528,85 +474,66 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Widget _buildStatsBar({
     required int totalPets,
-    required int activeInDeck,
-    required String roleName,
+    required int activePets,
+    required int activeRequests,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _softBorder),
       ),
       child: Row(
         children: [
-          _buildStatItem(
-            'Total Pets',
-            '$totalPets',
-            Icons.pets_rounded,
-            AppColors.primary,
+          _buildStatColumn(
+            value: '$totalPets',
+            label: 'Total pets',
           ),
-          _buildStatDivider(),
-          _buildStatItem(
-            'Active in Deck',
-            '$activeInDeck',
-            Icons.visibility_rounded,
-            AppColors.success,
+          Container(width: 1, height: 28, color: _softBorder),
+          _buildStatColumn(
+            value: '$activePets',
+            label: 'Active pets',
           ),
-          _buildStatDivider(),
-          _buildStatItem(
-            'Account',
-            roleName,
-            Icons.verified_user_rounded,
-            AppColors.terracotta,
+          Container(width: 1, height: 28, color: _softBorder),
+          _buildStatColumn(
+            value: '$activeRequests',
+            label: 'Mating requests',
+            accentValue: activeRequests > 0,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildStatColumn({
+    required String value,
+    required String label,
+    bool accentValue = false,
+  }) {
     return Expanded(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: accentValue ? _primaryTeal : _charcoalText,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: _mutedText,
             ),
           ),
         ],
@@ -614,284 +541,53 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Widget _buildStatDivider() {
-    return Container(height: 28, width: 1, color: AppColors.border);
-  }
-
-  Widget _buildPetsSection(BuildContext context, List pets) {
+  Widget _buildMyPetsSection(BuildContext context, List<PetEntity> pets) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.pets, size: 18, color: AppColors.terracotta),
-                const SizedBox(width: 6),
-                Text(
-                  'My Pets (${pets.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
+            const Text(
+              'My pets',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _charcoalText,
+              ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: () => context.push('/my-pets'),
-                  child: const Text(
-                    'Manage',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => context.push('/onboarding/pet'),
-                  icon: const Icon(
-                    Icons.add,
-                    size: 16,
-                    color: AppColors.terracotta,
-                  ),
-                  label: const Text(
-                    'Add Pet',
-                    style: TextStyle(
-                      color: AppColors.terracotta,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => context.push('/onboarding/pet'),
+              style: TextButton.styleFrom(
+                foregroundColor: _primaryTeal,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: const Text(
+                'Add pet',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-
         if (pets.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.pets_rounded,
-                  size: 40,
-                  color: AppColors.primaryLight,
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'No pets registered yet',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Add your pet\'s profile to start discovering friends!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.terracotta,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 10,
-                    ),
-                  ),
-                  onPressed: () => context.push('/onboarding/pet'),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text(
-                    'Add My Pet',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          )
+          _buildEmptyPetsCard(context)
         else
           SizedBox(
-            height: 154,
+            height: 224,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              itemCount: pets.length + 1, // +1 for Add Pet shortcut card
+              itemCount: pets.length + 1,
               separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 if (index == pets.length) {
-                  // Add Pet Shortcut Card
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => context.push('/onboarding/pet'),
-                      borderRadius: BorderRadius.circular(18),
-                      child: Container(
-                        width: 110,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: AppColors.terracotta.withValues(alpha: 0.5),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: AppColors.cream,
-                              child: Icon(
-                                Icons.add_rounded,
-                                color: AppColors.terracotta,
-                                size: 24,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Add Pet',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.terracotta,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
+                  return _buildAddPetCard(context);
                 }
-
-                final pet = pets[index];
-                return Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    onTap: () => context.push('/pet/${pet.id}'),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      width: 124,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: pet.isActive
-                              ? AppColors.primary.withValues(alpha: 0.6)
-                              : AppColors.border,
-                          width: pet.isActive ? 1.5 : 1.0,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              AppNetworkImage(
-                                imageUrl:
-                                    pet.effectiveImageUrl ??
-                                    pet.profilePictureUrl,
-                                width: 52,
-                                height: 52,
-                                shape: BoxShape.circle,
-                                fallbackIcon: Icons.pets,
-                              ),
-                              Container(
-                                width: 13,
-                                height: 13,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: pet.isActive
-                                      ? AppColors.success
-                                      : AppColors.textMuted,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            pet.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            pet.breed ?? pet.animalType ?? 'Pet',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  (pet.isActive
-                                          ? AppColors.success
-                                          : AppColors.textSecondary)
-                                      .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              pet.isActive ? 'Active' : 'Inactive',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                                color: pet.isActive
-                                    ? AppColors.success
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
+                return _buildPetProfileCard(context, pets[index]);
               },
             ),
           ),
@@ -899,34 +595,263 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.2,
+  Widget _buildEmptyPetsCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _softBorder),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.pets_outlined,
+            size: 28,
+            color: _mutedText,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No pets added yet',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: _charcoalText,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Add your pet profile to start matching nearby',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: _mutedText),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => context.push('/onboarding/pet'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryTeal,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Add pet',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPetProfileCard(BuildContext context, PetEntity pet) {
+    final subtitleParts = <String>[
+      if (pet.gender != null && pet.gender!.trim().isNotEmpty)
+        _formatGender(pet.gender!),
+      if (pet.dateOfBirth != null) pet.ageString.replaceFirst(' old', ''),
+    ];
+
+    return Material(
+      color: _cardWhite,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.push('/pet/${pet.id}'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 172,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _softBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Visual focus: Pet photo
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
+                    ),
+                    child: SizedBox(
+                      height: 132,
+                      width: double.infinity,
+                      child: AppNetworkImage(
+                        imageUrl: pet.effectiveImageUrl,
+                        fit: BoxFit.cover,
+                        fallbackIcon: Icons.pets_rounded,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _cardWhite.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: pet.isActive ? _activeGreen : _mutedText,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            pet.isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: pet.isActive ? _charcoalText : _mutedText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Pet Details
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              pet.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: _charcoalText,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: _mutedText,
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pet.breed?.trim().isNotEmpty == true
+                                ? pet.breed!.trim()
+                                : (pet.animalType ?? 'Pet'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: _charcoalText,
+                            ),
+                          ),
+                          if (subtitleParts.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              subtitleParts.join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: _mutedText,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSettingsGroup(List<_SettingsItem> items) {
+  Widget _buildAddPetCard(BuildContext context) {
+    return Material(
+      color: _cardWhite,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.push('/onboarding/pet'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 112,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _softBorder),
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_rounded,
+                color: _primaryTeal,
+                size: 22,
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Add pet',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: _primaryTeal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: _mutedText,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupedList(List<_ActionRowItem> items) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _softBorder),
       ),
       child: Column(
         children: items.asMap().entries.map((entry) {
@@ -936,112 +861,98 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
           return Column(
             children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: item.onTap,
-                  borderRadius: BorderRadius.vertical(
-                    top: index == 0 ? const Radius.circular(18) : Radius.zero,
-                    bottom: isLast ? const Radius.circular(18) : Radius.zero,
+              InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.vertical(
+                  top: index == 0 ? const Radius.circular(12) : Radius.zero,
+                  bottom: isLast ? const Radius.circular(12) : Radius.zero,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
-                    child: Row(
-                      children: [
-                        // Icon Squircle
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Icon(item.icon, size: 18, color: _mutedText),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: _charcoalText,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _mutedText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (item.highlightDot) ...[
                         Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: item.iconColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: const BoxDecoration(
+                            color: _coralAccent,
+                            shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            item.icon,
-                            size: 20,
-                            color: item.iconColor,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Title & Subtitle
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      item.title,
-                                      style: const TextStyle(
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  if (item.badge != null) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            (item.badgeColor ??
-                                                    AppColors.primary)
-                                                .withValues(alpha: 0.14),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        item.badge!,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color:
-                                              item.badgeColor ??
-                                              AppColors.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.subtitle,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Chevron
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: AppColors.textMuted,
                         ),
                       ],
-                    ),
+                      if (item.count > 0) ...[
+                        Text(
+                          '${item.count}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _mutedText,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ] else if (item.statusLabel != null) ...[
+                        Text(
+                          item.statusLabel!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _activeGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: _mutedText,
+                      ),
+                    ],
                   ),
                 ),
               ),
               if (!isLast)
-                Divider(
+                const Divider(
                   height: 1,
-                  thickness: 0.7,
-                  indent: 68,
+                  thickness: 0.8,
+                  indent: 50,
                   endIndent: 16,
-                  color: AppColors.border.withValues(alpha: 0.7),
+                  color: _softBorder,
                 ),
             ],
           );
@@ -1050,30 +961,37 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return Colors.deepPurple;
-      case UserRole.veterinarian:
-        return const Color(0xFF0284C7);
-      case UserRole.seller:
-        return AppColors.terracotta;
-      case UserRole.petOwner:
-        return AppColors.primaryDark;
-    }
-  }
-
-  IconData _getRoleIcon(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return Icons.admin_panel_settings_rounded;
-      case UserRole.veterinarian:
-        return Icons.medical_services_rounded;
-      case UserRole.seller:
-        return Icons.storefront_rounded;
-      case UserRole.petOwner:
-        return Icons.pets_rounded;
-    }
+  Widget _buildSignOutButton(BuildContext context) {
+    return Material(
+      color: _cardWhite,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _confirmSignOut(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _softBorder),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, color: _dangerRed, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Sign out',
+                style: TextStyle(
+                  color: _dangerRed,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatRoleName(UserRole? role) {
@@ -1089,24 +1007,97 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         return 'Pet Owner';
     }
   }
+
+  String _formatGender(String gender) {
+    final upper = gender.trim().toUpperCase();
+    if (upper == 'MALE') return 'Male';
+    if (upper == 'FEMALE') return 'Female';
+    return gender.trim();
+  }
 }
 
-class _SettingsItem {
+class _HeaderIconButton extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String? badge;
-  final Color? badgeColor;
   final VoidCallback onTap;
 
-  const _SettingsItem({
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _ProfilePageState._cardWhite,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: _ProfilePageState._softBorder),
+          ),
+          child: Icon(
+            icon,
+            color: _ProfilePageState._charcoalText,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Wraps EventsHomeScreen in a Scaffold with AppBar when pushed from Profile.
+class _EventsWrapper extends StatelessWidget {
+  const _EventsWrapper();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _ProfilePageState._warmIvory,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: _ProfilePageState._charcoalText,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Pet events',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: _ProfilePageState._charcoalText,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: const SafeArea(child: EventsHomeScreen()),
+    );
+  }
+}
+
+class _ActionRowItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final int count;
+  final String? statusLabel;
+  final bool highlightDot;
+  final VoidCallback onTap;
+
+  const _ActionRowItem({
     required this.icon,
-    required this.iconColor,
     required this.title,
     required this.subtitle,
-    this.badge,
-    this.badgeColor,
+    this.count = 0,
+    this.statusLabel,
+    this.highlightDot = false,
     required this.onTap,
   });
 }

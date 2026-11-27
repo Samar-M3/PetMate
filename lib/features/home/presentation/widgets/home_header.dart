@@ -3,30 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/in_app_notification_service.dart';
-import '../../../../core/widgets/app_network_image.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 class HomeHeader extends ConsumerWidget {
-  final VoidCallback onProfileTap;
-
-  const HomeHeader({super.key, required this.onProfileTap});
+  const HomeHeader({super.key});
 
   static const Color _deepTeal = Color(0xFF0F5C57);
-  static const Color _sageGreen = Color(0xFFE8F0EA);
   static const Color _softCoral = Color(0xFFE16F52);
   static const Color _darkText = Color(0xFF293A37);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).user;
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
-    final profile = user?.profile;
-    final avatarUrl = profile?.effectiveImageUrl ?? profile?.profilePictureUrl;
-    final initial = (profile?.fullName != null && profile!.fullName!.isNotEmpty)
-        ? profile.fullName![0].toUpperCase()
-        : (user?.email != null && user!.email!.isNotEmpty)
-        ? user.email![0].toUpperCase()
-        : 'P';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
@@ -84,7 +71,7 @@ class HomeHeader extends ConsumerWidget {
             ],
           ),
 
-          // Notification Bell & User Profile Avatar
+          // Notification Bell & Location
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -157,27 +144,6 @@ class HomeHeader extends ConsumerWidget {
                         size: 21,
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: onProfileTap,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _sageGreen,
-                    border: Border.all(
-                      color: _deepTeal.withValues(alpha: 0.25),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: UserAvatar(
-                    imageUrl: avatarUrl,
-                    radius: 18,
-                    initials: initial,
-                    onTap: onProfileTap,
                   ),
                 ),
               ),
