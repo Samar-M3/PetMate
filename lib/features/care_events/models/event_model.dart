@@ -4,6 +4,7 @@ class PetEvent {
   final String id;
   final String title;
   final String category; // e.g. 'MEETUP', 'AGILITY' (admins can add more)
+  final String? imageUrl;
   final String dayName; // 'SUN'
   final String dayNum; // '18'
   final String fullDate; // 'Nov 18, 2026'
@@ -18,6 +19,7 @@ class PetEvent {
     required this.id,
     required this.title,
     required this.category,
+    this.imageUrl,
     required this.dayName,
     required this.dayNum,
     required this.fullDate,
@@ -33,11 +35,16 @@ class PetEvent {
     final rawDate = (j['fullDate'] ?? j['eventDate'] ?? j['date'] ?? '')
         .toString();
     final date = parseCareDate(rawDate);
+    final rawImage =
+        (j['imageUrl'] ?? j['image_url'] ?? j['posterUrl'] ?? j['poster_url'])
+            ?.toString()
+            .trim();
 
     return PetEvent(
       id: j['id'].toString(),
       title: (j['title'] ?? '').toString(),
       category: (j['category'] ?? 'OTHER').toString().toUpperCase(),
+      imageUrl: (rawImage != null && rawImage.isNotEmpty) ? rawImage : null,
       // Derive from the real date when possible; older rows stored a fixed 'SUN'.
       dayName: date != null
           ? weekdayShort(date)
@@ -55,11 +62,17 @@ class PetEvent {
     );
   }
 
-  PetEvent copyWith({int? attendeeCount, bool? isBookmarked, bool? isBooked}) {
+  PetEvent copyWith({
+    String? imageUrl,
+    int? attendeeCount,
+    bool? isBookmarked,
+    bool? isBooked,
+  }) {
     return PetEvent(
       id: id,
       title: title,
       category: category,
+      imageUrl: imageUrl ?? this.imageUrl,
       dayName: dayName,
       dayNum: dayNum,
       fullDate: fullDate,

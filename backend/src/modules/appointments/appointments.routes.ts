@@ -3,6 +3,7 @@ import {
   getAppointments,
   bookAppointment,
   updateStatus,
+  getBookedSlotsHandler,
 } from "./appointments.controller.ts";
 import {
   authenticateFirebase,
@@ -21,5 +22,6 @@ router.use(requirePasswordSetupComplete);
 router.get("/", getAppointments);
 router.post("/", bookAppointment);
 router.patch("/:id/status", requireRole(Role.VETERINARIAN, Role.ADMIN), updateStatus);
+router.get("/booked-slots", getBookedSlotsHandler);
 
 export default router;

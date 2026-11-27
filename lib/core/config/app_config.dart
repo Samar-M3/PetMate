@@ -5,11 +5,11 @@ class AppConfig {
   static const String appVersion = '1.0.0';
 
   // Laptop local LAN IP for physical device testing over Wi-Fi
-  static const String defaultLanIp = '192.168.1.29';
+  static const String defaultLanIp = 'localhost';
 
   // Backend host:
   // - Web / Windows desktop -> localhost
-  // - Physical Android device -> defaultLanIp (192.168.1.29)
+  // - Physical Android device -> defaultLanIp
   // - Can be overridden anytime with:
   //     flutter run --dart-define=BACKEND_HOST=localhost (for adb reverse)
   //     flutter run --dart-define=BACKEND_HOST=<new_ip>
@@ -19,8 +19,6 @@ class AppConfig {
 
     if (kIsWeb) return 'localhost';
 
-    // On physical Android device, 'localhost' refers to the phone itself.
-    // Default to the laptop LAN IP so it connects over Wi-Fi automatically.
     if (defaultTargetPlatform == TargetPlatform.android) {
       return defaultLanIp;
     }

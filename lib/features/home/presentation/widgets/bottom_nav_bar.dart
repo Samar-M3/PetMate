@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-
 class PetMateBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -14,48 +12,62 @@ class PetMateBottomNavBar extends StatelessWidget {
     this.pendingRequestsCount = 0,
   });
 
+  static const Color _deepTeal = Color(0xFF0F5C57);
+  static const Color _sageGreen = Color(0xFFE8F0EA);
+  static const Color _softCoral = Color(0xFFE16F52);
+  static const Color _darkText = Color(0xFF293A37);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE4ECE6), width: 1.0),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            spreadRadius: 2,
-            offset: const Offset(0, -4),
+            color: const Color(0xFF1A2926).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+              _buildNavItem(
+                index: 0,
+                icon: Icons.pets_outlined,
+                activeIcon: Icons.pets_rounded,
+                label: 'Discover',
+              ),
               _buildNavItem(
                 index: 1,
-                icon: Icons.chat_bubble_rounded,
+                icon: Icons.chat_bubble_outline_rounded,
+                activeIcon: Icons.chat_bubble_rounded,
                 label: 'Chats',
                 badgeCount: pendingRequestsCount,
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.calendar_month_rounded,
+                icon: Icons.calendar_today_outlined,
+                activeIcon: Icons.calendar_month_rounded,
                 label: 'Events',
               ),
               _buildNavItem(
                 index: 3,
-                icon: Icons.shopping_bag_rounded,
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront_rounded,
                 label: 'Shop',
               ),
               _buildNavItem(
                 index: 4,
-                icon: Icons.medical_services_rounded,
+                icon: Icons.medical_services_outlined,
+                activeIcon: Icons.medical_services_rounded,
                 label: 'Vet Appts',
               ),
             ],
@@ -68,54 +80,66 @@ class PetMateBottomNavBar extends StatelessWidget {
   Widget _buildNavItem({
     required int index,
     required IconData icon,
+    required IconData activeIcon,
     required String label,
     int badgeCount = 0,
   }) {
     final isSelected = selectedIndex == index;
-    final color = isSelected ? AppColors.terracotta : AppColors.textMuted;
+    final iconColor = isSelected ? _deepTeal : const Color(0xFF6B7B76);
+    final labelColor = isSelected ? _darkText : const Color(0xFF6B7B76);
 
-    return InkWell(
-      onTap: () => onItemSelected(index),
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.terracotta.withValues(alpha: 0.12)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Badge(
+    return Expanded(
+      child: InkWell(
+        onTap: () => onItemSelected(index),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
                 isLabelVisible: badgeCount > 0,
+                backgroundColor: _softCoral,
                 label: Text(
                   badgeCount > 99 ? '99+' : '$badgeCount',
                   style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
-                backgroundColor: AppColors.terracotta,
-                child: Icon(icon, size: 22, color: color),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _sageGreen : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    isSelected ? activeIcon : icon,
+                    size: 21,
+                    color: iconColor,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: color,
-                letterSpacing: -0.2,
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: labelColor,
+                  letterSpacing: -0.1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

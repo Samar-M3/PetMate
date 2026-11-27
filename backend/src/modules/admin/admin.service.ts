@@ -24,6 +24,93 @@ export const listUsers = async ({
 }: ListUsersParams) => {
   const skip = (page - 1) * limit;
 
+  // If filtering for VETERINARIAN role, we need to merge users with VETERINARIAN role
+  // and veterinarians from the Veterinarian table
+  if (role === Role.VETERINARIAN) {
+    const [vetUsers, veterinarians, vetUsersTotal, vetsTotal] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: Role.VETERINARIAN, ...(search ? { OR: [
+          { email: { contains: search, mode: "insensitive" } },
+          { profile: { fullName: { contains: search, mode: "insensitive" } } },
+        ]} : {}) },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          profile: { select: { fullName: true, imageUrl: true } },
+          _count: { select: { pets: true } },
+        },
+      }),
+      prisma.veterinarian.findMany({
+        where: search ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { clinicName: { contains: search, mode: "insensitive" } },
+          ]
+        } : {},
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.count({ 
+        where: { 
+          role: Role.VETERINARIAN, 
+          ...(search ? { 
+            OR: [
+              { email: { contains: search, mode: "insensitive" } },
+              { profile: { fullName: { contains: search, mode: "insensitive" } } },
+            ]
+          } : {}) 
+        } 
+      }),
+      prisma.veterinarian.count({ 
+        where: search ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { clinicName: { contains: search, mode: "insensitive" } },
+          ]
+        } : {} 
+      })
+    ]);
+
+    // Merge users and veterinarians, avoiding duplicates by checking if user already has VETERINARIAN role
+    const vetUserEmails = new Set(vetUsers.map(u => u.email?.toLowerCase()).filter(Boolean));
+    const vetUsersFromVetTable = veterinarians
+      .filter(v => !vetUserEmails.has(v.name.toLowerCase())) // Simple dedup by name
+      .map(v => ({
+        id: `vet_${v.id}`, // Prefix to distinguish from real users
+        firebaseUid: `vet_${v.id}`,
+        email: null,
+        phoneNumber: null,
+        role: Role.VETERINARIAN,
+        isActive: v.isAcceptingBookings,
+        onboardingCompleted: false,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+        profile: {
+          fullName: v.name,
+          imageUrl: null,
+        },
+        _count: { pets: 0 },
+        isVeterinarianRecord: true,
+        veterinarianData: v,
+      }));
+
+    const mergedUsers = [...vetUsers, ...vetUsersFromVetTable];
+    const total = vetUsersTotal + vetsTotal;
+
+    return {
+      users: mergedUsers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // For non-VETERINARIAN roles, use the standard query
   const where: Record<string, any> = {};
   if (role) {
     where.role = role;

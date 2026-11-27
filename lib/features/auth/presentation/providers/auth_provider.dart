@@ -9,9 +9,11 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../care_events/providers/care_events_provider.dart';
 import '../../../home/presentation/providers/discovery_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../domain/entities/user_role.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -232,6 +234,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
             retryCount: retryCount + 1,
             isBackground: isBackground,
           );
+          return;
         }
       }
       // All retries exhausted — keep isLoading: false but do NOT set user
@@ -309,8 +312,39 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
 
       // Profile is synced via stream or fallback
       await _syncBackendProfile(cred.user!);
+
+      if (state.user?.role == UserRole.veterinarian) {
+        try {
+          final vet = await ref.read(myVetProfileProvider.future);
+          if (vet != null) {
+            ref.read(currentVetProvider.notifier).setVet(vet);
+          }
+        } catch (_) {}
+      }
+
       return state.onboardingStatus?.nextStep ?? 'PET_INFO';
     } on FirebaseAuthException catch (e) {
+      // If Firebase email/password fails, check if this is a veterinarian created by Admin
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        try {
+          final vet = await ref
+              .read(careVetsProvider.notifier)
+              .vetLogin(email, password);
+          if (vet != null) {
+            ref.read(currentVetProvider.notifier).setVet(vet);
+            final currentFbUser = FirebaseAuth.instance.currentUser;
+            if (currentFbUser != null) {
+              await _syncBackendProfile(currentFbUser);
+            }
+            return 'COMPLETED';
+          }
+        } catch (_) {
+          // Vet login failed, continue to standard error message
+        }
+      }
+
       String msg = 'Authentication failed. Please check your credentials.';
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||
@@ -322,6 +356,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         msg = e.message!;
       }
       state = state.copyWith(isLoading: false, errorMessage: msg);
+      return null;
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Sign-in timed out. Please check your internet connection and try again.',
+      );
       return null;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -335,6 +376,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
       final cred = await _authService.signInWithGoogle();
       await _syncBackendProfile(cred.user!);
       return state.onboardingStatus?.nextStep ?? 'PET_INFO';
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Google sign-in timed out. Please check your internet connection and try again.',
+      );
+      return null;
     } catch (e) {
       String msg = e.toString();
       if (msg.contains('ApiException: 7') || msg.contains('network_error')) {
@@ -375,6 +423,13 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         msg = e.message!;
       }
       state = state.copyWith(isLoading: false, errorMessage: msg);
+      return false;
+    } on TimeoutException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Registration timed out. Please check your internet connection and try again.',
+      );
       return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());

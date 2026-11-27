@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
+import '../../../auth/domain/entities/user_entity.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../models/app_theme.dart';
 import '../../models/vet_model.dart';
 import '../../providers/care_events_provider.dart';
@@ -19,13 +23,15 @@ class BookAppointmentScreen extends ConsumerStatefulWidget {
 class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   static const int _daysAhead = 7;
 
-  final _petController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
+  PetEntity? _selectedPet;
 
   late final List<DateTime> _dates;
   late DateTime _selectedDate;
   String? _selectedSlot;
   bool _submitting = false;
+  String? _initialError;
 
   @override
   void initState() {
@@ -37,11 +43,24 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
     ];
     _selectedDate = _dates.first;
     _selectedSlot = _firstBookableSlot();
+    
+    // Validate vet availability upfront
+    _validateVetAvailability();
+  }
+
+  void _validateVetAvailability() {
+    final vet = widget.vet;
+    if (!vet.isVerified) {
+      _initialError = 'This veterinarian is not verified and cannot accept appointments.';
+    } else if (!vet.isAcceptingBookings) {
+      _initialError = 'This veterinarian is not currently accepting bookings.';
+    } else if (vet.availableSlots.isEmpty) {
+      _initialError = 'This veterinarian has no available time slots configured.';
+    }
   }
 
   @override
   void dispose() {
-    _petController.dispose();
     _reasonController.dispose();
     super.dispose();
   }
@@ -62,14 +81,15 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
     return null;
   }
 
+  List<PetEntity> _getUserPets() {
+    final user = ref.read(authStateProvider).user;
+    if (user == null) return [];
+    return user.pets.where((p) => p.isActive).toList();
+  }
+
   Future<void> _confirmBooking() async {
-    final pet = _petController.text.trim();
-    if (pet.isEmpty) {
-      showCareSnackBar(
-        context,
-        'Please enter your pet\'s name.',
-        isError: true,
-      );
+    if (_selectedPet == null) {
+      showCareSnackBar(context, 'Please select a pet.', isError: true);
       return;
     }
     final slot = _selectedSlot;
@@ -78,12 +98,25 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       return;
     }
 
+    // Additional client-side validation
+    final vet = widget.vet;
+    if (!vet.isVerified) {
+      showCareSnackBar(context, 'This veterinarian is not verified.', isError: true);
+      return;
+    }
+    if (!vet.isAcceptingBookings) {
+      showCareSnackBar(context, 'This veterinarian is not accepting bookings.', isError: true);
+      return;
+    }
+    if (!vet.availableSlots.contains(slot)) {
+      showCareSnackBar(context, 'Selected time slot is no longer available.', isError: true);
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
-      await ref
-          .read(appointmentsProvider.notifier)
-          .bookAppointment(
-            petName: pet,
+      await ref.read(appointmentsProvider.notifier).bookAppointment(
+            petName: _selectedPet!.name,
             vetId: widget.vet.id,
             date: formatCareDate(_selectedDate),
             timeSlot: slot,
@@ -96,7 +129,28 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
       if (mounted) {
-        showCareSnackBar(context, 'Booking failed: $e', isError: true);
+        // Provide more user-friendly error messages
+        String errorMessage = e.toString();
+        if (errorMessage.contains('Veterinarian not found')) {
+          errorMessage = 'Veterinarian not found. Please try again.';
+        } else if (errorMessage.contains('not verified')) {
+          errorMessage = 'This veterinarian is not verified.';
+        } else if (errorMessage.contains('not currently accepting bookings')) {
+          errorMessage = 'This veterinarian is not currently accepting bookings.';
+        } else if (errorMessage.contains('not available for this veterinarian')) {
+          errorMessage = 'Selected time slot is not available for this veterinarian.';
+        } else if (errorMessage.contains('already been booked')) {
+          errorMessage = 'This time slot has already been booked. Please choose another.';
+        } else if (errorMessage.contains('Pet not found')) {
+          errorMessage = 'Pet not found. Please select a valid pet.';
+        } else if (errorMessage.contains('401') || errorMessage.contains('session has expired')) {
+          errorMessage = 'Your session has expired. Please sign in again.';
+        } else if (errorMessage.contains('403') || errorMessage.contains('permission')) {
+          errorMessage = 'You do not have permission to book this appointment.';
+        } else if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring('Exception: '.length);
+        }
+        showCareSnackBar(context, 'Booking failed: $errorMessage', isError: true);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -106,6 +160,63 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   @override
   Widget build(BuildContext context) {
     final vet = widget.vet;
+    final userPets = _getUserPets();
+
+    // Show error if vet is not available for booking
+    if (_initialError != null) {
+      return Scaffold(
+        backgroundColor: CareTheme.background,
+        appBar: careAppBar('Schedule Clinic Visit'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.block,
+                  size: 64,
+                  color: CareTheme.terracotta.withValues(alpha: 0.7),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Unable to Book',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: CareTheme.charcoal,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _initialError!,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: CareTheme.mutedText,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Go Back'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CareTheme.terracotta,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: CareTheme.background,
@@ -113,9 +224,11 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -154,13 +267,98 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            _label('Pet Name'),
-            TextField(
-              controller: _petController,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.next,
-              decoration: _inputDecoration('e.g., Toto'),
-            ),
+            _label('Select Pet'),
+            if (userPets.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CareTheme.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'No registered pets found.',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: CareTheme.charcoal),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please add a pet from your profile before booking an appointment.',
+                      style: TextStyle(color: CareTheme.mutedText, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/profile'),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Pet'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: CareTheme.terracotta,
+                          side: const BorderSide(color: CareTheme.terracotta),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              DropdownButtonFormField<PetEntity>(
+                value: _selectedPet,
+                decoration: _inputDecoration('Select your pet'),
+                isExpanded: true,
+                items: userPets.map((pet) {
+                  final imageUrl = pet.effectiveImageUrl;
+                  return DropdownMenuItem<PetEntity>(
+                    value: pet,
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: CareTheme.sageGreen,
+                          backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                              ? NetworkImage(imageUrl)
+                              : null,
+                          child: (imageUrl == null || imageUrl.isEmpty)
+                              ? const Icon(Icons.pets, size: 18, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                pet.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: CareTheme.charcoal),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (pet.animalType != null || pet.breed != null)
+                                Text(
+                                  '${pet.animalType ?? ''}${pet.animalType != null && pet.breed != null ? ' • ' : ''}${pet.breed ?? ''}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: CareTheme.mutedText),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (pet) => setState(() => _selectedPet = pet),
+                validator: (value) => value == null ? 'Please select a pet' : null,
+              ),
             const SizedBox(height: 20),
             _label('Select Date'),
             Wrap(
@@ -253,6 +451,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

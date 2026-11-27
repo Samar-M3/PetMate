@@ -9,6 +9,9 @@ class AdminUserModel {
   final String? imageUrl;
   final int petsCount;
   final DateTime createdAt;
+  // For veterinarian records from Veterinarian table (not User table)
+  final bool isVeterinarianRecord;
+  final Map<String, dynamic>? veterinarianData;
 
   AdminUserModel({
     required this.id,
@@ -21,6 +24,8 @@ class AdminUserModel {
     this.imageUrl,
     required this.petsCount,
     required this.createdAt,
+    this.isVeterinarianRecord = false,
+    this.veterinarianData,
   });
 
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
@@ -46,6 +51,26 @@ class AdminUserModel {
       createdAt:
           DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),
+      isVeterinarianRecord: json['isVeterinarianRecord'] as bool? ?? false,
+      veterinarianData: json['veterinarianData'] as Map<String, dynamic>?,
     );
   }
+
+  // Helper to get clinic name for veterinarian records
+  String? get clinicName => veterinarianData?['clinicName'] as String?;
+  
+  // Helper to get specialty for veterinarian records
+  String? get specialty => veterinarianData?['specialty'] as String?;
+  
+  // Helper to get address for veterinarian records
+  String? get address => veterinarianData?['address'] as String?;
+  
+  // Helper to get fee for veterinarian records
+  int? get fee => veterinarianData?['fee'] as int?;
+  
+  // Helper to get isVerified for veterinarian records
+  bool get isVerified => veterinarianData?['isVerified'] == true;
+  
+  // Helper to get isAcceptingBookings for veterinarian records
+  bool get isAcceptingBookings => veterinarianData?['isAcceptingBookings'] == true;
 }

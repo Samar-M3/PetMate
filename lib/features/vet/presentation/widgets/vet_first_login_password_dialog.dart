@@ -66,6 +66,7 @@ class _VetFirstLoginPasswordDialogState
         title: const Text('Set your new password'),
         content: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

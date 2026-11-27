@@ -19,11 +19,16 @@ class DiscoveryPetModel extends DiscoveryPet {
   });
 
   factory DiscoveryPetModel.fromJson(Map<String, dynamic> json) {
-    final rawImageUrl =
-        json['petImageUrl'] as String? ??
-        json['imageUrl'] as String? ??
-        json['profilePictureUrl'] as String? ??
-        '';
+    final candidateImages = <String?>[
+      json['petImageUrl'] as String?,
+      json['imageUrl'] as String?,
+      json['profilePictureUrl'] as String?,
+      if (json['photos'] is List)
+        ...(json['photos'] as List).map((e) => e?.toString()),
+    ];
+    final rawImageUrl = candidateImages
+            .map((e) => e?.trim() ?? '')
+            .firstWhere((e) => e.isNotEmpty, orElse: () => '');
 
     return DiscoveryPetModel(
       id: json['id'] as String? ?? '',

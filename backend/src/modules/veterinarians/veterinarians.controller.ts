@@ -7,9 +7,13 @@ import {
   updateVeterinarianRecord,
   updateVetSlotsRecord,
   deleteVeterinarian,
+  verifyVetPassword,
+  findVetByEmail,
+  ensureVetUser,
 } from "./veterinarians.service.ts";
 import { sendSuccess } from "../../utils/apiResponse.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+import { firebaseAuth } from "../../config/firebase.ts";
 import { validateCreateVeterinarianAccount } from "./veterinarians.validation.ts";
 
 export const getVeterinarians = async (
@@ -66,6 +70,60 @@ export const addVeterinarian = async (
       statusCode: 201,
       message: "Veterinarian account created. The veterinarian must set a new password at first login.",
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const vetLogin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return next(new AppError("Email and password are required", 400));
+    }
+
+    const veterinarian = await findVetByEmail(email);
+    if (!veterinarian) {
+      return next(new AppError("Invalid email or password", 401));
+    }
+
+    const isValid = await verifyVetPassword(veterinarian.id, password);
+    if (!isValid) {
+      return next(new AppError("Invalid email or password", 401));
+    }
+
+    // Ensure a corresponding User record exists for Firebase auth middleware
+    await ensureVetUser(veterinarian);
+
+    // Create a custom token for the veterinarian
+    const customToken = await firebaseAuth.createCustomToken(veterinarian.id, {
+      role: "VETERINARIAN",
+      vetId: veterinarian.id,
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Login successful",
+      data: {
+        veterinarian: {
+          id: veterinarian.id,
+          name: veterinarian.name,
+          email: veterinarian.email,
+          clinicName: veterinarian.clinicName,
+          specialty: veterinarian.specialty,
+          address: veterinarian.address,
+          fee: veterinarian.fee,
+          isVerified: veterinarian.isVerified,
+          isAcceptingBookings: veterinarian.isAcceptingBookings,
+          availableSlots: veterinarian.availableSlots,
+        },
+        customToken,
+      },
     });
   } catch (error) {
     next(error);

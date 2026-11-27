@@ -4,6 +4,7 @@ import {
   getDeckFeed,
   recordSwipe,
   undoLastPassSwipe,
+  resetPassSwipes,
   getIncomingRequests,
   acceptConnectionRequest,
   rejectConnectionRequest,
@@ -132,6 +133,38 @@ export const postUndoSwipe = async (
     sendSuccess(res, {
       statusCode: 200,
       message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postResetPasses = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const { petId, actingPetId } = req.body;
+    const effectivePetId = actingPetId || petId;
+
+    if (!effectivePetId || typeof effectivePetId !== "string") {
+      return next(new AppError("petId or actingPetId (string) is required in request body", 400));
+    }
+
+    const result = await resetPassSwipes({
+      userId: req.user.id,
+      petId: effectivePetId.trim(),
+    });
+
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Passed pets reset successfully",
       data: result,
     });
   } catch (error) {

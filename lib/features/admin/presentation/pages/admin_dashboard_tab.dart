@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../widgets/stat_card.dart';
+import 'package:petmatee/features/care_events/providers/care_events_provider.dart';
 
 class AdminDashboardTab extends ConsumerWidget {
   final VoidCallback onNavigateToUsers;
@@ -182,7 +182,7 @@ class AdminDashboardTab extends ConsumerWidget {
                         }
                       },
                     ),
-                    const SizedBox(height: 32),
+const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -399,7 +399,7 @@ class AdminDashboardTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildRolePill(
+Widget _buildRolePill(
     String label,
     int count,
     double pct,

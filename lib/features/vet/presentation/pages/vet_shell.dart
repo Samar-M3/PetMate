@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:petmatee/features/care_events/screens/vet_management/vet_admin_dashboard.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -8,6 +9,37 @@ import '../widgets/vet_first_login_password_dialog.dart';
 
 class VetShell extends ConsumerStatefulWidget {
   const VetShell({super.key});
+
+  static Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Log Out?'),
+        content: const Text(
+          'Are you sure you want to log out from the Veterinarian Portal?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(authStateProvider.notifier).logout();
+    }
+  }
 
   @override
   ConsumerState<VetShell> createState() => _VetShellState();
@@ -47,6 +79,12 @@ class _VetShellState extends ConsumerState<VetShell> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          tooltip: 'Back',
+          onPressed: () => context.pop(),
+        ),
         title: Row(
           children: [
             Container(
@@ -80,7 +118,7 @@ class _VetShellState extends ConsumerState<VetShell> {
             ),
             tooltip: 'Log Out',
             onPressed: () async {
-              await ref.read(authStateProvider.notifier).logout();
+              await VetShell._handleLogout(context, ref);
             },
           ),
         ],
