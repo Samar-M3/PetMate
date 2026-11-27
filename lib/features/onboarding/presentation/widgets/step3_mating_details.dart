@@ -218,7 +218,7 @@ class _Step3MatingDetailsState extends ConsumerState<Step3MatingDetails> {
           'litterCount': int.tryParse(_litterCountController.text.trim()),
       },
       'temperament': _temperaments.toList(),
-      if (weight != null) 'weightKg': weight,
+      'weightKg': ?weight,
       if (_sizeCategory != null) 'sizeCategory': _sizeCategory,
       if (_colorCoatController.text.trim().isNotEmpty)
         'colorCoat': _colorCoatController.text.trim(),

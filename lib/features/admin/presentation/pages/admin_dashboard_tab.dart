@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/admin_stats_model.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../widgets/stat_card.dart';
@@ -277,7 +278,7 @@ const SizedBox(height: 32),
   }
 
   // --- Role Distribution Section ---
-  Widget _buildRoleDistributionCard(stats) {
+  Widget _buildRoleDistributionCard(AdminStatsModel stats) {
     final total = stats.totalUsers > 0 ? stats.totalUsers : 1;
     final petOwners = stats.usersByRole['PET_OWNER'] ?? 0;
     final sellers = stats.usersByRole['SELLER'] ?? 0;
@@ -463,7 +464,7 @@ Widget _buildRolePill(
   }
 
   // --- Recent Users Card ---
-  Widget _buildRecentUsersCard(stats) {
+  Widget _buildRecentUsersCard(AdminStatsModel stats) {
     final recentUsers = stats.recentUsers;
 
     return Container(
@@ -619,7 +620,7 @@ Widget _buildRolePill(
   }
 
   // --- Pending Approvals Card ---
-  Widget _buildPendingApprovalsCard(stats) {
+  Widget _buildPendingApprovalsCard(AdminStatsModel stats) {
     final pendingCount = stats.pendingApplications;
     final recentApps = stats.recentApplications;
 
@@ -829,7 +830,7 @@ Widget _buildRolePill(
   }
 
   // --- Platform Health Card ---
-  Widget _buildPlatformHealthCard(stats) {
+  Widget _buildPlatformHealthCard(AdminStatsModel stats) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

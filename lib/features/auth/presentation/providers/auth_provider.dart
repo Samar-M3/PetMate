@@ -237,7 +237,6 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
             retryCount: retryCount + 1,
             isBackground: isBackground,
           );
-          return;
         }
       }
       // All retries exhausted — keep isLoading: false but do NOT set user

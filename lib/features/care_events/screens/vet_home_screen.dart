@@ -508,9 +508,7 @@ class VetHomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.vaccines_rounded),
-                label: Text(nextVaccine == null
-                    ? 'Set next vaccine date (optional)'
-                    : 'Next vaccine: ${nextVaccine!.day}/${nextVaccine!.month}/${nextVaccine!.year}'),
+                label: Text('Set next vaccine date (optional)'),
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
@@ -519,7 +517,7 @@ class VetHomeScreen extends ConsumerWidget {
                     lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                   );
                   if (picked != null) {
-                    // Would need to update state here
+                    nextVaccine = picked;
                   }
                 },
               ),

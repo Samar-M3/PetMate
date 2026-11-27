@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/validated_form.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/shop_models.dart';
 import '../providers/shop_providers.dart';
@@ -28,7 +27,7 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
 
   String? _selectedSavedAddressId;
   String _paymentMethod = 'CASH_ON_DELIVERY';
-  String _deliveryMethod = 'STANDARD';
+  final String _deliveryMethod = 'STANDARD';
 
   @override
   void initState() {
@@ -81,219 +80,6 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
     _landmarkController.dispose();
     _instructionsController.dispose();
     super.dispose();
-  }
-
-  void _showAddAddressDialog() {
-    final formController = ValidatedFormController();
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final addr1Ctrl = TextEditingController();
-    final addr2Ctrl = TextEditingController();
-    final cityCtrl = TextEditingController(text: 'Kathmandu');
-    final provinceCtrl = TextEditingController(text: 'Bagmati Province');
-    final postalCtrl = TextEditingController();
-    bool isDefault = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 20,
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: formController.formKey,
-              autovalidateMode: formController.autovalidateMode,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Add Delivery Address',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const Divider(color: AppColors.border),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name *',
-                      filled: true,
-                      fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Full name is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number *',
-                      filled: true,
-                      fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Phone number is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: addr1Ctrl,
-                    decoration: InputDecoration(
-                      labelText: 'Street Address / Landmark *',
-                      filled: true,
-                      fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Street address is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: cityCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'City *',
-                            filled: true,
-                            fillColor: AppColors.inputFill,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'City is required'
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: provinceCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Province *',
-                            filled: true,
-                            fillColor: AppColors.inputFill,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Province is required'
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: postalCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Postal Code (Optional)',
-                      filled: true,
-                      fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    title: const Text(
-                      'Set as default delivery address',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    value: isDefault,
-                    activeColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (val) =>
-                        setSheetState(() => isDefault = val ?? false),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () async {
-                      if (!formController.validate(() => setSheetState(() {}))) return;
-                      final addr = ShopAddress(
-                        id: '',
-                        fullName: nameCtrl.text.trim(),
-                        phoneNumber: phoneCtrl.text.trim(),
-                        addressLine1: addr1Ctrl.text.trim(),
-                        addressLine2: addr2Ctrl.text.trim().isEmpty
-                            ? null
-                            : addr2Ctrl.text.trim(),
-                        city: cityCtrl.text.trim(),
-                        province: provinceCtrl.text.trim(),
-                        postalCode: postalCtrl.text.trim().isEmpty
-                            ? null
-                            : postalCtrl.text.trim(),
-                        isDefault: isDefault,
-                      );
-                      final created = await ref
-                          .read(shopAddressesProvider.notifier)
-                          .add(addr);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      if (created != null && mounted) {
-                        _applySavedAddress(created);
-                      }
-                    },
-                    child: const Text(
-                      'Save Address',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _placeOrder() async {
@@ -807,27 +593,32 @@ class _ShopCheckoutPageState extends ConsumerState<ShopCheckoutPage> {
                           ),
                           const Divider(color: AppColors.border),
                           const SizedBox(height: 4),
-                          RadioListTile<String>(
-                            value: 'CASH_ON_DELIVERY',
+                          RadioGroup<String>(
                             groupValue: _paymentMethod,
-                            activeColor: AppColors.primary,
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'Cash on Delivery (COD)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _paymentMethod = val);
+                              }
+                            },
+                            child: const RadioListTile<String>(
+                              value: 'CASH_ON_DELIVERY',
+                              activeColor: AppColors.primary,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'Cash on Delivery (COD)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Pay when your order arrives at your doorstep. No advance online payment required.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                            subtitle: const Text(
-                              'Pay when your order arrives at your doorstep. No advance online payment required.',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            onChanged: (val) =>
-                                setState(() => _paymentMethod = val!),
                           ),
                         ],
                       ),

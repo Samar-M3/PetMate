@@ -133,8 +133,9 @@ class CareApi {
   static String _messageFor(int status, dynamic decoded) {
     if (status == 401) return 'Your session has expired. Please sign in again.';
     if (status == 403) return 'You do not have permission to do that.';
-    if (status >= 500)
+    if (status >= 500) {
       return 'Something went wrong on our side. Please try again.';
+    }
     if (decoded is Map) {
       final m = decoded['message'] ?? decoded['error'];
       if (m is String && m.trim().isNotEmpty) return m;

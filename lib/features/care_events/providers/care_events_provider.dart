@@ -499,8 +499,8 @@ class AppointmentsNotifier extends AsyncNotifier<List<Appointment>> {
     try {
       await CareApi.patch('/appointments/$id/status', {
         'status': status.toUpperCase(),
-        if (vetNotes != null) 'vetNotes': vetNotes,
-        if (nextVaccineDue != null) 'nextVaccineDue': nextVaccineDue,
+        'vetNotes': ?vetNotes,
+        'nextVaccineDue': ?nextVaccineDue,
       });
     } catch (_) {
       state = AsyncData(previous);

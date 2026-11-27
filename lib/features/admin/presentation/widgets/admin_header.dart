@@ -90,7 +90,7 @@ class AdminHeader extends StatelessWidget {
           ),
 
           // Actions on the Right
-          if (actions != null) ...actions!,
+          ...?actions,
 
           // Live System Badge
           Container(

@@ -323,7 +323,7 @@ class _AdminAuditLogsTabState extends ConsumerState<AdminAuditLogsTab> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: logs.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 height: 1,
                 thickness: 1,
                 color: AdminColors.borderLight,
@@ -407,7 +407,7 @@ class _AdminAuditLogsTabState extends ConsumerState<AdminAuditLogsTab> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: logs.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final log = logs[index];
         return Container(

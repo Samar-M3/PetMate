@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/pages/admin_shell.dart';
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
-import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/data/models/connection_request_model.dart';
