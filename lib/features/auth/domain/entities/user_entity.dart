@@ -100,6 +100,9 @@ class UserEntity {
   final UserRole role;
   final bool isActive;
   final bool onboardingCompleted;
+  final bool registrationCompleted;
+  final bool isEmailVerified;
+  final bool isPhoneVerified;
   final bool mustChangePassword;
   final ProfileEntity? profile;
   final List<PetEntity> pets;
@@ -112,6 +115,9 @@ class UserEntity {
     this.role = UserRole.petOwner,
     this.isActive = true,
     this.onboardingCompleted = false,
+    this.registrationCompleted = false,
+    this.isEmailVerified = false,
+    this.isPhoneVerified = false,
     this.mustChangePassword = false,
     this.profile,
     this.pets = const [],

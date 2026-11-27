@@ -13,8 +13,9 @@ export interface UploadImageResult {
  */
 export const uploadImage = (
   buffer: Buffer,
-  subFolder: "users" | "pets" | string,
-  publicId?: string
+  subFolder: "users" | "pets" | "vet_records" | string,
+  publicId?: string,
+  isPrivate = false
 ): Promise<UploadImageResult> => {
   return new Promise((resolve, reject) => {
     const environment = env.NODE_ENV || "development";
@@ -23,6 +24,7 @@ export const uploadImage = (
     const options: Record<string, unknown> = {
       folder,
       resource_type: "image",
+      ...(isPrivate ? { type: "authenticated" } : {}),
     };
 
     if (publicId) {

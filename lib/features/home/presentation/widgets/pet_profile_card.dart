@@ -34,8 +34,17 @@ class _PetProfileCardState extends State<PetProfileCard> {
   static const Color _deepTeal = Color(0xFF0F5C57);
   static const Color _sageGreen = Color(0xFFE8F0EA);
   static const Color _warmCream = Color(0xFFFAF7F0);
-  static const Color _softCoral = Color(0xFFE16F52);
+  static const Color _coral = Color(0xFFFF8A65);
   static const Color _darkText = Color(0xFF293A37);
+  static const Color _scrimBase = Color(0xFF0B1614);
+
+  static const List<Shadow> _textShadows = [
+    Shadow(
+      color: Color(0x8A000000),
+      blurRadius: 10,
+      offset: Offset(0, 1.5),
+    ),
+  ];
 
   double _passScale = 1.0;
   double _likeScale = 1.0;
@@ -48,288 +57,245 @@ class _PetProfileCardState extends State<PetProfileCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: _sageGreen,
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: const Color(0xFFE0E8E2),
-          width: 1.0,
+          color: Colors.white.withValues(alpha: 0.72),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1A2926).withValues(alpha: 0.10),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF0E1E1B).withValues(alpha: 0.14),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(23),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // UPPER SECTION: Large pet photograph (~61% of card)
-            Expanded(
-              flex: 61,
-              child: GestureDetector(
-                onTap: widget.onCardTap,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildPetPhoto(pet),
+        borderRadius: BorderRadius.circular(25),
+        child: GestureDetector(
+          onTap: widget.onCardTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Full-bleed pet photograph
+              _buildPetPhoto(pet),
 
-                    // Subtle top gradient for chip legibility
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 82,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.36),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
+              // 2. Subtle top scrim for owner chip & Details button legibility
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 104,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _scrimBase.withValues(alpha: 0.44),
+                          _scrimBase.withValues(alpha: 0.14),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
                     ),
+                  ),
+                ),
+              ),
 
-                    // Owner chip & Details pill
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      right: 12,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Flexible(
-                            child: OwnerInfoChip(
-                              ownerName: pet.ownerName,
-                              ownerAge: pet.ownerAge,
-                              ownerLocation: pet.ownerLocation,
-                              ownerAvatarUrl: pet.ownerAvatarUrl,
-                              onAvatarTap: widget.onOwnerTap,
+              // 3. Smooth bottom gradient blending naturally into the image
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          _scrimBase.withValues(alpha: 0.08),
+                          _scrimBase.withValues(alpha: 0.36),
+                          _scrimBase.withValues(alpha: 0.70),
+                          _scrimBase.withValues(alpha: 0.89),
+                        ],
+                        stops: const [0.36, 0.50, 0.66, 0.83, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 4. Top-left owner overlay & top-right subtle Details pill
+              Positioned(
+                top: 14,
+                left: 14,
+                right: 14,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: OwnerInfoChip(
+                        ownerName: pet.ownerName,
+                        ownerAge: pet.ownerAge,
+                        ownerLocation: pet.ownerLocation,
+                        ownerAvatarUrl: pet.ownerAvatarUrl,
+                        onAvatarTap: widget.onOwnerTap,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _buildDetailsPill(),
+                  ],
+                ),
+              ),
+
+              // 5. Swipe feedback stamps
+              if (likeOpacity > 0.05)
+                Positioned(
+                  top: 76,
+                  right: 20,
+                  child: Opacity(
+                    opacity: likeOpacity,
+                    child: Transform.rotate(
+                      angle: 0.16,
+                      child: _buildSwipeStamp(
+                        label: 'LIKE',
+                        icon: Icons.favorite_rounded,
+                        color: _coral,
+                      ),
+                    ),
+                  ),
+                ),
+              if (passOpacity > 0.05)
+                Positioned(
+                  top: 76,
+                  left: 20,
+                  child: Opacity(
+                    opacity: passOpacity,
+                    child: Transform.rotate(
+                      angle: -0.16,
+                      child: _buildSwipeStamp(
+                        label: 'PASS',
+                        icon: Icons.close_rounded,
+                        color: const Color(0xFF394A46),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 6. Lower photo info overlay & Pass/Like action buttons
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 16,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name, age & gender
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            pet.petName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              height: 1.12,
+                              shadows: _textShadows,
                             ),
                           ),
+                        ),
+                        if (pet.petAge.trim().isNotEmpty) ...[
                           const SizedBox(width: 8),
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: widget.onCardTap,
-                              borderRadius: BorderRadius.circular(18),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 11,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.42),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.22),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline_rounded,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Details',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          Text(
+                            pet.petAge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w500,
+                              color: _warmCream.withValues(alpha: 0.92),
+                              shadows: _textShadows,
+                            ),
+                          ),
+                        ],
+                        if (pet.petGender.trim().isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          _buildGenderPill(pet.petGender),
+                        ],
+                      ],
+                    ),
+
+                    // Breed with small paw icon
+                    if (pet.petBreed.trim().isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.pets_rounded,
+                            size: 14,
+                            color: _warmCream.withValues(alpha: 0.92),
+                            shadows: _textShadows,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              pet.petBreed,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _warmCream.withValues(alpha: 0.94),
+                                letterSpacing: -0.1,
+                                shadows: _textShadows,
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
 
-                    // LIKE stamp
-                    if (likeOpacity > 0.05)
-                      Positioned(
-                        top: 66,
-                        right: 20,
-                        child: Opacity(
-                          opacity: likeOpacity,
-                          child: Transform.rotate(
-                            angle: 0.18,
-                            child: _buildSwipeStamp(
-                              label: 'LIKE',
-                              icon: Icons.favorite_rounded,
-                              color: _deepTeal,
-                            ),
-                          ),
-                        ),
+                    // Personality tags
+                    if (pet.personality.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          ...pet.personality
+                              .take(3)
+                              .map(_buildPersonalityChip),
+                          if (pet.personality.length > 3)
+                            _buildMoreTraitsChip(pet.personality.length - 3),
+                        ],
                       ),
+                    ],
 
-                    // PASS stamp
-                    if (passOpacity > 0.05)
-                      Positioned(
-                        top: 66,
-                        left: 20,
-                        child: Opacity(
-                          opacity: passOpacity,
-                          child: Transform.rotate(
-                            angle: -0.18,
-                            child: _buildSwipeStamp(
-                              label: 'PASS',
-                              icon: Icons.close_rounded,
-                              color: _softCoral,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // LOWER SECTION: Profile details & embedded Pass/Like actions (~39% of card)
-            Expanded(
-              flex: 39,
-              child: Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Scrollable info block prevents overflow on compact devices
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const ClampingScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Pet name, age & gender badge
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    pet.petName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: _darkText,
-                                      letterSpacing: -0.4,
-                                      height: 1.15,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  pet.petAge,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF5D6E6A),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildGenderBadge(pet.petGender),
-                              ],
-                            ),
-                            const SizedBox(height: 5),
-
-                            // Breed with small paw icon
-                            if (pet.petBreed.trim().isNotEmpty)
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.pets_rounded,
-                                    size: 14,
-                                    color: _deepTeal,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      pet.petBreed,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: _deepTeal,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                            // Short biography
-                            if (pet.petBio.trim().isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                pet.petBio.trim(),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  height: 1.35,
-                                  color: Color(0xFF546460),
-                                ),
-                              ),
-                            ],
-
-                            // Personality chips
-                            if (pet.personality.isNotEmpty) ...[
-                              const SizedBox(height: 9),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: [
-                                  ...pet.personality
-                                      .take(3)
-                                      .map(_buildPersonalityChip),
-                                  if (pet.personality.length > 3)
-                                    _buildMoreTraitsChip(
-                                      pet.personality.length - 3,
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Embedded Pass & Like circular buttons (active card only)
+                    // Two swipe action buttons: Pass (X) & Like (Heart)
                     if (widget.showActionButtons) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _buildCircularActionButton(
                             scale: _passScale,
-                            size: 52,
+                            size: 56,
                             backgroundColor: _warmCream,
-                            borderColor: const Color(0xFFE7DCD4),
-                            shadowColor: Colors.black.withValues(alpha: 0.08),
+                            borderColor: Colors.white.withValues(alpha: 0.85),
+                            shadowColor: Colors.black.withValues(alpha: 0.22),
                             icon: Icons.close_rounded,
-                            iconColor: _softCoral,
+                            iconColor: const Color(0xFF394A46),
                             iconSize: 26,
-                            onTapDown: () => setState(() => _passScale = 0.92),
+                            onTapDown: () => setState(() => _passScale = 0.90),
                             onTapCancel: () =>
                                 setState(() => _passScale = 1.0),
                             onTapUp: () {
@@ -337,17 +303,18 @@ class _PetProfileCardState extends State<PetProfileCard> {
                               widget.onPassTap?.call();
                             },
                           ),
-                          const SizedBox(width: 28),
+                          const SizedBox(width: 30),
                           _buildCircularActionButton(
                             scale: _likeScale,
-                            size: 54,
-                            backgroundColor: _softCoral,
-                            borderColor: _softCoral,
-                            shadowColor: _softCoral.withValues(alpha: 0.30),
+                            size: 60,
+                            backgroundColor: _coral,
+                            borderColor:
+                                const Color(0xFFFFAD93).withValues(alpha: 0.65),
+                            shadowColor: _coral.withValues(alpha: 0.36),
                             icon: Icons.favorite_rounded,
                             iconColor: Colors.white,
-                            iconSize: 26,
-                            onTapDown: () => setState(() => _likeScale = 0.92),
+                            iconSize: 28,
+                            onTapDown: () => setState(() => _likeScale = 0.90),
                             onTapCancel: () =>
                                 setState(() => _likeScale = 1.0),
                             onTapUp: () {
@@ -361,8 +328,49 @@ class _PetProfileCardState extends State<PetProfileCard> {
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailsPill() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onCardTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: _scrimBase.withValues(alpha: 0.44),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.18),
+              width: 1,
             ),
-          ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+              SizedBox(width: 5),
+              Text(
+                'Details',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -408,15 +416,15 @@ class _PetProfileCardState extends State<PetProfileCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _deepTeal.withValues(alpha: 0.12),
               ),
               child: const Icon(
                 Icons.pets_rounded,
-                size: 34,
+                size: 36,
                 color: _deepTeal,
               ),
             ),
@@ -435,31 +443,36 @@ class _PetProfileCardState extends State<PetProfileCard> {
     );
   }
 
-  Widget _buildGenderBadge(String gender) {
+  Widget _buildGenderPill(String gender) {
     final isFemale = gender.toLowerCase().contains('female');
-    final bgColor = isFemale ? const Color(0xFFFBECE8) : _sageGreen;
-    final fgColor = isFemale ? _softCoral : _deepTeal;
     final icon = isFemale ? Icons.female_rounded : Icons.male_rounded;
+    final tint = isFemale
+        ? _coral.withValues(alpha: 0.24)
+        : _deepTeal.withValues(alpha: 0.38);
+    final borderTint = isFemale
+        ? _coral.withValues(alpha: 0.45)
+        : Colors.white.withValues(alpha: 0.26);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        color: tint,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderTint, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: fgColor),
+          Icon(icon, size: 12.5, color: Colors.white),
           const SizedBox(width: 2),
           Text(
             gender,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: fgColor,
+              color: Colors.white,
             ),
           ),
         ],
@@ -480,8 +493,8 @@ class _PetProfileCardState extends State<PetProfileCard> {
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.20),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -507,19 +520,24 @@ class _PetProfileCardState extends State<PetProfileCard> {
 
   Widget _buildPersonalityChip(String trait) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
-        color: _sageGreen,
+        color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.24),
+          width: 1,
+        ),
       ),
       child: Text(
         trait,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
-          color: _deepTeal,
+          color: _warmCream,
+          letterSpacing: 0.1,
         ),
       ),
     );
@@ -527,18 +545,21 @@ class _PetProfileCardState extends State<PetProfileCard> {
 
   Widget _buildMoreTraitsChip(int count) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: _warmCream,
+        color: _deepTeal.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCE4DE)),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 1,
+        ),
       ),
       child: Text(
         '+$count',
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
-          color: _darkText,
+          color: _warmCream,
         ),
       ),
     );
@@ -563,7 +584,7 @@ class _PetProfileCardState extends State<PetProfileCard> {
       onTapUp: (_) => onTapUp(),
       child: AnimatedScale(
         scale: scale,
-        duration: const Duration(milliseconds: 110),
+        duration: const Duration(milliseconds: 120),
         curve: Curves.easeOutCubic,
         child: Container(
           width: size,
@@ -575,8 +596,8 @@ class _PetProfileCardState extends State<PetProfileCard> {
             boxShadow: [
               BoxShadow(
                 color: shadowColor,
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),

@@ -255,6 +255,7 @@ export const getOnboardingStatus = async (firebaseUid: string) => {
     isInitialized: true,
     userId: user.id,
     onboardingCompleted: user.onboardingCompleted,
+    onboardingStep: user.profile?.onboardingStep ?? 1,
     hasPets,
     hasProfile,
     nextStep,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/api_client.dart';
+import '../../../chat/data/models/all_connection_item.dart';
 import '../models/connection_request_model.dart';
 import '../models/discovery_pet_model.dart';
 
@@ -67,10 +68,20 @@ class MatchingRepository {
     required String petId,
     required String targetPetId,
     required String action, // "LIKE" | "PASS"
+    String? initialMessage,
   }) async {
+    final body = <String, dynamic>{
+      'petId': petId,
+      'targetPetId': targetPetId,
+      'action': action,
+    };
+    if (initialMessage != null && initialMessage.trim().isNotEmpty) {
+      body['initialMessage'] = initialMessage.trim();
+    }
+
     final response = await _apiClient.post(
       '/swipes',
-      body: {'petId': petId, 'targetPetId': targetPetId, 'action': action},
+      body: body,
     );
 
     if (response is Map<String, dynamic>) {
@@ -130,6 +141,65 @@ class MatchingRepository {
     }
 
     return {'status': 'REJECTED'};
+  }
+
+  Future<OutgoingRequestsResult> getOutgoingRequests({
+    String? cursor,
+    int limit = 50,
+  }) async {
+    final queryParams = <String, dynamic>{'limit': limit};
+    if (cursor != null && cursor.isNotEmpty) {
+      queryParams['cursor'] = cursor;
+    }
+
+    final response = await _apiClient.get(
+      '/requests/outgoing',
+      queryParameters: queryParams,
+    );
+
+    if (response is Map<String, dynamic>) {
+      return OutgoingRequestsResult.fromJson(response);
+    }
+
+    return const OutgoingRequestsResult(requests: [], hasMore: false);
+  }
+
+  Future<Map<String, dynamic>> updateIntroMessage({
+    required String requestId,
+    required String message,
+  }) async {
+    final response = await _apiClient.patch(
+      '/requests/$requestId/message',
+      body: {'message': message.trim()},
+    );
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+
+    return {'requestId': requestId, 'initialMessage': message.trim()};
+  }
+
+  Future<Map<String, dynamic>> cancelRequest(String requestId) async {
+    final response = await _apiClient.post('/requests/$requestId/cancel');
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+
+    return {'requestId': requestId, 'status': 'CANCELLED'};
+  }
+
+  Future<List<AllConnectionItem>> getAllConnections() async {
+    final response = await _apiClient.get('/connections/all');
+    if (response is Map<String, dynamic>) {
+      final raw = response['items'] as List<dynamic>? ?? [];
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map((item) => AllConnectionItem.fromJson(item))
+          .toList();
+    }
+    return [];
   }
 }
 

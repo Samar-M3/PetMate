@@ -9,6 +9,26 @@ import '../../domain/entities/discovery_pet.dart';
 enum SwipeDirection { left, right }
 enum DiscoveryFilter { all, forYou }
 
+class LikeSuccessEvent {
+  final String eventId;
+  final String petId;
+  final String petName;
+  final String? petImageUrl;
+  final String? requestId;
+  final bool matched;
+  final String? matchId;
+
+  const LikeSuccessEvent({
+    required this.eventId,
+    required this.petId,
+    required this.petName,
+    this.petImageUrl,
+    this.requestId,
+    required this.matched,
+    this.matchId,
+  });
+}
+
 class DiscoveryState {
   final List<DiscoveryPet> pets;
   final int currentIndex;
@@ -28,6 +48,7 @@ class DiscoveryState {
   final List<DiscoveryPet> forYouPets;
   final int forYouCurrentIndex;
   final bool isForYouLoading;
+  final LikeSuccessEvent? likeSuccessEvent;
 
   const DiscoveryState({
     this.pets = const [],
@@ -48,6 +69,7 @@ class DiscoveryState {
     this.forYouPets = const [],
     this.forYouCurrentIndex = 0,
     this.isForYouLoading = false,
+    this.likeSuccessEvent,
   });
 
   DiscoveryPet? get currentPet {
@@ -108,6 +130,8 @@ class DiscoveryState {
     List<DiscoveryPet>? forYouPets,
     int? forYouCurrentIndex,
     bool? isForYouLoading,
+    LikeSuccessEvent? likeSuccessEvent,
+    bool clearLikeEvent = false,
   }) {
     return DiscoveryState(
       pets: pets ?? this.pets,
@@ -130,6 +154,9 @@ class DiscoveryState {
       forYouPets: forYouPets ?? this.forYouPets,
       forYouCurrentIndex: forYouCurrentIndex ?? this.forYouCurrentIndex,
       isForYouLoading: isForYouLoading ?? this.isForYouLoading,
+      likeSuccessEvent: clearLikeEvent
+          ? null
+          : (likeSuccessEvent ?? this.likeSuccessEvent),
     );
   }
 }
@@ -367,6 +394,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       targetPetId: targetPet.id,
       action: action,
       petName: targetPet.petName,
+      petImageUrl: targetPet.petImageUrl.isNotEmpty
+          ? targetPet.petImageUrl
+          : null,
     );
   }
 
@@ -375,13 +405,22 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     required String targetPetId,
     required String action,
     required String petName,
+    String? petImageUrl,
   }) async {
     try {
-      await _repository.recordSwipe(
+      final result = await _repository.recordSwipe(
         petId: petId,
         targetPetId: targetPetId,
         action: action,
       );
+      if (action == 'LIKE') {
+        _emitLikeSuccess(
+          petId: targetPetId,
+          petName: petName,
+          petImageUrl: petImageUrl,
+          result: result,
+        );
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
@@ -390,11 +429,19 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       }
       // Retry once
       try {
-        await _repository.recordSwipe(
+        final result = await _repository.recordSwipe(
           petId: petId,
           targetPetId: targetPetId,
           action: action,
         );
+        if (action == 'LIKE') {
+          _emitLikeSuccess(
+            petId: targetPetId,
+            petName: petName,
+            petImageUrl: petImageUrl,
+            result: result,
+          );
+        }
       } catch (retryError) {
         if (kDebugMode) {
           debugPrint(
@@ -407,6 +454,32 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
         );
       }
     }
+  }
+
+  void _emitLikeSuccess({
+    required String petId,
+    required String petName,
+    String? petImageUrl,
+    required Map<String, dynamic> result,
+  }) {
+    final matched = result['matched'] == true;
+    final matchId = result['matchId'] as String?;
+    final requestId = result['requestId'] as String?;
+    state = state.copyWith(
+      likeSuccessEvent: LikeSuccessEvent(
+        eventId: '${petId}_${DateTime.now().microsecondsSinceEpoch}',
+        petId: petId,
+        petName: petName,
+        petImageUrl: (result['targetPetImageUrl'] as String?) ?? petImageUrl,
+        requestId: requestId,
+        matched: matched,
+        matchId: matchId,
+      ),
+    );
+  }
+
+  void clearLikeEvent() {
+    state = state.copyWith(clearLikeEvent: true);
   }
 
   void clearSnackbar() {

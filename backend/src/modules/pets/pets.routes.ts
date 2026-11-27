@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createPet,
+  patchPet,
   getPets,
   getPublicPet,
   getSinglePet,
@@ -30,6 +31,7 @@ router.get("/", getPets);
 router.get("/:id/public", getPublicPet);
 router.get("/:id", getSinglePet);
 router.put("/:id", updatePet);
+router.patch("/:id", patchPet);
 router.delete("/:id", deletePet);
 
 // Pet activation summary & activation endpoint

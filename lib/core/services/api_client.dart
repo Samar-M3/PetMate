@@ -10,14 +10,17 @@ import 'package:http_parser/http_parser.dart';
 import '../config/app_config.dart';
 import '../errors/app_exception.dart';
 import 'firebase_auth_service.dart';
+import 'storage_service.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final firebaseAuth = ref.watch(firebaseAuthServiceProvider);
-  return ApiClient(firebaseAuth: firebaseAuth);
+  final storageService = ref.watch(storageServiceProvider);
+  return ApiClient(firebaseAuth: firebaseAuth, storageService: storageService);
 });
 
 class ApiClient {
   final FirebaseAuthService firebaseAuth;
+  final StorageService? storageService;
   final http.Client client;
 
   static final Map<String, int> _activeInFlight = {};
@@ -27,8 +30,11 @@ class ApiClient {
   static final Map<String, Future<dynamic>> _inFlightGetRequests = {};
   static final Map<String, Future<dynamic>> _inFlightPostRequests = {};
 
-  ApiClient({required this.firebaseAuth, http.Client? client})
-    : client = client ?? http.Client();
+  ApiClient({
+    required this.firebaseAuth,
+    this.storageService,
+    http.Client? client,
+  }) : client = client ?? http.Client();
 
   static void printTimingReport() {
     debugPrint('=== ApiClient Endpoint Timing & Duplicate Report ===');
@@ -116,7 +122,10 @@ class ApiClient {
       'Accept': 'application/json',
     };
 
-    final token = await firebaseAuth.getIdToken(forceRefresh);
+    var token = await firebaseAuth.getIdToken(forceRefresh);
+    if (token == null || token.isEmpty) {
+      token = storageService?.getAuthToken();
+    }
 
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
@@ -375,7 +384,10 @@ class ApiClient {
     Map<String, String>? fields,
   }) async {
     return _sendWithRetry((forceRefresh) async {
-      final token = await firebaseAuth.getIdToken(forceRefresh);
+      var token = await firebaseAuth.getIdToken(forceRefresh);
+      if (token == null || token.isEmpty) {
+        token = storageService?.getAuthToken();
+      }
       final uri = _buildUri(path);
 
       if (kDebugMode) {

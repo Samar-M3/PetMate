@@ -99,6 +99,60 @@ export const ensureConversation = async (
   }
 };
 
+export const seedInitialMessage = async (
+  matchId: string,
+  senderUid: string,
+  receiverUid: string,
+  text: string,
+  requestId: string
+): Promise<void> => {
+  const trimmed = text.trim();
+  if (!trimmed || !senderUid || !receiverUid) return;
+
+  try {
+    await withTimeout(
+      (async () => {
+        const convRef = firestore.collection("conversations").doc(matchId);
+        // Use deterministic message ID tied to requestId for idempotency
+        const msgRef = convRef.collection("messages").doc(`intro_${requestId}`);
+        const existing = await msgRef.get();
+        if (existing.exists) return;
+
+        const batch = firestore.batch();
+        batch.set(msgRef, {
+          senderUid,
+          type: "text",
+          text: trimmed,
+          isIntroMessage: true,
+          deletedForEveryone: false,
+          deletedFor: [],
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        batch.set(
+          convRef,
+          {
+            lastMessage: {
+              text: trimmed,
+              senderUid,
+              type: "text",
+            },
+            lastMessageAt: FieldValue.serverTimestamp(),
+            [`unread.${receiverUid}`]: FieldValue.increment(1),
+          },
+          { merge: true }
+        );
+
+        await batch.commit();
+      })(),
+      5000,
+      `seedInitialMessage(${matchId})`
+    );
+  } catch (error: any) {
+    console.error(`[FirestoreService] ⚠️ seedInitialMessage for match ${matchId}: ${error.message}`);
+  }
+};
+
 export const endConversation = async (
   matchId: string,
   reason: "UNMATCHED" | "BLOCKED" | "PET_DELETED" | "ACCOUNT_SUSPENDED" | string

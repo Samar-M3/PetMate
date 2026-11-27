@@ -13,8 +13,12 @@ import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/discovery_provider.dart';
 import '../providers/requests_provider.dart';
+import '../../data/repositories/matching_repository.dart';
+import '../../../chat/presentation/providers/connections_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_header.dart';
+import '../widgets/intro_message_sheet.dart';
+import '../widgets/like_success_notification.dart';
 import '../widgets/swipeable_card_deck.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -30,6 +34,7 @@ class _HomePageState extends ConsumerState<HomePage>
   final Set<int> _visitedNavTabs = {0};
   final GlobalKey<SwipeableCardDeckState> _deckKey =
       GlobalKey<SwipeableCardDeckState>();
+  bool _showEmailVerifyBanner = true;
 
   @override
   void initState() {
@@ -107,6 +112,55 @@ class _HomePageState extends ConsumerState<HomePage>
             // 1. Top Header Section (PetMate logo & user avatar)
             if (_selectedNavIndex != 3)
               HomeHeader(onProfileTap: () => context.push('/profile')),
+
+            // Email verification banner if unverified
+            if (user != null && !user.isEmailVerified && _showEmailVerifyBanner && _selectedNavIndex == 0)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.mark_email_unread_outlined, color: AppColors.info, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Please verify your email address. Check your inbox.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Verification link sent to your email.'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: AppColors.info,
+                      ),
+                      child: const Text('Resend', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _showEmailVerifyBanner = false),
+                    ),
+                  ],
+                ),
+              ),
 
             // 2. Active Pet Switcher (if user has several active pets)
             if (userPets.length > 1 && _selectedNavIndex == 0)
@@ -225,6 +279,10 @@ class _HomePageState extends ConsumerState<HomePage>
                   ref
                       .read(requestsProvider.notifier)
                       .loadRequests(refresh: true);
+                  ref
+                      .read(outgoingRequestsProvider.notifier)
+                      .loadOutgoingRequests(refresh: true);
+                  ref.invalidate(allConnectionsProvider);
                 }
               },
             ),
@@ -592,7 +650,7 @@ class _HomePageState extends ConsumerState<HomePage>
       );
     }
 
-    // State D: Empty state
+// State D: Empty state
     if (pets.isEmpty) {
       return Center(
         child: Padding(
@@ -666,17 +724,73 @@ class _HomePageState extends ConsumerState<HomePage>
       );
     }
 
-    // State E: Normal deck with cards
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: SwipeableCardDeck(
-        key: _deckKey,
-        pets: pets,
-        currentIndex: currentIndex,
-        onSwipeRight: () => discoveryNotifier.swipeRight(),
-        onSwipeLeft: () => discoveryNotifier.swipeLeft(),
-        onReset: () => discoveryNotifier.resetDeck(),
-      ),
+    // State E: Normal deck with cards + Like Success Notification
+    final likeEvent = discoveryState.likeSuccessEvent;
+
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SwipeableCardDeck(
+            key: _deckKey,
+            pets: pets,
+            currentIndex: currentIndex,
+            onSwipeRight: () => discoveryNotifier.swipeRight(),
+            onSwipeLeft: () => discoveryNotifier.swipeLeft(),
+            onReset: () => discoveryNotifier.resetDeck(),
+          ),
+        ),
+        if (likeEvent != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 10,
+            child: LikeSuccessNotification(
+              key: ValueKey(likeEvent.eventId),
+              event: likeEvent,
+              onDismiss: () => discoveryNotifier.clearLikeEvent(),
+              onOpenMatchChat: () {
+                discoveryNotifier.clearLikeEvent();
+                if (likeEvent.matchId != null &&
+                    likeEvent.matchId!.isNotEmpty) {
+                  context.push('/chat/${likeEvent.matchId}');
+                }
+              },
+              onAddMessage: () {
+                final reqId = likeEvent.requestId;
+                discoveryNotifier.clearLikeEvent();
+                if (reqId == null || reqId.isEmpty) return;
+
+                showIntroMessageSheet(
+                  context: context,
+                  petName: likeEvent.petName,
+                  petImageUrl: likeEvent.petImageUrl,
+                  onSend: (msg) async {
+                    await ref
+                        .read(matchingRepositoryProvider)
+                        .updateIntroMessage(requestId: reqId, message: msg);
+                    ref
+                        .read(outgoingRequestsProvider.notifier)
+                        .loadOutgoingRequests(refresh: true);
+                    ref.invalidate(allConnectionsProvider);
+                  },
+                ).then((sent) {
+                  if (sent != null && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Intro message sent to ${likeEvent.petName}!',
+                        ),
+                        backgroundColor: const Color(0xFF0F5C57),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                });
+              },
+            ),
+          ),
+      ],
     );
   }
 }
