@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/api_client.dart';
 import '../models/seller_application_model.dart';
+import '../models/seller_order_model.dart';
 
 final sellerRepositoryProvider = Provider<SellerRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -145,5 +146,47 @@ class SellerRepository {
       return SellerDashboardData.fromJson(data);
     }
     throw ApiException(message: 'Failed to retrieve seller dashboard');
+  }
+
+  /// Fetch orders placed for this seller's products
+  Future<List<SellerCustomerOrder>> getSellerOrders() async {
+    final response = await apiClient.get('/sellers/orders');
+    if (response is Map<String, dynamic>) {
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      final items = (data['items'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(SellerCustomerOrder.fromJson)
+          .toList();
+      return items;
+    }
+    return [];
+  }
+
+  /// Fetch details of a single seller order
+  Future<SellerCustomerOrder> getSellerOrderDetail(String orderId) async {
+    final response = await apiClient.get('/sellers/orders/$orderId');
+    if (response is Map<String, dynamic>) {
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      final orderMap = data['order'] as Map<String, dynamic>? ?? data;
+      return SellerCustomerOrder.fromJson(orderMap);
+    }
+    throw ApiException(message: 'Failed to retrieve seller order details');
+  }
+
+  /// Update the status of a seller order
+  Future<SellerCustomerOrder> updateSellerOrderStatus(
+    String orderId,
+    String status,
+  ) async {
+    final response = await apiClient.patch(
+      '/sellers/orders/$orderId/status',
+      body: {'status': status},
+    );
+    if (response is Map<String, dynamic>) {
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      final orderMap = data['order'] as Map<String, dynamic>? ?? data;
+      return SellerCustomerOrder.fromJson(orderMap);
+    }
+    throw ApiException(message: 'Failed to update order status');
   }
 }

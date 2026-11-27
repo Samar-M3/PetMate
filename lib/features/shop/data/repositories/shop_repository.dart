@@ -71,12 +71,24 @@ class ShopRepository {
   }
 
   Future<ShopOrder> createOrder({
-    required String deliveryAddressId,
+    String? deliveryAddressId,
+    String? fullName,
+    String? phoneNumber,
+    String? deliveryAddress,
+    String? landmark,
+    String? deliveryInstructions,
+    String? idempotencyKey,
     required String paymentMethod,
     String? customerNotes,
   }) async {
     final data = await _remote.createOrder(
       deliveryAddressId: deliveryAddressId,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+      deliveryAddress: deliveryAddress,
+      landmark: landmark,
+      deliveryInstructions: deliveryInstructions,
+      idempotencyKey: idempotencyKey,
       paymentMethod: paymentMethod,
       customerNotes: customerNotes,
     ) as Map<String, dynamic>;

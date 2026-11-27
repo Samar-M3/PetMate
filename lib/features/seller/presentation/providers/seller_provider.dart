@@ -4,6 +4,7 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/firebase_auth_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/seller_application_model.dart';
+import '../../data/models/seller_order_model.dart';
 import '../../data/repositories/seller_repository.dart';
 
 class SellerState {
@@ -203,4 +204,72 @@ class SellerNotifier extends Notifier<SellerState> {
 
 final sellerProvider = NotifierProvider<SellerNotifier, SellerState>(() {
   return SellerNotifier();
+});
+
+class SellerOrdersState {
+  final List<SellerCustomerOrder> orders;
+  final bool isLoading;
+  final String? error;
+
+  const SellerOrdersState({
+    this.orders = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  SellerOrdersState copyWith({
+    List<SellerCustomerOrder>? orders,
+    bool? isLoading,
+    String? error,
+  }) =>
+      SellerOrdersState(
+        orders: orders ?? this.orders,
+        isLoading: isLoading ?? this.isLoading,
+        error: error,
+      );
+}
+
+class SellerOrdersNotifier extends Notifier<SellerOrdersState> {
+  @override
+  SellerOrdersState build() {
+    Future.microtask(loadOrders);
+    return const SellerOrdersState(isLoading: true);
+  }
+
+  SellerRepository get _repo => ref.read(sellerRepositoryProvider);
+
+  Future<void> loadOrders() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final items = await _repo.getSellerOrders();
+      state = state.copyWith(orders: items, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<bool> updateStatus(String orderId, String status) async {
+    try {
+      final updated = await _repo.updateSellerOrderStatus(orderId, status);
+      state = state.copyWith(
+        orders: state.orders.map((o) => o.id == orderId ? updated : o).toList(),
+      );
+      ref.invalidate(sellerProvider);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+}
+
+final sellerOrdersProvider =
+    NotifierProvider<SellerOrdersNotifier, SellerOrdersState>(
+  SellerOrdersNotifier.new,
+);
+
+final sellerOrderDetailProvider =
+    FutureProvider.family<SellerCustomerOrder, String>((ref, orderId) async {
+  final repo = ref.watch(sellerRepositoryProvider);
+  return repo.getSellerOrderDetail(orderId);
 });

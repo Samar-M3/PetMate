@@ -3,6 +3,7 @@ import { firebaseAuth } from "../../config/firebase.ts";
 import {
   Role,
   StoreStatus,
+  OrderStatus,
   ApplicationType,
   ApplicationStatus,
   Prisma,
@@ -319,6 +320,16 @@ export const getSellerDashboardStats = async (userId: string) => {
     throw new AppError("Seller account is not approved yet", 403);
   }
 
+  const sellerOrders = await prisma.sellerOrder.findMany({
+    where: { storeId: store.id },
+    select: { subtotal: true, orderStatus: true },
+  });
+
+  const totalOrders = sellerOrders.length;
+  const totalRevenueNpr = sellerOrders
+    .filter((so) => so.orderStatus !== OrderStatus.CANCELLED)
+    .reduce((sum, so) => sum + Number(so.subtotal), 0);
+
   return {
     store: {
       id: store.id,
@@ -332,6 +343,8 @@ export const getSellerDashboardStats = async (userId: string) => {
     totalProducts: store.products.length,
     activeProducts: store.products.filter((p) => p.status === "ACTIVE").length,
     outOfStockProducts: store.products.filter((p) => p.status === "OUT_OF_STOCK" || p.availableStock <= 0).length,
+    totalOrders,
+    totalRevenueNpr,
     products: store.products.slice(0, 5),
   };
 };
@@ -427,7 +440,7 @@ export const createSellerProduct = async (
       storeId: store.id,
       shippingWeight: input.shippingWeight || null,
       packageDimensions: input.packageDimensions || null,
-      specifications: input.specifications || null,
+      specifications: (input.specifications as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       images: {
         create: (input.imageUrls || []).map((url, idx) => ({
           imageUrl: url,

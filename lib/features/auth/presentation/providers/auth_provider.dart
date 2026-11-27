@@ -229,10 +229,7 @@ class AuthNotifier extends Notifier<AuthState> with WidgetsBindingObserver {
         // Check the user is still signed in before retrying
         final stillSignedIn = _authService.currentUser;
         if (stillSignedIn != null) {
-          // Retry the internal operation directly. Calling
-          // _syncBackendProfile() here would return the currently-running
-          // _inFlightSyncFuture, causing that Future to wait for itself.
-          await _doSyncBackendProfile(
+          return _doSyncBackendProfile(
             fbUser,
             retryCount: retryCount + 1,
             isBackground: isBackground,

@@ -1,4 +1,9 @@
 import type { Response, NextFunction } from "express";
+import {
+  getSellerOrders,
+  getSellerOrderDetail,
+  updateSellerOrderStatus,
+} from "./sellers.orders.service.ts";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware.ts";
 import {
   registerSeller,
@@ -180,7 +185,7 @@ export const getProductById = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const result = await getSellerProductById(req.user.id, id);
 
     sendSuccess(res, {
@@ -203,7 +208,7 @@ export const updateProduct = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const result = await updateSellerProduct(req.user.id, id, req.body);
 
     sendSuccess(res, {
@@ -226,7 +231,7 @@ export const deleteProduct = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const result = await deleteSellerProduct(req.user.id, id);
 
     sendSuccess(res, {
@@ -249,7 +254,7 @@ export const updateStock = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { stock } = req.body;
     const result = await updateSellerProductStock(req.user.id, id, Number(stock));
 
@@ -273,7 +278,7 @@ export const toggleStatus = async (
       return next(new AppError("Authentication required", 401));
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body;
     const result = await toggleSellerProductStatus(req.user.id, id, status);
 
@@ -281,6 +286,72 @@ export const toggleStatus = async (
       statusCode: 200,
       message: "Product status updated successfully",
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrders = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+    const result = await getSellerOrders(req.user.id);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Seller orders retrieved successfully",
+      data: { items: result },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrderDetail = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+    const id = req.params.id as string;
+    const result = await getSellerOrderDetail(req.user.id, id);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Seller order detail retrieved successfully",
+      data: { order: result },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrderStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      return next(new AppError("Authentication required", 401));
+    }
+    const id = req.params.id as string;
+    const { status } = req.body;
+    if (!status) {
+      return next(new AppError("status is required", 400));
+    }
+    const result = await updateSellerOrderStatus(req.user.id, id, status);
+    sendSuccess(res, {
+      statusCode: 200,
+      message: "Order status updated successfully",
+      data: { order: result },
     });
   } catch (error) {
     next(error);
