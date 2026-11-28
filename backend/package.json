@@ -28,7 +28,8 @@
     "joi": "^18.3.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "resend": "^6.41.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

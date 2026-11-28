@@ -5,6 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/pages/admin_shell.dart';
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
+import '../../features/auth/presentation/pages/verify_otp_page.dart';
+import '../../features/auth/presentation/pages/reset_password_page.dart';
+import '../../features/auth/presentation/pages/password_reset_success_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/data/models/connection_request_model.dart';
@@ -12,7 +16,6 @@ import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/requests_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_flow_page.dart';
 import '../../features/onboarding/presentation/pages/owner_info_page.dart';
-import '../../features/onboarding/presentation/pages/pet_info_page.dart';
 import '../../features/registration/presentation/pages/pet_owner_registration_flow_page.dart';
 import '../../features/registration/presentation/pages/role_selection_page.dart';
 import '../../features/pets/presentation/pages/my_pets_page.dart';
@@ -60,7 +63,11 @@ class RouterNotifier extends ChangeNotifier {
         location == '/register' ||
         location == '/register/pet-owner' ||
         location == '/seller/register' ||
-        location == '/vet-login';
+        location == '/vet-login' ||
+        location == '/forgot-password' ||
+        location == '/verify-otp' ||
+        location == '/reset-password' ||
+        location == '/password-reset-success';
     final isSplashPage = location == '/splash';
     final isPublicShopPage =
         location == '/shop' ||
@@ -178,6 +185,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/verify-otp',
+        builder: (context, state) {
+          final email = state.extra as String? ?? '';
+          return VerifyOtpPage(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>? ?? {};
+          return ResetPasswordPage(
+            email: data['email'] as String? ?? '',
+            resetToken: data['resetToken'] as String? ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/password-reset-success',
+        builder: (context, state) => const PasswordResetSuccessPage(),
+      ),
+      GoRoute(
         path: '/register',
         builder: (context, state) => const RoleSelectionPage(),
       ),
@@ -191,7 +223,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/onboarding/pet',
-        builder: (context, state) => const PetInfoPage(),
+        builder: (context, state) =>
+            const PetOwnerRegistrationFlowPage(addPetOnly: true),
       ),
       GoRoute(
         path: '/onboarding/owner',

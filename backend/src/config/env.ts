@@ -19,6 +19,9 @@ export interface EnvironmentConfig {
   CLOUDINARY_CLOUD_NAME?: string;
   CLOUDINARY_API_KEY?: string;
   CLOUDINARY_API_SECRET?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL: string;
+  RESEND_FROM_NAME: string;
 }
 
 const isProd = process.env.NODE_ENV === "production";
@@ -75,6 +78,11 @@ const env: EnvironmentConfig = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+
+  // Resend transactional email configuration
+  RESEND_API_KEY: process.env.RESEND_API_KEY?.trim() || undefined,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL?.trim() || "onboarding@resend.dev",
+  RESEND_FROM_NAME: process.env.RESEND_FROM_NAME?.trim() || "PetMate",
 };
 
 // Check if credentials are valid non-placeholder values

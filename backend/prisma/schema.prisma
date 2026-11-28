@@ -940,3 +940,22 @@ model NotificationPreference {
 
   @@map("notification_preferences")
 }
+
+model PasswordResetOTP {
+  id                  String    @id @default(uuid())
+  email               String
+  otpHash             String    @map("otp_hash")
+  expiresAt           DateTime  @map("expires_at")
+  attempts            Int       @default(0)
+  maxAttempts         Int       @default(5) @map("max_attempts")
+  consumed            Boolean   @default(false)
+  resetToken          String?   @unique @map("reset_token")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
+  resetTokenConsumed  Boolean   @default(false) @map("reset_token_consumed")
+  ipAddress           String?   @map("ip_address")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([email, consumed])
+  @@map("password_reset_otps")
+}

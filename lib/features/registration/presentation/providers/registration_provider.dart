@@ -204,6 +204,10 @@ class RegistrationNotifier extends Notifier<RegistrationState> {
     );
   }
 
+  void startAddPetFlow() {
+    state = const RegistrationState(currentStep: 2);
+  }
+
   void goBack() {
     if (state.currentStep > 1) {
       state = state.copyWith(

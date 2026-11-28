@@ -276,7 +276,7 @@ class ShopProductCard extends ConsumerWidget {
           children: [
             // Top Image Container with Wishlist, Discount Badge & Out-of-stock overlay
             Expanded(
-              flex: 11,
+              flex: 10,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -391,9 +391,9 @@ class ShopProductCard extends ConsumerWidget {
             ),
             // Product Information
             Expanded(
-              flex: 12,
+              flex: 13,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -493,32 +493,37 @@ class ShopProductCard extends ConsumerWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                formatShopPrice(product.displayPrice),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                              if (product.discountedPrice != null) ...[
-                                const SizedBox(width: 4),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
                                 Text(
-                                  formatShopPrice(product.basePrice),
+                                  formatShopPrice(product.displayPrice),
                                   style: const TextStyle(
-                                    fontSize: 10,
-                                    decoration: TextDecoration.lineThrough,
-                                    color: AppColors.textMuted,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
                                   ),
                                 ),
+                                if (product.discountedPrice != null) ...[
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    formatShopPrice(product.basePrice),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      decoration: TextDecoration.lineThrough,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                           decoration: BoxDecoration(
@@ -658,30 +663,37 @@ class ShopSection extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle!,
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-                if (onSeeAll != null)
+                if (onSeeAll != null) ...[
+                  const SizedBox(width: 8),
                   TextButton(
                     onPressed: onSeeAll,
                     child: const Row(
@@ -704,6 +716,7 @@ class ShopSection extends StatelessWidget {
                       ],
                     ),
                   ),
+                ],
               ],
             ),
           ),
@@ -785,7 +798,8 @@ class ShopPromoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: 155,
+      constraints: const BoxConstraints(minHeight: 150),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
@@ -830,7 +844,7 @@ class ShopPromoBanner extends StatelessWidget {
           ),
           // Content
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
                 Expanded(
@@ -860,6 +874,8 @@ class ShopPromoBanner extends StatelessWidget {
                       const SizedBox(height: 6),
                       const Text(
                         'Everything Your Pet Loves',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 17,
