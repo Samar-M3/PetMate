@@ -5,7 +5,6 @@ import matchingConfig from "../../config/matching.config.ts";
 import {
   RequestStatus,
   MatchStatus,
-  EntitlementStatus,
   PetProfileStatus,
   PetSpecies,
 } from "../../generated/prisma/client.ts";
@@ -492,14 +491,14 @@ export interface SetPetActivationDTO {
 
 /**
  * Handles pet activation and deactivation with concurrency protection (FOR UPDATE)
- * and automatic atomic swapping when limit is reached.
+ * and automatic atomic swapping so at most one pet is active at a time.
  */
 export const setPetActivation = async (
   userId: string,
   petId: string,
   dto: SetPetActivationDTO
 ) => {
-  const { active, deactivatePetId } = dto;
+  const { active } = dto;
 
   return await prisma.$transaction(async (tx) => {
     // 1. Lock the owner's user row with SELECT ... FOR UPDATE to prevent concurrent race conditions
@@ -544,123 +543,26 @@ export const setPetActivation = async (
       );
     }
 
-    // If already active, return cleanly
+    // If already active, ensure no other pets remain active and return cleanly
+    const otherActivePets = await tx.pet.findMany({
+      where: { userId, isActive: true, id: { not: petId } },
+      include: { images: true },
+    });
+
+    if (otherActivePets.length > 0) {
+      await tx.pet.updateMany({
+        where: { userId, isActive: true, id: { not: petId } },
+        data: { isActive: false },
+      });
+    }
+
     if (targetPet.isActive) {
       return {
         pet: targetPet,
-        deactivatedPet: null,
+        deactivatedPet: otherActivePets[0] ?? null,
         message: "Pet is already active",
       };
     }
-
-    // 5. Calculate allowedActive slots
-    // allowedActive = FREE_ACTIVE_PETS + number of non-expired paid slots owned by user
-    const now = new Date();
-    const paidSlotsCount = await tx.activeSlotEntitlement.count({
-      where: {
-        ownerId: userId,
-        status: EntitlementStatus.ACTIVE,
-        expiresAt: { gt: now },
-      },
-    });
-    const allowedActive =
-      matchingConfig.FREE_ACTIVE_PETS +
-      Math.min(paidSlotsCount, matchingConfig.MAX_PAID_SLOTS);
-
-    // 6. Count currently active pets for this user
-    const currentlyActivePets = await tx.pet.findMany({
-      where: { userId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        animalType: true,
-        breed: true,
-        imageUrl: true,
-        profilePictureUrl: true,
-      },
-    });
-
-    const activeCount = currentlyActivePets.length;
-
-    // Case A: activeCount < allowedActive -> Simply activate
-    if (activeCount < allowedActive) {
-      const activatedPet = await tx.pet.update({
-        where: { id: petId },
-        data: {
-          isActive: true,
-          activatedAt: new Date(),
-        },
-        include: { images: true },
-      });
-      return {
-        pet: activatedPet,
-        deactivatedPet: null,
-        message: "Pet activated successfully",
-      };
-    }
-
-    // Case B: Limit is reached and allowedActive == 1
-    // Atomically deactivate the currently active pet and activate this one (swap)
-    if (allowedActive === 1) {
-      const activePetToDeactivate = currentlyActivePets[0];
-      let deactivatedPet = null;
-      if (activePetToDeactivate) {
-        deactivatedPet = await tx.pet.update({
-          where: { id: activePetToDeactivate.id },
-          data: { isActive: false },
-          include: { images: true },
-        });
-      }
-
-      const activatedPet = await tx.pet.update({
-        where: { id: petId },
-        data: {
-          isActive: true,
-          activatedAt: new Date(),
-        },
-        include: { images: true },
-      });
-
-      return {
-        pet: activatedPet,
-        deactivatedPet,
-        message: `Swapped active pet: ${activatedPet.name} is now active; ${deactivatedPet?.name ?? "previous pet"} deactivated.`,
-      };
-    }
-
-    // Case C: Limit is reached and allowedActive > 1
-    // If deactivatePetId is missing, return 409 ACTIVE_LIMIT_REACHED with active pets list and slot info
-    if (!deactivatePetId) {
-      const error: any = new AppError(
-        "ACTIVE_LIMIT_REACHED: You have reached your maximum active pet limit. Choose a pet to deactivate or purchase an additional slot.",
-        409
-      );
-      error.code = "ACTIVE_LIMIT_REACHED";
-      error.details = {
-        activePets: currentlyActivePets,
-        allowedActive,
-        purchasableSlots: {
-          available: matchingConfig.MAX_PAID_SLOTS - paidSlotsCount,
-          priceNpr: matchingConfig.SLOT_PRICE_NPR,
-          durationDays: matchingConfig.SLOT_DURATION_DAYS,
-        },
-      };
-      throw error;
-    }
-
-    // Deactivate chosen pet and activate target
-    const petToDeactivate = await tx.pet.findFirst({
-      where: { id: deactivatePetId, userId, isActive: true },
-    });
-    if (!petToDeactivate) {
-      throw new AppError("Specified deactivatePetId is not currently active or not owned by you", 400);
-    }
-
-    const deactivatedPet = await tx.pet.update({
-      where: { id: deactivatePetId },
-      data: { isActive: false },
-      include: { images: true },
-    });
 
     const activatedPet = await tx.pet.update({
       where: { id: petId },
@@ -671,10 +573,16 @@ export const setPetActivation = async (
       include: { images: true },
     });
 
+    const deactivatedPet = otherActivePets[0]
+      ? { ...otherActivePets[0], isActive: false }
+      : null;
+
     return {
       pet: activatedPet,
       deactivatedPet,
-      message: `Swapped active pet: ${activatedPet.name} is now active; ${deactivatedPet.name} deactivated.`,
+      message: deactivatedPet
+        ? `Swapped active pet: ${activatedPet.name} is now active; ${deactivatedPet.name} deactivated.`
+        : "Pet activated successfully",
     };
   });
 };
@@ -974,24 +882,17 @@ export const getPublicPetProfile = async (callerUserId: string, petId: string) =
     }
   }
 
-  // If not owner and not exception: must be active
-  if (!isOwner && !hasMatchOrRequest) {
-    if (!pet.isActive) {
-      throw new AppError("Pet is not available", 404);
-    }
-  }
-
   // 5. canSwipe calculation:
-  // true ONLY when relationship is NONE, caller is not owner, and caller has at least one active pet
+  // true ONLY when relationship is NONE, caller is not owner, and caller has at least one pet
   let canSwipe = false;
   if (!isOwner && relationship === "NONE") {
-    const callerActivePet = await prisma.pet.findFirst({
+    const callerPet = await prisma.pet.findFirst({
       where: {
         userId: callerUserId,
-        isActive: true,
       },
+      select: { id: true },
     });
-    canSwipe = Boolean(callerActivePet);
+    canSwipe = Boolean(callerPet);
   }
 
   // 6. Ordered photo URLs (main photo first, then additional photos)

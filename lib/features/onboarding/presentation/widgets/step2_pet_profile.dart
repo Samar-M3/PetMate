@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/breeds.dart';
+import '../../../../core/services/pet_image_validation_service.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../data/onboarding_models.dart';
 import '../providers/onboarding_provider.dart';
@@ -33,6 +34,10 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
   String? _gender;
   final List<PetPhotoItem> _photos = [];
   bool _isUploadingPhoto = false;
+  bool _isValidatingPhoto = false;
+  PetImageValidationResult? _validationResult;
+  String? _validatedForAnimalType;
+  final Map<String, ({File? file, Uint8List? bytes})> _localPhotoCache = {};
   String? _photoError;
   String? _ageError;
   bool _initialized = false;
@@ -85,6 +90,72 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
     super.dispose();
   }
 
+  String get _effectiveAnimalType {
+    if (_species.toUpperCase() == 'OTHER') {
+      final custom = _speciesOtherController.text.trim();
+      return custom.isNotEmpty ? custom : 'Other';
+    }
+    return _species;
+  }
+
+  Future<void> _revalidateExistingPhotosForSpecies() async {
+    final targetAnimal = _effectiveAnimalType;
+    if (_photos.isEmpty) {
+      setState(() {
+        _validationResult = null;
+        _validatedForAnimalType = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingPhoto = true;
+      _validationResult = null;
+      _photoError = null;
+    });
+
+    final validator = ref.read(petImageValidationServiceProvider);
+    final kept = <PetPhotoItem>[];
+    PetImageValidationResult? lastFailure;
+    PetImageValidationResult? lastSuccess;
+    var removedUncached = 0;
+
+    for (final photo in _photos) {
+      final cached = _localPhotoCache[photo.url];
+      if (cached == null) {
+        removedUncached++;
+        continue;
+      }
+      final result = await validator.validatePetImage(
+        imageFile: cached.file,
+        imageBytes: cached.bytes,
+        selectedAnimalType: targetAnimal,
+      );
+      if (!mounted) return;
+      if (result.isValid) {
+        kept.add(photo);
+        lastSuccess = result;
+      } else {
+        _localPhotoCache.remove(photo.url);
+        lastFailure = result;
+      }
+    }
+
+    _photos
+      ..clear()
+      ..addAll(kept);
+    _reindexPhotos();
+
+    setState(() {
+      _isValidatingPhoto = false;
+      _validationResult = lastFailure ?? lastSuccess;
+      _validatedForAnimalType = kept.isNotEmpty ? targetAnimal : null;
+      if (removedUncached > 0 && lastFailure == null) {
+        _photoError = 'Please re-upload your pet photo(s) for the newly selected animal type.';
+      }
+    });
+  }
+
   void _onSpeciesChanged(String? nextSpecies) {
     if (nextSpecies == null || nextSpecies == _species) return;
     setState(() {
@@ -96,6 +167,7 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
         _selectedBreed = breeds.first;
       }
     });
+    _revalidateExistingPhotosForSpecies();
   }
 
   Future<void> _showAddPhotoSheet() async {
@@ -167,18 +239,48 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
         return;
       }
 
+      final file = kIsWeb ? null : File(picked.path);
+      final targetAnimal = _effectiveAnimalType;
+
       setState(() {
-        _isUploadingPhoto = true;
+        _isValidatingPhoto = true;
+        _validationResult = null;
         _photoError = null;
       });
 
+      final validation = await ref
+          .read(petImageValidationServiceProvider)
+          .validatePetImage(
+            imageFile: file,
+            imageBytes: bytes,
+            selectedAnimalType: targetAnimal,
+          );
+
+      if (!mounted) return;
+
+      if (!validation.isValid) {
+        setState(() {
+          _isValidatingPhoto = false;
+          _validationResult = validation;
+          _photoError = validation.message;
+        });
+        return;
+      }
+
+      setState(() {
+        _isValidatingPhoto = false;
+        _isUploadingPhoto = true;
+        _validationResult = validation;
+      });
+
       final asset = await ref.read(onboardingProvider.notifier).uploadPublicImage(
-            file: kIsWeb ? null : File(picked.path),
+            file: file,
             bytes: bytes,
             filename: picked.name,
             folder: 'pets',
           );
 
+      _localPhotoCache[asset.url] = (file: file, bytes: bytes);
       setState(() {
         final pos = _photos.length;
         _photos.add(
@@ -189,6 +291,7 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
             isPrimary: pos == 0,
           ),
         );
+        _validatedForAnimalType = targetAnimal;
         _isUploadingPhoto = false;
       });
     } catch (e) {
@@ -243,9 +346,27 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
       return;
     }
 
+    if (_isValidatingPhoto) {
+      setState(() {
+        _photoError = 'Please wait while we verify your pet\'s photo.';
+      });
+      return;
+    }
+
     if (_photos.isEmpty) {
       setState(() {
-        _photoError = 'Please upload at least 1 photo of your pet.';
+        _photoError = _validationResult != null && !_validationResult!.isValid
+            ? _validationResult!.message
+            : 'Please upload at least 1 photo of your pet.';
+      });
+      return;
+    }
+
+    if (_validationResult != null &&
+        !_validationResult!.isValid &&
+        _validatedForAnimalType != _effectiveAnimalType) {
+      setState(() {
+        _photoError = _validationResult!.message;
       });
       return;
     }
@@ -566,7 +687,9 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
               itemBuilder: (ctx, index) {
                 if (index == _photos.length && _photos.length < 6) {
                   return InkWell(
-                    onTap: _isUploadingPhoto ? null : _showAddPhotoSheet,
+                    onTap: (_isUploadingPhoto || _isValidatingPhoto)
+                        ? null
+                        : _showAddPhotoSheet,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
                       decoration: BoxDecoration(
@@ -577,7 +700,7 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
                           style: BorderStyle.solid,
                         ),
                       ),
-                      child: _isUploadingPhoto
+                      child: (_isUploadingPhoto || _isValidatingPhoto)
                           ? const Center(
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
@@ -681,6 +804,52 @@ class _Step2PetProfileState extends ConsumerState<Step2PetProfile> {
                 );
               },
             ),
+            if (_isValidatingPhoto) ...[
+              const SizedBox(height: 10),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Checking your pet\'s photo...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (_validationResult != null && _validationResult!.isValid) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _validationResult!.message,
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (_photoError != null) ...[
               const SizedBox(height: 8),
               Text(

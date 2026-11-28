@@ -210,7 +210,7 @@ export const getNearbyOwners = async (params: {
         isActive: true,
         blocksGiven: { none: { blockedId: userId } },
         blocksReceived: { none: { blockerId: userId } },
-        pets: { some: { isActive: true } },
+        pets: { some: {} },
       },
     },
     select: {
@@ -230,7 +230,6 @@ export const getNearbyOwners = async (params: {
         select: {
           id: true,
           pets: {
-            where: { isActive: true },
             orderBy: { createdAt: "desc" },
             select: {
               id: true,

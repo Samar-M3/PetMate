@@ -30,199 +30,32 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
     required bool currentActive,
   }) async {
     final notifier = ref.read(petsActivationProvider.notifier);
-    final summary = ref.read(petsActivationProvider).summary;
-    final allowedActive = summary?.allowedActive ?? 1;
-    final activePets = summary?.activePets ?? [];
-    final slotPrice = summary?.pricePerSlotNpr ?? 100.0;
-    final slotDurationDays = summary?.slotDurationDays ?? 30;
 
-    // Case 1: Turning OFF is always allowed directly
     if (currentActive) {
       try {
         await notifier.toggleActivation(petId: petId, active: false);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$petName is now hidden from discovery decks.'),
+              content: Text('$petName is no longer your active swiping pet.'),
               backgroundColor: AppColors.info,
             ),
           );
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed: ${e.toString().replaceAll('Exception: ', '')}',
-              ),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-      }
-      return;
-    }
-
-    // Case 2: Turning ON when 1 allowed slot and an active pet already exists -> Prompt Confirmation
-    if (allowedActive == 1 && activePets.isNotEmpty) {
-      final activePet = activePets.first;
-      final choice = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text('Activate Another Pet?'),
-          content: Text(
-            'You can switch your active pet for free, or keep ${activePet.name} active and pay Rs. ${slotPrice.toStringAsFixed(0)} to make both pets visible for $slotDurationDays days.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              onPressed: () => Navigator.pop(ctx, 'swap'),
-              child: Text(
-                'Switch pets',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'paid'),
-              child: Text(
-                'Keep both - Rs. ${slotPrice.toStringAsFixed(0)} / $slotDurationDays days',
-              ),
-            ),
-          ],
-        ),
-      );
-
-      if (!context.mounted) return;
-      if (choice == 'paid') {
-        await context.push('/slots?petId=$petId');
-        return;
-      }
-      if (choice != 'swap') return;
-
-      try {
-        await notifier.toggleActivation(petId: petId, active: true);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$petName is now active in discovery decks!'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
           _showErrorSnackbar(context, e.toString());
         }
       }
       return;
     }
 
-    // Case 3: Several slots exist and all are currently used -> Prompt which pet to turn off or buy slot
-    if (allowedActive > 1 && activePets.length >= allowedActive) {
-      final selectedPetId = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text('Active Limit Reached'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'All $allowedActive of your active pet slots are currently in use. Choose which pet to turn off to activate $petName:',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...activePets.map(
-                (p) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    backgroundImage:
-                        p.imageUrl != null && p.imageUrl!.isNotEmpty
-                        ? NetworkImage(p.imageUrl!)
-                        : null,
-                    child: p.imageUrl == null
-                        ? Text(
-                            p.name[0],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          )
-                        : null,
-                  ),
-                  title: Text(
-                    p.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(p.breed ?? p.animalType ?? 'Pet'),
-                  trailing: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      minimumSize: const Size(60, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                    ),
-                    onPressed: () => Navigator.pop(ctx, p.id),
-                    child: const Text('Deactivate'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      );
-
-      if (selectedPetId == null) return;
-
-      try {
-        await notifier.toggleActivation(
-          petId: petId,
-          active: true,
-          deactivatePetId: selectedPetId,
-        );
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$petName activated successfully!'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          _showErrorSnackbar(context, e.toString());
-        }
-      }
-      return;
-    }
-
-    // Default Case: Empty slot available -> activate directly
     try {
       await notifier.toggleActivation(petId: petId, active: true);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$petName activated in discovery decks!'),
+            content: Text('$petName is now your active pet for swiping!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -249,12 +82,6 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final userPets = authState.user?.pets ?? [];
-    final activationState = ref.watch(petsActivationProvider);
-    final summary = activationState.summary;
-
-    final allowed = summary?.allowedActive ?? 1;
-    final activeCount =
-        summary?.activeCount ?? userPets.where((p) => p.isActive).length;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -284,170 +111,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Slots Summary Banner
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.12,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.visibility_rounded,
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Deck Visibility Slots',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '$activeCount of $allowed active in deck',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 130),
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.terracotta,
-                            minimumSize: const Size(80, 36),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            context.push('/slots');
-                          },
-                          icon: const Icon(
-                            Icons.add,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Get More',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (summary?.expiringSoonWarning != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.warning),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_filled,
-                            color: AppColors.warning,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              summary!.expiringSoonWarning!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (summary?.recentDowngradeMessage != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.error),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: AppColors.error,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              summary!.recentDowngradeMessage!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // 2. Pet Cards List
+            // Pet Cards List
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -603,7 +267,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Visible in deck chip
+                        // Active for swiping chip
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -620,8 +284,8 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                             children: [
                               Icon(
                                 active
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                    ? Icons.check_circle_outline
+                                    : Icons.radio_button_unchecked,
                                 size: 12,
                                 color: active
                                     ? AppColors.success
@@ -629,7 +293,7 @@ class _MyPetsPageState extends ConsumerState<MyPetsPage> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                active ? 'Visible in deck' : 'Hidden from deck',
+                                active ? 'Active for swiping' : 'Not active',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,

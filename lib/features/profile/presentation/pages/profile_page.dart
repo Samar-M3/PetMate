@@ -242,14 +242,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       _ActionRowItem(
                         icon: Icons.tune_rounded,
                         title: 'Manage pets',
-                        subtitle: 'Visibility in Discover feed',
+                        subtitle: 'Manage profiles and active swiping pet',
                         onTap: () => context.push('/my-pets'),
-                      ),
-                      _ActionRowItem(
-                        icon: Icons.add_circle_outline_rounded,
-                        title: 'Pet slots',
-                        subtitle: 'Add active discovery slots',
-                        onTap: () => context.push('/slots'),
                       ),
                       _ActionRowItem(
                         icon: Icons.storefront_outlined,

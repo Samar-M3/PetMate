@@ -202,7 +202,7 @@ class PetImageValidationService {
         status: PetImageValidationStatus.noLabels,
         selectedAnimalType: selectedAnimalType,
         message:
-            'We couldn\'t clearly identify any subject in this photo. Please choose a clearer, well-lit photo of your $selectedAnimalType.',
+            'We couldn\'t clearly identify the animal. Please upload a clearer photo.',
         labels: labels,
       );
     }
@@ -279,7 +279,7 @@ class PetImageValidationService {
         selectedAnimalType: selectedAnimalType,
         detectedOtherAnimal: topOther.key,
         message:
-            'This photo doesn\'t appear to match your selected pet type. You selected $selectedAnimalType, but we detected a ${topOther.key.toLowerCase()} in this image. Please try another photo.',
+            'This image doesn\'t appear to match the selected animal type. Please upload a valid photo.',
         labels: labels,
       );
     }
@@ -292,7 +292,7 @@ class PetImageValidationService {
         selectedAnimalType: selectedAnimalType,
         matchedConfidence: highestLowConfidenceMatch,
         message:
-            'This photo is a bit unclear. You selected $selectedAnimalType, but we couldn\'t confidently verify it. Please try a clearer, well-lit photo.',
+            'We couldn\'t clearly identify the animal. Please upload a clearer photo.',
         labels: labels,
       );
     }
@@ -303,7 +303,7 @@ class PetImageValidationService {
       status: PetImageValidationStatus.mismatch,
       selectedAnimalType: selectedAnimalType,
       message:
-          'This photo doesn\'t appear to match your selected pet type. You selected $selectedAnimalType, but we couldn\'t confidently identify a ${selectedAnimalType.toLowerCase()} in this image. Please try another photo.',
+          'This image doesn\'t appear to match the selected animal type. Please upload a valid photo.',
       labels: labels,
     );
   }

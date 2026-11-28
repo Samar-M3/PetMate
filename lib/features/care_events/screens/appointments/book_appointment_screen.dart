@@ -84,7 +84,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
   List<PetEntity> _getUserPets() {
     final user = ref.read(authStateProvider).user;
     if (user == null) return [];
-    return user.pets.where((p) => p.isActive).toList();
+    return user.pets.toList();
   }
 
   Future<void> _confirmBooking() async {
