@@ -81,6 +81,93 @@ export const validateRegister = (data: unknown): RegisterDTO => {
   return value;
 };
 
+// --- Forgot Password DTOs ---
+
+export interface ForgotPasswordDTO {
+  email: string;
+}
+
+export interface VerifyResetOTPDTO {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordDTO {
+  email: string;
+  resetToken: string;
+  newPassword: string;
+}
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
+  }),
+});
+
+const verifyResetOTPSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
+  }),
+  otp: Joi.string().length(6).pattern(/^\d{6}$/).required().messages({
+    "string.length": "Verification code must be exactly 6 digits",
+    "string.pattern.base": "Verification code must be exactly 6 digits",
+    "any.required": "Verification code is required",
+  }),
+});
+
+const resetPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
+  }),
+  resetToken: Joi.string().min(1).required().messages({
+    "any.required": "Reset token is required",
+  }),
+  newPassword: Joi.string().min(8).max(128).required().messages({
+    "string.min": "Password must be at least 8 characters",
+    "string.max": "Password must not exceed 128 characters",
+    "any.required": "New password is required",
+  }),
+});
+
+export const validateForgotPassword = (data: unknown): ForgotPasswordDTO => {
+  const { error, value } = forgotPasswordSchema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const messages = error.details.map((d) => d.message.replace(/"/g, ""));
+    throw new AppError("Validation failed", 400, messages);
+  }
+  return value;
+};
+
+export const validateVerifyResetOTP = (data: unknown): VerifyResetOTPDTO => {
+  const { error, value } = verifyResetOTPSchema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const messages = error.details.map((d) => d.message.replace(/"/g, ""));
+    throw new AppError("Validation failed", 400, messages);
+  }
+  return value;
+};
+
+export const validateResetPassword = (data: unknown): ResetPasswordDTO => {
+  const { error, value } = resetPasswordSchema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const messages = error.details.map((d) => d.message.replace(/"/g, ""));
+    throw new AppError("Validation failed", 400, messages);
+  }
+  return value;
+};
+
 export const validateLogin = (data: unknown): LoginDTO => {
   const { error, value } = loginSchema.validate(data, {
     abortEarly: false,

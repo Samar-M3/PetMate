@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/registration_provider.dart';
@@ -12,7 +11,12 @@ import '../widgets/reg_step4_health_vet.dart';
 import '../widgets/registration_scaffold.dart';
 
 class PetOwnerRegistrationFlowPage extends ConsumerStatefulWidget {
-  const PetOwnerRegistrationFlowPage({super.key});
+  final bool addPetOnly;
+
+  const PetOwnerRegistrationFlowPage({
+    super.key,
+    this.addPetOnly = false,
+  });
 
   @override
   ConsumerState<PetOwnerRegistrationFlowPage> createState() =>
@@ -32,6 +36,10 @@ class _PetOwnerRegistrationFlowPageState
     // If the user is already authenticated (e.g., resumed after logging in),
     // load saved profile and pet data to resume at the saved step.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.addPetOnly) {
+        ref.read(registrationProvider.notifier).startAddPetFlow();
+        return;
+      }
       final authState = ref.read(authStateProvider);
       if (authState.isAuthenticated) {
         ref.read(registrationProvider.notifier).loadSavedProgress();
@@ -82,19 +90,23 @@ class _PetOwnerRegistrationFlowPageState
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Registration Complete!',
-                style: TextStyle(
+              Text(
+                widget.addPetOnly
+                    ? 'Pet Profile Added!'
+                    : 'Registration Complete!',
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Your pet parent account and pet profile are ready. Welcome to the PetMate Nepal family!',
+              Text(
+                widget.addPetOnly
+                    ? 'Your new pet profile is ready and added to your account.'
+                    : 'Your pet parent account and pet profile are ready. Welcome to the PetMate Nepal family!',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                   height: 1.4,
@@ -106,7 +118,15 @@ class _PetOwnerRegistrationFlowPageState
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    context.go('/');
+                    if (widget.addPetOnly) {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    } else {
+                      context.go('/');
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -116,9 +136,9 @@ class _PetOwnerRegistrationFlowPageState
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Go to Home',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Text(
+                    widget.addPetOnly ? 'Done' : 'Go to Home',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -142,7 +162,8 @@ class _PetOwnerRegistrationFlowPageState
     });
 
     if (regState.isLoading ||
-        (authState.isAuthenticated &&
+        (!widget.addPetOnly &&
+            authState.isAuthenticated &&
             regState.profile == null &&
             regState.errorMessage == null)) {
       return const Scaffold(
@@ -153,7 +174,9 @@ class _PetOwnerRegistrationFlowPageState
       );
     }
 
-    final step = regState.currentStep.clamp(1, 4);
+    final step = widget.addPetOnly
+        ? regState.currentStep.clamp(2, 4)
+        : regState.currentStep.clamp(1, 4);
 
     String title;
     String subtitle;
@@ -194,20 +217,31 @@ class _PetOwnerRegistrationFlowPageState
     }
 
     return RegistrationScaffold(
-      currentStep: step,
+      currentStep: widget.addPetOnly ? step - 1 : step,
+      totalSteps: widget.addPetOnly ? 3 : 4,
       title: title,
       subtitle: subtitle,
       body: bodyWidget,
-      onBack: step > 1
-          ? () => ref.read(registrationProvider.notifier).goBack()
-          : () async {
-              if (authState.isAuthenticated) {
-                await ref.read(authStateProvider.notifier).logout();
-                if (context.mounted) context.go('/login');
-              } else {
-                context.go('/register');
-              }
-            },
+      onBack: widget.addPetOnly
+          ? (step > 2
+              ? () => ref.read(registrationProvider.notifier).goBack()
+              : () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
+                })
+          : (step > 1
+              ? () => ref.read(registrationProvider.notifier).goBack()
+              : () async {
+                  if (authState.isAuthenticated) {
+                    await ref.read(authStateProvider.notifier).logout();
+                    if (context.mounted) context.go('/login');
+                  } else {
+                    context.go('/register');
+                  }
+                }),
       onNext: () => _onNext(step),
       onSkip: onSkip,
       onRetry: () => _onNext(step),
@@ -215,7 +249,8 @@ class _PetOwnerRegistrationFlowPageState
       errorMessage: regState.errorMessage,
       canResumeLogin: regState.canResumeLogin,
       onLoginToResume: () => context.go('/login'),
-      nextButtonText: step == 4 ? 'Get Started' : 'Next',
+      nextButtonText:
+          step == 4 ? (widget.addPetOnly ? 'Save Pet' : 'Get Started') : 'Next',
     );
   }
 }

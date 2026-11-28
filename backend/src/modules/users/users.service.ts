@@ -7,6 +7,7 @@ import { uploadImage, deleteImage } from "../../services/image.service.ts";
 import { checkPetProfileCompleteness } from "../pets/pets.service.ts";
 import { calculateAgeInMonths, calculateAgeString } from "../matching/matching.service.ts";
 import { endConversation } from "../../services/firestore.service.ts";
+import { emailService } from "../../services/email/email.service.ts";
 
 export const initializeUserRecord = async (
   firebaseUid: string,
@@ -96,6 +97,19 @@ export const initializeUserRecord = async (
       pets: true,
     },
   });
+
+  // Send welcome email for new Google sign-in users (fire-and-forget)
+  if (normalizedEmail) {
+    emailService
+      .sendWelcomeEmail({
+        to: normalizedEmail,
+        displayName: trimmedName || undefined,
+        createdAt: user.createdAt,
+      })
+      .catch((err) => {
+        console.error("[Users] Failed to send welcome email for Google sign-in user:", err);
+      });
+  }
 
   return user;
 };

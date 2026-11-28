@@ -5,6 +5,7 @@ import prisma from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { Role } from "../../generated/prisma/client.ts";
 import { AppError } from "../../middleware/errorHandler.ts";
+import { emailService } from "../../services/email/email.service.ts";
 import type { RegisterDTO, LoginDTO } from "./auth.validation.ts";
 
 const JWT_SECRET = process.env.JWT_SECRET || "petmate-super-secret-jwt-key-2026";
@@ -98,6 +99,18 @@ export const registerPetOwner = async (data: RegisterDTO) => {
   });
 
   const token = generateAuthToken(result.user);
+
+  // Send welcome email asynchronously (fire-and-forget — don't block registration)
+  const recipientName = result.profile.displayName || result.profile.fullName || displayName;
+  emailService
+    .sendWelcomeEmail({
+      to: normalizedEmail,
+      displayName: recipientName || undefined,
+      createdAt: result.user.createdAt,
+    })
+    .catch((err) => {
+      console.error("[Auth] Failed to send welcome email:", err);
+    });
 
   return {
     token,
