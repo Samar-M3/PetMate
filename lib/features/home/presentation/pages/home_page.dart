@@ -20,6 +20,7 @@ import '../widgets/discover_paw_background.dart';
 import '../widgets/home_header.dart';
 import '../widgets/intro_message_sheet.dart';
 import '../widgets/like_success_notification.dart';
+import '../widgets/pet_switcher_overlay.dart';
 import '../widgets/swipeable_card_deck.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -35,6 +36,7 @@ class _HomePageState extends ConsumerState<HomePage>
   final Set<int> _visitedNavTabs = {0};
   final GlobalKey<SwipeableCardDeckState> _deckKey =
       GlobalKey<SwipeableCardDeckState>();
+  final GlobalKey _profileNavKey = GlobalKey();
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void dispose() {
+    PetSwitcherOverlay.dismissImmediate();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -65,7 +68,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
     final allUserPets = user?.pets ?? <PetEntity>[];
-    final userPets = allUserPets.where((p) => p.isActive).toList();
+    final userPets = allUserPets;
     final discoveryState = ref.watch(discoveryProvider);
     final discoveryNotifier = ref.read(discoveryProvider.notifier);
     final requestsState = ref.watch(requestsProvider);
@@ -103,11 +106,23 @@ class _HomePageState extends ConsumerState<HomePage>
 
     final unreadChatsCount = ref.watch(unreadChatsCountProvider);
 
-    // Compute profile avatar info for bottom nav
+    // Compute active pet & profile avatar info for bottom nav
+    PetEntity? activePet;
+    for (final p in userPets) {
+      if (p.id == discoveryState.activePetId) {
+        activePet = p;
+        break;
+      }
+    }
+    activePet ??= userPets.isNotEmpty ? userPets.first : null;
+
     final profile = user?.profile;
-    final avatarUrl = profile?.effectiveImageUrl ?? profile?.profilePictureUrl;
-    final profileInitial =
-        (profile?.fullName != null && profile!.fullName!.isNotEmpty)
+    final avatarUrl = activePet?.effectiveImageUrl ??
+        profile?.effectiveImageUrl ??
+        profile?.profilePictureUrl;
+    final profileInitial = (activePet != null && activePet.name.isNotEmpty)
+        ? activePet.name[0].toUpperCase()
+        : (profile?.fullName != null && profile!.fullName!.isNotEmpty)
             ? profile.fullName![0].toUpperCase()
             : (user?.email != null && user!.email!.isNotEmpty)
                 ? user.email![0].toUpperCase()
@@ -125,69 +140,7 @@ class _HomePageState extends ConsumerState<HomePage>
             if (_selectedNavIndex != 2 && _selectedNavIndex != 4)
               const HomeHeader(),
 
-            // 2. Active Pet Switcher (if user has several active pets)
-            if (userPets.length > 1 && _selectedNavIndex == 0)
-              Container(
-                height: 38,
-                margin: const EdgeInsets.only(bottom: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: userPets.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final pet = userPets[index];
-                    final isSelected = pet.id == discoveryState.activePetId;
-                    return InkWell(
-                      onTap: () => discoveryNotifier.setActivePet(pet.id),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.terracotta
-                                : AppColors.border,
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.pets,
-                              size: 13,
-                              color: isSelected
-                                  ? AppColors.terracotta
-                                  : AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              pet.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppColors.terracotta
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-            // 3. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
+            // 2. Main Content Area (Discovery Deck or Tab View with Lazy Loading)
             Expanded(
               child: IndexedStack(
                 index: _selectedNavIndex,
@@ -232,6 +185,33 @@ class _HomePageState extends ConsumerState<HomePage>
                   requestsState.pendingCount + unreadChatsCount,
               avatarUrl: avatarUrl,
               profileInitial: profileInitial,
+              profileItemKey: _profileNavKey,
+              onProfileLongPressStart: userPets.length > 1
+                  ? (globalPos) {
+                      final renderBox = _profileNavKey.currentContext
+                          ?.findRenderObject() as RenderBox?;
+                      if (renderBox == null) return;
+                      PetSwitcherOverlay.show(
+                        context: context,
+                        anchor: renderBox,
+                        pets: userPets,
+                        activePetId: activePet?.id,
+                        onPetSelected: (petId) {
+                          discoveryNotifier.setActivePet(petId);
+                        },
+                      );
+                      PetSwitcherOverlay.updateDrag(globalPos);
+                    }
+                  : null,
+              onProfileLongPressMove: userPets.length > 1
+                  ? PetSwitcherOverlay.updateDrag
+                  : null,
+              onProfileLongPressEnd: userPets.length > 1
+                  ? PetSwitcherOverlay.endDrag
+                  : null,
+              onProfileLongPressCancel: userPets.length > 1
+                  ? PetSwitcherOverlay.cancel
+                  : null,
               onItemSelected: (index) {
                 setState(() {
                   _selectedNavIndex = index;
@@ -423,38 +403,84 @@ class _HomePageState extends ConsumerState<HomePage>
     final activePetSpecies = activePet?.animalType;
 
     // Build filter tabs
+    final isForYou = discoveryState.currentFilter == DiscoveryFilter.forYou;
+    final canUseForYou = activePetSpecies != null && activePetSpecies.isNotEmpty;
+
     return Column(
       children: [
-        // Filter Tabs (All / For You)
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Row(
-            children: [
-              _buildFilterTab(
-                label: 'All',
-                isSelected: discoveryState.currentFilter == DiscoveryFilter.all,
-                onTap: () => discoveryNotifier.setFilter(DiscoveryFilter.all),
+        // Compact centered All / For You segmented control
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 2, 0, 6),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: FractionallySizedBox(
+                widthFactor: 0.78,
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: AppColors.border, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1A2926).withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      AnimatedAlign(
+                        alignment: isForYou
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        child: FractionallySizedBox(
+                          widthFactor: 0.5,
+                          heightFactor: 1.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE16F52),
+                              borderRadius: BorderRadius.circular(19),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          _buildFilterTab(
+                            label: 'All',
+                            isSelected: !isForYou,
+                            onTap: () => discoveryNotifier
+                                .setFilter(DiscoveryFilter.all),
+                          ),
+                          _buildFilterTab(
+                            label: 'For You',
+                            isSelected: isForYou,
+                            onTap: () {
+                              if (canUseForYou) {
+                                discoveryNotifier.setFilter(
+                                  DiscoveryFilter.forYou,
+                                  species: activePetSpecies,
+                                );
+                              } else {
+                                discoveryNotifier
+                                    .setFilter(DiscoveryFilter.all);
+                              }
+                            },
+                            isEnabled: canUseForYou,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              _buildFilterTab(
-                label: 'For You',
-                isSelected: discoveryState.currentFilter == DiscoveryFilter.forYou,
-                onTap: () {
-                  if (activePetSpecies != null && activePetSpecies.isNotEmpty) {
-                    discoveryNotifier.setFilter(DiscoveryFilter.forYou, species: activePetSpecies);
-                  } else {
-                    // Fallback to All if no species
-                    discoveryNotifier.setFilter(DiscoveryFilter.all);
-                  }
-                },
-                isEnabled: activePetSpecies != null && activePetSpecies.isNotEmpty,
-              ),
-            ],
+            ),
           ),
         ),
 
@@ -478,35 +504,23 @@ class _HomePageState extends ConsumerState<HomePage>
     bool isEnabled = true,
   }) {
     return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            onTap: isEnabled ? onTap : null,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.terracotta : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? Colors.white
-                      : isEnabled
-                          ? AppColors.textPrimary
-                          : AppColors.textMuted,
-                ),
-              ),
+      child: InkWell(
+        onTap: isEnabled ? onTap : null,
+        borderRadius: BorderRadius.circular(19),
+        child: Center(
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected
+                  ? Colors.white
+                  : isEnabled
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
             ),
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       ),

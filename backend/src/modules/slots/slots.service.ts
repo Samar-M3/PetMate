@@ -9,85 +9,33 @@ import { expireSlotsAndDowngrade } from "./slots.expiry.ts";
 import { getSlotPaymentProvider } from "./slots.payment.ts";
 
 export const getActivationSummary = async (userId: string) => {
-  // 1. Lazy expiration check
-  await expireSlotsAndDowngrade(userId);
-
-  const now = new Date();
-  const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-  // 2. Fetch user's active pets and active slot entitlements
-  const [activePets, entitlements, unreadMessages] = await Promise.all([
-    prisma.pet.findMany({
-      where: { userId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        animalType: true,
-        breed: true,
-        imageUrl: true,
-        profilePictureUrl: true,
-        activatedAt: true,
-      },
-      orderBy: [{ activatedAt: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.activeSlotEntitlement.findMany({
-      where: {
-        ownerId: userId,
-        status: EntitlementStatus.ACTIVE,
-        expiresAt: { gt: now },
-      },
-      orderBy: { expiresAt: "asc" },
-      select: {
-        id: true,
-        startsAt: true,
-        expiresAt: true,
-        status: true,
-      },
-    }),
-    prisma.userDowngradeMessage.findMany({
-      where: { userId, read: false },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    }),
-  ]);
-
-  const paidSlotsCount = Math.min(
-    entitlements.length,
-    matchingConfig.MAX_PAID_SLOTS
-  );
-  const allowedActive = matchingConfig.FREE_ACTIVE_PETS + paidSlotsCount;
-  const activeCount = activePets.length;
-
-  // Check if any slot is expiring within 3 days
-  const expiringSoonSlot = entitlements.find(
-    (e) => e.expiresAt > now && e.expiresAt <= threeDaysFromNow
-  );
-
-  const latestDowngradeMessage = unreadMessages[0]?.message || null;
+  const activePets = await prisma.pet.findMany({
+    where: { userId, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      animalType: true,
+      breed: true,
+      imageUrl: true,
+      profilePictureUrl: true,
+      activatedAt: true,
+    },
+    orderBy: [{ activatedAt: "asc" }, { createdAt: "asc" }],
+  });
 
   return {
-    allowedActive,
-    activeCount,
-    freeSlots: matchingConfig.FREE_ACTIVE_PETS,
-    paidSlotsCount,
-    maxPaidSlots: matchingConfig.MAX_PAID_SLOTS,
-    availableSlotsToPurchase: Math.max(
-      0,
-      matchingConfig.MAX_PAID_SLOTS - paidSlotsCount
-    ),
-    paidSlots: entitlements.slice(0, matchingConfig.MAX_PAID_SLOTS).map((e) => ({
-      id: e.id,
-      startsAt: e.startsAt,
-      expiresAt: e.expiresAt,
-      isExpiringSoon: e.expiresAt <= threeDaysFromNow,
-    })),
+    allowedActive: 1,
+    activeCount: activePets.length,
+    freeSlots: 1,
+    paidSlotsCount: 0,
+    maxPaidSlots: 0,
+    availableSlotsToPurchase: 0,
+    paidSlots: [],
     activePets,
     pricePerSlotNpr: matchingConfig.SLOT_PRICE_NPR,
     slotDurationDays: matchingConfig.SLOT_DURATION_DAYS,
-    expiringSoonWarning: expiringSoonSlot
-      ? `One of your active slots expires on ${expiringSoonSlot.expiresAt.toISOString().split("T")[0]}. Renew to prevent your pet from being deactivated!`
-      : null,
-    recentDowngradeMessage: latestDowngradeMessage,
+    expiringSoonWarning: null,
+    recentDowngradeMessage: null,
   };
 };
 

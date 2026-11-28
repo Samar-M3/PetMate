@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/app_network_image.dart';
@@ -9,6 +11,15 @@ class PetMateBottomNavBar extends StatelessWidget {
   final String? avatarUrl;
   final String profileInitial;
 
+  /// Key attached to the profile nav item so the switcher overlay can anchor to it.
+  final GlobalKey? profileItemKey;
+
+  /// Called after an 800 ms long press on the Profile button.
+  final ValueChanged<Offset>? onProfileLongPressStart;
+  final ValueChanged<Offset>? onProfileLongPressMove;
+  final ValueChanged<Offset>? onProfileLongPressEnd;
+  final VoidCallback? onProfileLongPressCancel;
+
   const PetMateBottomNavBar({
     super.key,
     required this.selectedIndex,
@@ -16,6 +27,11 @@ class PetMateBottomNavBar extends StatelessWidget {
     this.pendingRequestsCount = 0,
     this.avatarUrl,
     this.profileInitial = 'P',
+    this.profileItemKey,
+    this.onProfileLongPressStart,
+    this.onProfileLongPressMove,
+    this.onProfileLongPressEnd,
+    this.onProfileLongPressCancel,
   });
 
   static const Color _deepTeal = Color(0xFF0F5C57);
@@ -71,7 +87,19 @@ class PetMateBottomNavBar extends StatelessWidget {
                 activeIcon: Icons.medical_services_rounded,
                 label: 'Vets',
               ),
-              _buildProfileNavItem(),
+              Expanded(
+                child: _ProfileNavItem(
+                  itemKey: profileItemKey,
+                  isSelected: selectedIndex == 4,
+                  avatarUrl: avatarUrl,
+                  profileInitial: profileInitial,
+                  onTap: () => onItemSelected(4),
+                  onLongPressStart: onProfileLongPressStart,
+                  onLongPressMove: onProfileLongPressMove,
+                  onLongPressEnd: onProfileLongPressEnd,
+                  onLongPressCancel: onProfileLongPressCancel,
+                ),
+              ),
             ],
           ),
         ),
@@ -146,16 +174,145 @@ class PetMateBottomNavBar extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildProfileNavItem() {
-    final isSelected = selectedIndex == 4;
-    final labelColor = isSelected ? _darkText : _inactiveGrey;
+class _ProfileNavItem extends StatefulWidget {
+  final GlobalKey? itemKey;
+  final bool isSelected;
+  final String? avatarUrl;
+  final String profileInitial;
+  final VoidCallback onTap;
+  final ValueChanged<Offset>? onLongPressStart;
+  final ValueChanged<Offset>? onLongPressMove;
+  final ValueChanged<Offset>? onLongPressEnd;
+  final VoidCallback? onLongPressCancel;
 
-    return Expanded(
-      child: InkWell(
-        onTap: () => onItemSelected(4),
-        borderRadius: BorderRadius.circular(14),
+  const _ProfileNavItem({
+    this.itemKey,
+    required this.isSelected,
+    required this.avatarUrl,
+    required this.profileInitial,
+    required this.onTap,
+    this.onLongPressStart,
+    this.onLongPressMove,
+    this.onLongPressEnd,
+    this.onLongPressCancel,
+  });
+
+  @override
+  State<_ProfileNavItem> createState() => _ProfileNavItemState();
+}
+
+class _ProfileNavItemState extends State<_ProfileNavItem> {
+  static const Duration _longPressThreshold = Duration(milliseconds: 250);
+  static const double _preLongPressSlop = 24.0;
+
+  Timer? _holdTimer;
+  int? _activePointer;
+  Offset? _downPosition;
+  bool _longPressActive = false;
+  bool _isPressed = false;
+  bool _slopExceeded = false;
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  void _resetState() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _activePointer = null;
+    _downPosition = null;
+    _longPressActive = false;
+    _slopExceeded = false;
+    if (_isPressed && mounted) {
+      setState(() => _isPressed = false);
+    }
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (_activePointer != null) return;
+    _activePointer = event.pointer;
+    _downPosition = event.position;
+    _longPressActive = false;
+    _slopExceeded = false;
+    setState(() => _isPressed = true);
+
+    if (widget.onLongPressStart != null) {
+      _holdTimer?.cancel();
+      _holdTimer = Timer(_longPressThreshold, () {
+        if (!mounted || _activePointer == null || _slopExceeded) return;
+        _longPressActive = true;
+        widget.onLongPressStart?.call(_downPosition ?? event.position);
+      });
+    }
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointer) return;
+
+    if (_longPressActive) {
+      widget.onLongPressMove?.call(event.position);
+      return;
+    }
+
+    if (!_slopExceeded && _downPosition != null) {
+      if ((event.position - _downPosition!).distance > _preLongPressSlop) {
+        _slopExceeded = true;
+        _holdTimer?.cancel();
+        _holdTimer = null;
+        if (_isPressed && mounted) {
+          setState(() => _isPressed = false);
+        }
+      }
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer != _activePointer) return;
+
+    if (_longPressActive) {
+      widget.onLongPressEnd?.call(event.position);
+      _resetState();
+      return;
+    }
+
+    final shouldTap = !_slopExceeded;
+    _resetState();
+    if (shouldTap) {
+      widget.onTap();
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _activePointer) return;
+
+    if (_longPressActive) {
+      widget.onLongPressCancel?.call();
+    }
+    _resetState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = widget.isSelected
+        ? PetMateBottomNavBar._darkText
+        : PetMateBottomNavBar._inactiveGrey;
+
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _handlePointerDown,
+      onPointerMove: _handlePointerMove,
+      onPointerUp: _handlePointerUp,
+      onPointerCancel: _handlePointerCancel,
+      child: AnimatedScale(
+        scale: _isPressed && !_longPressActive ? 0.92 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
         child: Padding(
+          key: widget.itemKey,
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -167,14 +324,16 @@ class PetMateBottomNavBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? _deepTeal : Colors.transparent,
+                    color: widget.isSelected
+                        ? PetMateBottomNavBar._deepTeal
+                        : Colors.transparent,
                     width: 2.0,
                   ),
                 ),
                 child: UserAvatar(
-                  imageUrl: avatarUrl,
+                  imageUrl: widget.avatarUrl,
                   radius: 13,
-                  initials: profileInitial,
+                  initials: widget.profileInitial,
                 ),
               ),
               const SizedBox(height: 3),
@@ -184,7 +343,8 @@ class PetMateBottomNavBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 10.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight:
+                      widget.isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: labelColor,
                   letterSpacing: -0.1,
                 ),

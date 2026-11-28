@@ -1,10 +1,13 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/breeds.dart';
+import '../../../../core/services/pet_image_validation_service.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../onboarding/data/onboarding_models.dart';
 import '../../data/registration_service.dart';
@@ -32,6 +35,10 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
 
   List<PetPhotoItem> _photos = [];
   bool _isUploadingPhoto = false;
+  bool _isValidatingPhoto = false;
+  PetImageValidationResult? _validationResult;
+  String? _validatedForAnimalType;
+  final Map<String, ({File? file, Uint8List? bytes})> _localPhotoCache = {};
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -79,7 +86,79 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
     return PetSpeciesConstants.breedsForSpecies(_selectedSpecies);
   }
 
+  String get _effectiveAnimalType {
+    if (_selectedSpecies == 'Other') {
+      final custom = _speciesOtherController.text.trim();
+      return custom.isNotEmpty ? custom : 'Other';
+    }
+    return _selectedSpecies;
+  }
+
+  Future<void> _revalidateExistingPhotosForSpecies() async {
+    final targetAnimal = _effectiveAnimalType;
+    if (_photos.isEmpty) {
+      setState(() {
+        _validationResult = null;
+        _validatedForAnimalType = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingPhoto = true;
+      _validationResult = null;
+    });
+
+    final validator = ref.read(petImageValidationServiceProvider);
+    final kept = <PetPhotoItem>[];
+    PetImageValidationResult? lastFailure;
+    PetImageValidationResult? lastSuccess;
+    var removedUncached = 0;
+
+    for (final photo in _photos) {
+      final cached = _localPhotoCache[photo.url];
+      if (cached == null) {
+        removedUncached++;
+        continue;
+      }
+      final result = await validator.validatePetImage(
+        imageFile: cached.file,
+        imageBytes: cached.bytes,
+        selectedAnimalType: targetAnimal,
+      );
+      if (!mounted) return;
+      if (result.isValid) {
+        kept.add(photo);
+        lastSuccess = result;
+      } else {
+        _localPhotoCache.remove(photo.url);
+        lastFailure = result;
+      }
+    }
+
+    for (var i = 0; i < kept.length; i++) {
+      kept[i] = kept[i].copyWith(position: i, isPrimary: i == 0);
+    }
+
+    setState(() {
+      _photos = kept;
+      _isValidatingPhoto = false;
+      _validationResult = lastFailure ?? lastSuccess;
+      _validatedForAnimalType = kept.isNotEmpty ? targetAnimal : null;
+    });
+
+    if (removedUncached > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please re-upload your pet photo(s) for the newly selected animal type.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+    }
+  }
+
   Future<void> _pickAndUploadPhoto() async {
+    if (_isUploadingPhoto || _isValidatingPhoto) return;
     final remainingSlots = 6 - _photos.length;
     if (remainingSlots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,11 +187,17 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
         );
       }
 
-      setState(() => _isUploadingPhoto = true);
-
+      final targetAnimal = _effectiveAnimalType;
+      final validator = ref.read(petImageValidationServiceProvider);
       final service = ref.read(registrationServiceProvider);
       final uploadedItems = <PetPhotoItem>[];
       var skippedOversized = 0;
+      PetImageValidationResult? lastValidation;
+
+      setState(() {
+        _isValidatingPhoto = true;
+        _validationResult = null;
+      });
 
       for (final picked in selectedFiles) {
         final bytes = await picked.readAsBytes();
@@ -121,12 +206,32 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
           continue;
         }
 
+        final file = !kIsWeb ? File(picked.path) : null;
+        final validation = await validator.validatePetImage(
+          imageFile: file,
+          imageBytes: bytes,
+          selectedAnimalType: targetAnimal,
+        );
+        lastValidation = validation;
+
+        if (!validation.isValid) {
+          continue;
+        }
+
+        if (mounted) {
+          setState(() {
+            _isValidatingPhoto = false;
+            _isUploadingPhoto = true;
+          });
+        }
+
         final asset = await service.uploadImage(
           bytes: bytes,
           filename: picked.name.isNotEmpty ? picked.name : 'pet_photo.jpg',
           folder: 'pets',
         );
 
+        _localPhotoCache[asset.url] = (file: file, bytes: bytes);
         final nextIndex = _photos.length + uploadedItems.length;
         uploadedItems.add(PetPhotoItem(
           url: asset.url,
@@ -134,6 +239,13 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
           position: nextIndex,
           isPrimary: nextIndex == 0,
         ));
+
+        if (mounted) {
+          setState(() {
+            _isUploadingPhoto = false;
+            _isValidatingPhoto = true;
+          });
+        }
       }
 
       if (mounted) {
@@ -145,7 +257,12 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
               isPrimary: i == 0,
             );
           }
+          _isValidatingPhoto = false;
           _isUploadingPhoto = false;
+          _validationResult = lastValidation;
+          if (uploadedItems.isNotEmpty) {
+            _validatedForAnimalType = targetAnimal;
+          }
         });
 
         if (skippedOversized > 0) {
@@ -161,7 +278,10 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isUploadingPhoto = false);
+        setState(() {
+          _isValidatingPhoto = false;
+          _isUploadingPhoto = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to upload photo: $e'),
@@ -227,10 +347,34 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
       return;
     }
 
-    if (_photos.isEmpty) {
+    if (_isValidatingPhoto) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add at least 1 photo of your pet.'),
+          content: Text('Please wait while we verify your pet\'s photo.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    if (_photos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _validationResult != null && !_validationResult!.isValid
+                ? _validationResult!.message
+                : 'Please add at least 1 valid photo of your pet.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_validationResult != null && !_validationResult!.isValid && _validatedForAnimalType != _effectiveAnimalType) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_validationResult!.message),
           backgroundColor: AppColors.error,
         ),
       );
@@ -288,12 +432,13 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                 .toList(),
             onChanged: (val) {
-              if (val != null) {
+              if (val != null && val != _selectedSpecies) {
                 setState(() {
                   _selectedSpecies = val;
                   final breeds = PetSpeciesConstants.breedsForSpecies(val);
                   _selectedBreed = breeds.isNotEmpty ? breeds.first : 'Mixed';
                 });
+                _revalidateExistingPhotosForSpecies();
               }
             },
           ),
@@ -472,7 +617,9 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
               if (index == _photos.length) {
                 // Add photo tile
                 return InkWell(
-                  onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
+                  onTap: (_isUploadingPhoto || _isValidatingPhoto)
+                      ? null
+                      : _pickAndUploadPhoto,
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
                     decoration: BoxDecoration(
@@ -484,7 +631,7 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
                         width: 1.5,
                       ),
                     ),
-                    child: _isUploadingPhoto
+                    child: (_isUploadingPhoto || _isValidatingPhoto)
                         ? const Center(
                             child: SizedBox(
                               width: 24,
@@ -634,6 +781,75 @@ class RegStep2PetProfileState extends ConsumerState<RegStep2PetProfile> {
               );
             },
           ),
+          if (_isValidatingPhoto) ...[
+            const SizedBox(height: 12),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Checking your pet\'s photo...',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ] else if (_validationResult != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: (_validationResult!.isValid
+                        ? AppColors.success
+                        : AppColors.error)
+                    .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: (_validationResult!.isValid
+                          ? AppColors.success
+                          : AppColors.error)
+                      .withValues(alpha: 0.28),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _validationResult!.isValid
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.error_outline_rounded,
+                    size: 18,
+                    color: _validationResult!.isValid
+                        ? AppColors.success
+                        : AppColors.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _validationResult!.message,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        color: _validationResult!.isValid
+                            ? AppColors.success
+                            : AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
         ],
       ),

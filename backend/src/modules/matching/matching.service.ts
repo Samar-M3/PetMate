@@ -195,10 +195,6 @@ export const getDeckFeed = async ({
     throw new AppError("Your account is suspended or inactive", 403);
   }
 
-  if (!actingPet.isActive) {
-    throw new AppError("Acting pet is inactive. Only active pets can view the deck or swipe.", 400);
-  }
-
   const excludedPetIds = new Set<string>();
   excludedPetIds.add(actingPetId);
 
@@ -240,9 +236,11 @@ export const getDeckFeed = async ({
     where: {
       // Not belonging to same owner
       userId: { not: userId },
-      // Candidate owner is active and not suspended
+      // Candidate owner is active and not suspended, and no block exists
       user: {
         isActive: true,
+        blocksGiven: { none: { blockedId: userId } },
+        blocksReceived: { none: { blockerId: userId } },
         ...(area
           ? {
               profile: {
@@ -259,8 +257,7 @@ export const getDeckFeed = async ({
       ...(breed ? { breed: { contains: breed, mode: "insensitive" } } : {}),
       // Optional Age filter
       ...(dobCondition ? { dateOfBirth: dobCondition } : {}),
-      // Candidate pet must be active with a name and at least one photo
-      isActive: true,
+      // Candidate pet must have a name and at least one photo (active status does not restrict discoverability)
       name: { not: "" },
       OR: [
         { imageUrl: { not: null } },
@@ -479,9 +476,6 @@ export const recordSwipe = async ({
     if (!swiperPet.user.isActive) {
       throw new AppError("Your account is inactive or suspended", 403);
     }
-    if (!swiperPet.isActive) {
-      throw new AppError("Swiper pet is inactive. Only active pets can swipe.", 400);
-    }
 
     // 2. Verify target pet exists and target owner is active
     const targetPet = await tx.pet.findUnique({
@@ -493,9 +487,6 @@ export const recordSwipe = async ({
     }
     if (!targetPet.user.isActive) {
       throw new AppError("Target pet owner is inactive", 400);
-    }
-    if (!targetPet.isActive) {
-      throw new AppError("Target pet is currently inactive and cannot be swiped on", 400);
     }
 
     // 3. Verify target owner is not self

@@ -177,12 +177,19 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       isLoading: true,
       errorMessage: null,
       currentIndex: 0,
-      pets: [],
+      pets: const [],
+      forYouPets: const [],
+      forYouCurrentIndex: 0,
+      forYouNextCursor: null,
+      forYouHasMoreServer: false,
+      isForYouLoading: false,
+      clearLikeEvent: true,
       currentFilter: DiscoveryFilter.all,
     );
 
     try {
       final result = await _repository.getDiscover(petId: petId, limit: 10);
+      if (state.activePetId != petId) return;
       state = state.copyWith(
         isLoading: false,
         pets: result.pets,
@@ -191,6 +198,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
         errorMessage: null,
       );
     } catch (e) {
+      if (state.activePetId != petId) return;
       if (kDebugMode) {
         debugPrint(
           '[Discovery] ❌ Failed to load initial feed for pet $petId: $e',
@@ -315,7 +323,10 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   }
 
   void setActivePet(String petId) {
-    if (state.activePetId == petId && state.pets.isNotEmpty) return;
+    if (state.activePetId == petId &&
+        (state.pets.isNotEmpty || state.isLoading)) {
+      return;
+    }
     loadInitial(petId);
   }
 
